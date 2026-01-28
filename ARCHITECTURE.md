@@ -1,8 +1,8 @@
-# MediMinder Phase 2 Architecture
+# RemiMinder Phase 2 Architecture
 
 ## Overview
 
-MediMinder Phase 2 is a mobile-first healthcare companion that connects patients and caregivers through AI-powered visit recording and intelligent medication management.
+RemiMinder Phase 2 is a mobile-first healthcare companion that connects patients and caregivers through AI-powered visit recording and intelligent medication management.
 
 ## System Components
 
