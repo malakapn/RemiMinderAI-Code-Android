@@ -1,0 +1,28 @@
+﻿# Ignore Git metadata
+.git/
+.gitignore
+
+# Ignore Python cache and virtual environment
+__pycache__/
+venv/
+.env
+
+# Security: Ignore ALL JSON keys strictly
+*-firebase-adminsdk-*.json
+*-gcr-*.json
+stunning-ripsaw-*.json
+*.key
+
+# Build Performance: Ignore large binaries and logs
+*.m4a
+*.wav
+*.mp3
+*.log
+*.txt
+!requirements.txt
+!requirements-worker.txt
+
+# Local IDE and OS files
+.vscode/
+.idea/
+.DS_Store

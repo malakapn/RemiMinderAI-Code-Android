@@ -1,0 +1,19 @@
+# Environment management
+python-dotenv==1.2.1
+
+# Database
+psycopg2-binary>=2.9.0,<3.0.0
+sqlalchemy>=1.4.0,<3.0.0
+
+# Added for timezone handling (requested by services/db_reminders.py)
+pytz
+
+# Google Cloud
+google-cloud-storage
+google-cloud-speech>=2.21.0
+google-cloud-aiplatform
+firebase-admin
+
+# Async helpers
+anyio>=4.0.0
+asyncpg

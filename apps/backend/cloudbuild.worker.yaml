@@ -1,0 +1,5 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'Dockerfile.worker', '-t', 'gcr.io/stunning-ripsaw-480402-i4/remiminder-stt-worker', '.']
+images:
+  - 'gcr.io/stunning-ripsaw-480402-i4/remiminder-stt-worker'
