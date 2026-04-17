@@ -39,7 +39,7 @@ jobs:
         working-directory: apps/mobile
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v3
+        uses: uses: actions/upload-artifact@v4
         with:
           name: remiminderai-debug
           path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
