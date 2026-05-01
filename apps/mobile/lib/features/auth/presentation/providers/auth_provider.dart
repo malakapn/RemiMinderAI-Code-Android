@@ -96,9 +96,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
     try {
       // createUserWithEmailAndPassword() already signs the user into Firebase;
-      // no follow-up signInWithEmailAndPassword() is required. Tokens are saved
-      // in FirebaseAuthService; this notifier becomes authenticated after backend
-      // bootstrap + profile load succeed.
+      // tokens are saved in FirebaseAuthService. Backend bootstrap/profile is optional.
       final user = await _authRepository.signUp(
         email: email,
         password: password,
@@ -113,11 +111,9 @@ class AuthNotifier extends Notifier<AuthState> {
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
       } catch (_) {
-        await _authRepository.signOut();
-        const msg =
-            'Account created, but we could not finish setup. Please sign in with your email and password.';
-        state = AuthState.error(msg);
-        throw Exception(msg);
+        // Backend profile load failed but Firebase account is valid
+        // Do NOT sign out — authenticate with Firebase user only
+        state = AuthState.authenticated(user);
       }
     } catch (e) {
       if (!state.hasError) {
@@ -145,11 +141,9 @@ class AuthNotifier extends Notifier<AuthState> {
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
       } catch (_) {
-        await _authRepository.signOut();
-        state = AuthState.error(
-          'Signed in, but we could not load your profile. Please try again.',
-        );
-        return;
+        // Backend profile load failed; Firebase session is still valid
+        // Do NOT sign out — authenticate with Firebase user only
+        state = AuthState.authenticated(user);
       }
     } catch (e) {
       state = AuthState.error(e.toString());
