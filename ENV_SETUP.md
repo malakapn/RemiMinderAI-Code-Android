@@ -82,7 +82,21 @@ DEBUG=True
 2. Ensure **`apps/mobile/.env`** includes `GOOGLE_CLIENT_ID` or `GOOGLE_WEB_CLIENT_ID` and run `flutter pub get` before `flutter run` / `flutter build`.
 3. Test backend: `cd apps/backend` and start per that app’s README.
 
-Firebase Android is already configured for this project (Google + Email/Password, debug SHA-1, **`google-services.json`** under `apps/mobile/android/app/` — often gitignored, supplied locally or via CI secrets). If Google Sign-In still returns `sign_in_failed` on a **new machine**, compare your debug keystore SHA-1 to the Firebase Android app and confirm `apps/mobile/.env` is loaded after rebuild.
+Firebase Android is already configured for this project (Google + Email/Password, **`google-services.json`** under `apps/mobile/android/app/` — often gitignored, supplied locally or via CI secrets). If Google Sign-In still returns `sign_in_failed` on a **new machine**, compare your debug keystore fingerprints to the Firebase Android app and confirm `apps/mobile/.env` is loaded after rebuild.
+
+### SHA-1 vs SHA-256 in Firebase
+
+Your **signing certificate** has **both** a SHA-1 and a SHA-256 fingerprint. They are different hashes of the **same** public key—not alternatives.
+
+- In **Firebase Console → Project settings → Your apps → Android**, use **Add fingerprint** and paste the **SHA-1** value when the UI asks for it (same place accepts standard certificate fingerprints per [Google’s Firebase help](https://support.google.com/firebase/answer/9137403)).
+- If your build log or tool only printed **SHA-256**, get **SHA-1** from the same keystore or APK, for example:
+  - From the **debug keystore** (Windows path shown):
+
+    `keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androiddebugkey -storepass android -keypass android`
+
+  - Or from `apps/mobile/android`: `.\gradlew signingReport` and copy both **SHA1** and **SHA256** lines for the variant you install (debug vs release).
+
+Add every fingerprint for keys that sign builds you run (debug, release, Play App Signing), then download an updated **`google-services.json`** if Firebase prompts you to.
 
 ## Security notes
 
