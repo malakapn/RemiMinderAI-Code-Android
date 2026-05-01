@@ -1,5 +1,8 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'billing_redirect_stub.dart'
+    if (dart.library.io) 'billing_redirect.dart' as billing_redirect;
+
 /// Environment configuration for MediMinder Flutter app
 class Environment {
   // Track if environment has been loaded
@@ -19,6 +22,45 @@ class Environment {
   // App Environment
   static String get flutterEnv =>
       _isLoaded ? (dotenv.env['FLUTTER_ENV'] ?? 'development') : 'development';
+
+  /// OAuth 2.0 **Web client** ID from Firebase (Project settings → Your apps → Web client,
+  /// or Authentication → Sign-in method → Google). On Android this is often required so
+  /// `GoogleSignIn` returns a non-null **id token** for `GoogleAuthProvider.credential`.
+  static String? get googleWebClientId {
+    if (!_isLoaded) return null;
+    final v = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+    if (v == null || v.isEmpty) return null;
+    return v;
+  }
+
+  /// Default app URL scheme for Stripe Checkout return URLs (mobile).
+  static String get _billingUrlScheme {
+    if (_isLoaded && dotenv.env['BILLING_URL_SCHEME'] != null) {
+      final s = dotenv.env['BILLING_URL_SCHEME']!.trim();
+      if (s.isNotEmpty) return s;
+    }
+    return billing_redirect.defaultBillingUrlScheme();
+  }
+
+  /// Stripe Checkout success URL; must include literal `{CHECKOUT_SESSION_ID}` for Stripe.
+  static String get billingSuccessUrl {
+    if (_isLoaded &&
+        dotenv.env['BILLING_SUCCESS_URL'] != null &&
+        dotenv.env['BILLING_SUCCESS_URL']!.trim().isNotEmpty) {
+      return dotenv.env['BILLING_SUCCESS_URL']!.trim();
+    }
+    return '$_billingUrlScheme://billing/success?session_id={CHECKOUT_SESSION_ID}';
+  }
+
+  /// Stripe Checkout cancel URL.
+  static String get billingCancelUrl {
+    if (_isLoaded &&
+        dotenv.env['BILLING_CANCEL_URL'] != null &&
+        dotenv.env['BILLING_CANCEL_URL']!.trim().isNotEmpty) {
+      return dotenv.env['BILLING_CANCEL_URL']!.trim();
+    }
+    return '$_billingUrlScheme://billing/cancel';
+  }
 
   // Environment checks
   static bool get isProduction => flutterEnv == 'production';

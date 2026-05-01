@@ -1,5 +1,55 @@
 import 'package:flutter/material.dart';
 
+/// Caregiver dashboard / invitations UI tokens (Firestore care team flows).
+class RemiCareUiColors {
+  RemiCareUiColors._();
+
+  static const Color primaryDarkTeal = Color(0xFF1B3A30);
+  static const Color activeTealAccent = Color(0xFF2E7D62);
+  static const Color bodyBackground = Color(0xFFF5F5F3);
+  static const Color cardBackground = Color(0xFFFFFFFF);
+  static const Color sectionHeaderText = Color(0xFF1B1B1B);
+  static const Color bodySubtitleText = Color(0xFF6B6B6B);
+  static const Color urgentBadgeText = Color(0xFFB71C1C);
+  static const Color highBadgeText = Color(0xFFE65100);
+  static const Color confidenceText = Color(0xFF9E9E9E);
+  static const Color amberPendingAccent = Color(0xFFF59E0B);
+  static const Color blueViewedAccent = Color(0xFF2563EB);
+  static const Color grayExpiredAccent = Color(0xFF9CA3AF);
+  static const Color tealAcceptButton = Color(0xFF2E7D62);
+  static const Color declineBorder = Color(0xFFBDBDBD);
+  static const Color pendingBadgeBg = Color(0x22F59E0B);
+  static const Color pendingBadgeText = Color(0xFF854F0B);
+  static const Color filterInactiveBg = Color(0xFFEEEEEE);
+  static const Color snackbarSuccessBg = Color(0xFF2E7D62);
+
+  /// My Patients tab
+  static const Color subtitleSecondary = Color(0xFF6B6B6B);
+  static const Color searchBarBg = Color(0xFFEEEEEE);
+  static const Color newBadgeBg = Color(0xFFFEF3C7);
+  static const Color newBadgeText = Color(0xFF92400E);
+  static const Color newBadgeBorder = Color(0xFFFDE68A);
+  static const Color medChipBg = Color(0xFFE1F5EE);
+  static const Color medChipText = Color(0xFF0F6E56);
+  static const Color medChipBorder = Color(0xFF5DCAA5);
+  static const Color alertChipBg = Color(0xFFFEF3C7);
+  static const Color alertChipText = Color(0xFF92400E);
+  static const Color alertChipBorder = Color(0xFFFDE68A);
+  static const Color syncDot = Color(0xFF2E7D62);
+  static const Color rolePillBg = Color(0xFFE6F1FB);
+  static const Color rolePillText = Color(0xFF185FA5);
+  static const Color rolePillBorder = Color(0xFFB5D4F4);
+  static const Color carePlanButtonText = Color(0xFF1B1B1B);
+
+  static List<BoxShadow> get cardShadow => const [
+        BoxShadow(
+          blurRadius: 6,
+          color: Color(0x1F000000),
+          offset: Offset(0, 2),
+        ),
+      ];
+}
+
 /// App-wide theme configuration
 class AppTheme {
   // Healthcare-focused Colors (matching loading screen)

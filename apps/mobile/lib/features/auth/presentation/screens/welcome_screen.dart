@@ -35,11 +35,14 @@ class WelcomeScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // App Logo
-                    Image.asset(
-                      'assets/images/RemiMinder_logo.png',
-                      width: 120,
-                      height: 120,
+                    // Brand logo (same asset as splash)
+                    ClipOval(
+                      child: Image.asset(
+                        'assets/images/splash_welcome_logo.png',
+                        width: 140,
+                        height: 140,
+                        fit: BoxFit.cover,
+                      ),
                     ),
 
                     const SizedBox(height: 32),

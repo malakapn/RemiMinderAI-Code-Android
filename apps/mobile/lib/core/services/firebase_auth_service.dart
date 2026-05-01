@@ -1,10 +1,25 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'dart:async';
+import '../config/environment.dart';
 import '../models/user.dart';
 import 'token_manager.dart';
 import 'secure_storage.dart';
+
+GoogleSignIn _defaultGoogleSignIn() {
+  final webClientId = Environment.googleWebClientId;
+  if (webClientId != null && webClientId.isNotEmpty) {
+    return GoogleSignIn(
+      scopes: const <String>['email', 'profile', 'openid'],
+      serverClientId: webClientId,
+    );
+  }
+  return GoogleSignIn(
+    scopes: const <String>['email', 'profile'],
+  );
+}
 
 /// Firebase Authentication service for Email/Password and Google authentication
 class FirebaseAuthService {
@@ -19,9 +34,7 @@ class FirebaseAuthService {
     TokenManager? tokenManager,
     SecureStorage? secureStorage,
   })  : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-        // Default constructor: Android/iOS use OAuth client IDs from
-        // google-services.json / GoogleService-Info.plist (no hardcoded clientId).
-        _googleSignIn = googleSignIn ?? GoogleSignIn(),
+        _googleSignIn = googleSignIn ?? _defaultGoogleSignIn(),
         _tokenManager = tokenManager ?? TokenManager(SecureStorage()),
         _secureStorage = secureStorage ?? SecureStorage();
 
@@ -138,13 +151,17 @@ class FirebaseAuthService {
           await googleUser.authentication;
 
       if (googleAuth.idToken == null) {
-        throw Exception('Missing Google ID token');
+        throw Exception(
+          'Missing Google ID token. On Android, set GOOGLE_WEB_CLIENT_ID in .env '
+          'to your Firebase Web client ID (see Firebase Console → Project settings).',
+        );
       }
 
       // Create Firebase credential
       final firebase_auth.AuthCredential credential =
           firebase_auth.GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
+        accessToken: googleAuth.accessToken,
       );
 
       // Sign in to Firebase with Google credential

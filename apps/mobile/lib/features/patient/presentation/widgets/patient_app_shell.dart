@@ -25,14 +25,18 @@ class _PatientAppShellState extends State<PatientAppShell> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // Screen content
-          widget.child,
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: 70 + 12 + 16 + MediaQuery.of(context).padding.bottom,
+            ),
+            child: widget.child,
+          ),
 
           // Floating navigation bar
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: MediaQuery.of(context).padding.bottom,
             child: RoundedNavigationBar(
               currentItem: widget.currentItem,
               routes: widget.routes,

@@ -6,6 +6,7 @@ import 'core/config/theme.dart';
 import 'core/providers/locale_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/data/models/auth_state.dart';
+import 'features/splash/splash_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'router/app_router.dart';
 
@@ -15,8 +16,14 @@ class RemiMinderApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(localeProvider);
+
+    // Show splash until auth resolves: `loading` during check, `initial` for first
+    // frame before `_checkAuthStatus` assigns `loading` (avoids white flash).
+    final showAuthSplash = authState.status == AuthStatus.loading ||
+        authState.status == AuthStatus.initial;
 
     // Listen to auth state changes for logout navigation only
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
@@ -27,6 +34,13 @@ class RemiMinderApp extends ConsumerWidget {
         });
       }
     });
+
+    if (showAuthSplash) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: SplashScreen(),
+      );
+    }
 
     return MaterialApp.router(
       title:

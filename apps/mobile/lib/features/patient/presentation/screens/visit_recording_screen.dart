@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import '../../data/services/visit_summary_gemini_prompt.dart';
 import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/consent_service.dart';
@@ -573,9 +576,20 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     final uri = Uri.parse(
         '${Environment.apiBaseUrl}/api/visits/$visitId/process-audio');
 
+    final preferredLanguage = await readPreferredLanguageCodeForVisitSummary();
+    final geminiLanguageInstruction =
+        geminiLanguageInstructionForCode(preferredLanguage);
+
     final response = await http.post(
       uri,
-      headers: {'Authorization': 'Bearer $accessToken'},
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'preferred_language': preferredLanguage,
+        'gemini_language_instruction': geminiLanguageInstruction,
+      }),
     );
 
     print("🧪 process-audio status: ${response.statusCode}");

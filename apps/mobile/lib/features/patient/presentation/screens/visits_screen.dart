@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/widgets.dart';
 import '../../../../core/services/visit_context.dart';
@@ -11,6 +13,9 @@ class VisitsScreen extends StatefulWidget {
 }
 
 class _VisitsScreenState extends State<VisitsScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,6 +119,77 @@ class _VisitsScreenState extends State<VisitsScreen> {
   }
 
   Widget _buildRecentVisits() {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      return _buildVisitsCardContainer(
+        const Text('Sign in to see your recent visits'),
+      );
+    }
+
+    return _buildVisitsCardContainer(
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('visits')
+            .orderBy('visitDateTime', descending: true)
+            .limit(10)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasError) {
+            return const Text('Unable to load visits right now');
+          }
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return const Text('No recorded visits yet');
+          }
+          return Column(
+            children: List.generate(docs.length, (index) {
+              final data = docs[index].data();
+              final visitId = data['id'] as String? ?? docs[index].id;
+              final doctor = (data['doctorName'] as String?)?.trim().isNotEmpty == true
+                  ? data['doctorName'] as String
+                  : 'Doctor Visit';
+              final type = (data['specialty'] as String?)?.trim().isNotEmpty == true
+                  ? data['specialty'] as String
+                  : 'General visit';
+              final location = (data['location'] as String?)?.trim().isNotEmpty == true
+                  ? data['location'] as String
+                  : 'Unknown location';
+              final dateIso = data['visitDateTime'] as String?;
+              final hasRecording = data['hasRecording'] == true ||
+                  ((data['summary'] as String?)?.trim().isNotEmpty == true);
+              final item = _buildVisitItem(
+                visitId,
+                doctor,
+                type,
+                _formatRelativeDate(dateIso),
+                location,
+                hasRecording,
+              );
+              if (index == docs.length - 1) {
+                return item;
+              }
+              return Column(
+                children: [
+                  item,
+                  const Divider(height: 16),
+                ],
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildVisitsCardContainer(Widget child) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -127,33 +203,15 @@ class _VisitsScreenState extends State<VisitsScreen> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _buildVisitItem(
-            'Dr. Sarah Johnson',
-            'Cardiology Follow-up',
-            '2 days ago',
-            'City Medical Center',
-            true, // has recording
-          ),
-          const Divider(height: 16),
-          _buildVisitItem(
-            'Dr. Michael Chen',
-            'Blood Work Review',
-            '1 week ago',
-            'LabCorp Downtown',
-            false, // no recording
-          ),
-        ],
-      ),
+      child: child,
     );
   }
 
-  Widget _buildVisitItem(String doctor, String type, String date,
+  Widget _buildVisitItem(String visitId, String doctor, String type, String date,
       String location, bool hasRecording) {
     return InkWell(
       onTap: () {
-        context.go('/patient/visit-details?visitId=mock-visit-002');
+        context.go('/patient/visit-details?visitId=$visitId');
       },
       child: Row(
         children: [
@@ -222,6 +280,22 @@ class _VisitsScreenState extends State<VisitsScreen> {
         ],
       ),
     );
+  }
+
+  String _formatRelativeDate(String? dateIso) {
+    if (dateIso == null || dateIso.trim().isEmpty) {
+      return 'Recently';
+    }
+    final date = DateTime.tryParse(dateIso);
+    if (date == null) {
+      return 'Recently';
+    }
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 60) return '${diff.inMinutes.clamp(1, 59)} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hours ago';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} weeks ago';
+    return '${date.month}/${date.day}/${date.year}';
   }
 
   Widget _buildUpcomingAppointments() {

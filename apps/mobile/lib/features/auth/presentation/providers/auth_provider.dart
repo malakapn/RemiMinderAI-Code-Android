@@ -161,8 +161,8 @@ class AuthNotifier extends Notifier<AuthState> {
 
     try {
       // Ensure SHA-1 debug fingerprint is registered in Firebase Console for this to work
-      // GoogleSignIn() has no hardcoded clientId; OAuth clients come from
-      // google-services.json / GoogleService-Info.plist (see FirebaseAuthService).
+      // GoogleSignIn uses google-services.json; on Android set GOOGLE_WEB_CLIENT_ID (.env)
+      // to the Firebase Web client ID so an id token is returned for Firebase Auth.
       final user =
           await _authRepository.signInWithGoogle(selectedRole: selectedRole);
 

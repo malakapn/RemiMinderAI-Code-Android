@@ -46,6 +46,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'We could not load your profile. Please check your connection and try signing in again.';
     }
 
+    // Authentication errors (Firebase + repository messages)
     if (errorString.contains('incorrect password') ||
         errorString.contains('wrong-password')) {
       return 'Incorrect password. Please try again or use Forgot password.';
@@ -81,16 +82,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'No account found with this email address.';
     }
 
-    if (errorString.contains('google sign-in failed. please ensure') ||
-        errorString.contains('sign_in_failed')) {
-      return 'Google Sign-In failed. Please ensure your Google account is configured correctly.';
-    }
-
-    if (errorString.contains('google sign-in was cancelled') ||
-        errorString.contains('google sign-in cancelled')) {
-      return 'Google sign-in was cancelled.';
-    }
-
     // Network/API errors
     if (errorString.contains('connection refused') ||
         errorString.contains('network') ||
@@ -100,6 +91,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (errorString.contains('timeout')) {
       return 'Request timed out. Please try again.';
+    }
+
+    if (errorString.contains('missing google id token') ||
+        errorString.contains('google_web_client_id')) {
+      return 'Google Sign-In failed. Please ensure your Google account is configured correctly.';
+    }
+
+    if (errorString.contains('google sign-in failed. please ensure') ||
+        errorString.contains('sign_in_failed')) {
+      return 'Google Sign-In failed. Please ensure your Google account is configured correctly.';
+    }
+
+    if (errorString.contains('google sign-in was cancelled') ||
+        errorString.contains('google sign-in cancelled')) {
+      return 'Google sign-in was cancelled.';
     }
 
     // Generic fallback

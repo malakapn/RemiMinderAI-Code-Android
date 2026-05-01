@@ -1,0 +1,448 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/config/theme.dart';
+import '../../providers/invitation_provider.dart';
+import 'data/models/care_team_member.dart';
+import 'data/services/care_team_api_service.dart';
+import '../patient/presentation/screens/care_team_screen.dart';
+import 'widgets/invitations_received_section.dart';
+
+/// Caregiver Care Team tab: Firestore invitations + existing API care team UI.
+class CareTeamTab extends ConsumerStatefulWidget {
+  const CareTeamTab({super.key});
+
+  @override
+  ConsumerState<CareTeamTab> createState() => _CareTeamTabState();
+}
+
+class _CareTeamTabState extends ConsumerState<CareTeamTab> {
+  bool _isLoading = true;
+  String? _error;
+  List<CareTeamMember> _members = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCareTeamData();
+  }
+
+  Future<void> _loadCareTeamData() async {
+    try {
+      final cached = CareTeamApiService.getCachedMembers();
+      if (cached != null && mounted) {
+        setState(() {
+          _members = cached;
+          _isLoading = false;
+          _error = null;
+        });
+      } else {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+      }
+
+      final members = await CareTeamApiService().getCareTeam();
+      if (!mounted) return;
+      CareTeamApiService.setCachedMembers(members);
+      setState(() {
+        _members = members;
+        _isLoading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    ref.invalidate(receivedInvitationsProvider);
+    await _loadCareTeamData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: RemiCareUiColors.bodyBackground,
+      appBar: AppBar(
+        backgroundColor: RemiCareUiColors.primaryDarkTeal,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Care Team',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'Invite family or medical staff',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _onRefresh,
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const InvitationsReceivedSection(),
+            const SizedBox(height: 24),
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              )
+            else if (_members.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  'No caregivers added yet',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Active Caregivers',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: RemiCareUiColors.sectionHeaderText,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._members.map(
+                    (member) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: CaregiverTile(
+                        name: member.fullName ??
+                            member.email ??
+                            member.memberUserId,
+                        role: member.role,
+                        accessLevel: _formatAccessLabel(member.permission),
+                        onManagePermissions: () {
+                          _showManageDialog(context, member);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 24),
+            InviteCaregiverTile(
+              onInvite: () => _showInviteDialog(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showInviteDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final relationshipController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Invite Caregiver'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  hintText: 'Enter caregiver\'s full name',
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  hintText: 'Enter caregiver\'s email address',
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: relationshipController,
+                decoration: const InputDecoration(
+                  labelText: 'Relationship',
+                  hintText: 'e.g., Son, Daughter, Friend, Nurse',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final email = emailController.text.trim();
+                final role = relationshipController.text.trim();
+                if (email.isEmpty || role.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Email and role are required'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.of(dialogContext).pop();
+                _inviteCaregiver(email: email, role: role);
+              },
+              child: const Text('Send Invite'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _inviteCaregiver({
+    required String email,
+    required String role,
+  }) async {
+    try {
+      await CareTeamApiService().inviteCaregiver(
+        email: email,
+        role: role,
+        permission: 'view',
+      );
+      await _loadCareTeamData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
+  void _showManageDialog(BuildContext context, CareTeamMember member) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            bool isLoading = false;
+            String? errorMessage;
+            String? successMessage;
+
+            Future<void> handleAction(
+              Future<bool> Function() action,
+              String loadingMessage,
+            ) async {
+              setDialogState(() {
+                isLoading = true;
+                errorMessage = null;
+                successMessage = loadingMessage;
+              });
+              final success = await action();
+              if (!mounted) return;
+              if (success) {
+                setDialogState(() {
+                  successMessage = 'Access updated successfully';
+                });
+                await Future.delayed(const Duration(milliseconds: 800));
+                if (!mounted) return;
+                Navigator.of(dialogContext).pop();
+              } else {
+                setDialogState(() {
+                  isLoading = false;
+                  successMessage = null;
+                  errorMessage = 'Failed to update access. Please try again.';
+                });
+              }
+            }
+
+            Future<void> handleRemove() async {
+              final confirmed = await showDialog<bool>(
+                context: dialogContext,
+                builder: (context) => AlertDialog(
+                  title: const Text('Remove caregiver?'),
+                  content: const Text(
+                    'Are you sure you want to remove this caregiver? They will lose access immediately.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Remove'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirmed != true) return;
+
+              setDialogState(() {
+                isLoading = true;
+                errorMessage = null;
+                successMessage = 'Removing caregiver...';
+              });
+
+              final success = await _applyRemoveMember(member.id);
+              if (!mounted) return;
+              if (success) {
+                Navigator.of(dialogContext).pop();
+              } else {
+                setDialogState(() {
+                  isLoading = false;
+                  successMessage = null;
+                  errorMessage =
+                      'Failed to remove caregiver. Please try again.';
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Manage Access'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Update caregiver permission or remove access.'),
+                  if (successMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      successMessage!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      errorMessage!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => handleAction(
+                            () => _applyPermissionChange(member.id, 'view'),
+                            'Updating access...',
+                          ),
+                  child: const Text('View Access'),
+                ),
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => handleAction(
+                            () => _applyPermissionChange(member.id, 'full'),
+                            'Updating access...',
+                          ),
+                  child: const Text('Full Access'),
+                ),
+                TextButton(
+                  onPressed: isLoading ? null : handleRemove,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Remove'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool> _applyPermissionChange(
+    String memberId,
+    String permission,
+  ) async {
+    try {
+      await CareTeamApiService().updatePermission(
+        memberId: memberId,
+        permission: permission,
+      );
+      await _loadCareTeamData();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> _applyRemoveMember(String memberId) async {
+    try {
+      await CareTeamApiService().removeMember(memberId: memberId);
+      await _loadCareTeamData();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  String _formatAccessLabel(String permission) {
+    return permission == 'full' ? 'Full Access' : 'View Only';
+  }
+}
