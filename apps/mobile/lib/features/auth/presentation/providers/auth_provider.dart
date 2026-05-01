@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/auth_state.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../../../core/models/user.dart';
+import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/services/token_manager.dart';
@@ -155,14 +156,23 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  // REQUIRED SETUP:
+  // 1. Register SHA-1 debug fingerprint in Firebase Console → Project Settings → Android app
+  // 2. Set GOOGLE_WEB_CLIENT_ID in apps/mobile/.env to the Web OAuth client ID from Firebase
+  // Without these two steps, Google Sign-In will always fail with sign_in_failed
   /// Sign in with Google OAuth
   Future<void> signInWithGoogle({UserRole? selectedRole}) async {
+    final webClientId = Environment.googleWebClientId;
+    if (webClientId == null || webClientId.isEmpty) {
+      state = AuthState.error(
+        'Google Sign-In is not configured. Please contact support.',
+      );
+      return;
+    }
+
     state = AuthState.loading();
 
     try {
-      // Ensure SHA-1 debug fingerprint is registered in Firebase Console for this to work
-      // GoogleSignIn uses google-services.json; on Android set GOOGLE_WEB_CLIENT_ID (.env)
-      // to the Firebase Web client ID so an id token is returned for Firebase Auth.
       final user =
           await _authRepository.signInWithGoogle(selectedRole: selectedRole);
 

@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-  static const Color _background = Color(0xFF1B4E59);
+  static const Color _background = Color(0xFFF8F4E8);
+  static const Color _teal = Color(0xFF1B4E59);
 
   @override
   Widget build(BuildContext context) {
@@ -15,12 +16,27 @@ class SplashScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ClipOval(
-                child: Image.asset(
-                  'assets/images/splash_welcome_logo.png',
-                  width: 140,
-                  height: 140,
-                  fit: BoxFit.cover,
+              Image.asset(
+                'assets/icon.png',
+                width: 160,
+                height: 160,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'RemiMinder.ai',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: _teal,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Smart AI for Health & Care Coordination',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _teal.withOpacity(0.7),
                 ),
               ),
               const SizedBox(height: 32),
@@ -29,7 +45,7 @@ class SplashScreen extends StatelessWidget {
                 height: 28,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(_teal),
                 ),
               ),
             ],
