@@ -150,11 +150,7 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  // REQUIRED SETUP:
-  // 1. Register SHA-1 debug fingerprint in Firebase Console → Project Settings → Android app
-  // 2. Set GOOGLE_WEB_CLIENT_ID in apps/mobile/.env to the Web OAuth client ID from Firebase
-  // Without these two steps, Google Sign-In will always fail with sign_in_failed
-  /// Sign in with Google OAuth
+  /// Sign in with Google OAuth (Firebase + `GOOGLE_CLIENT_ID` / `GOOGLE_WEB_CLIENT_ID` in `apps/mobile/.env`; see ENV_SETUP.md).
   Future<void> signInWithGoogle({UserRole? selectedRole}) async {
     final webClientId = Environment.googleWebClientId;
     if (webClientId == null || webClientId.isEmpty) {

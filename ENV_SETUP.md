@@ -81,7 +81,8 @@ DEBUG=True
 1. Create `.env` files with real keys (never commit them).
 2. Ensure **`apps/mobile/.env`** includes `GOOGLE_CLIENT_ID` or `GOOGLE_WEB_CLIENT_ID` and run `flutter pub get` before `flutter run` / `flutter build`.
 3. Test backend: `cd apps/backend` and start per that app’s README.
-4. For Google Sign-In on Android: add your debug **SHA-1** in Firebase Console and use a valid `google-services.json` under `apps/mobile/android/app/`.
+
+Firebase Android is already configured for this project (Google + Email/Password, debug SHA-1, **`google-services.json`** under `apps/mobile/android/app/` — often gitignored, supplied locally or via CI secrets). If Google Sign-In still returns `sign_in_failed` on a **new machine**, compare your debug keystore SHA-1 to the Firebase Android app and confirm `apps/mobile/.env` is loaded after rebuild.
 
 ## Security notes
 
