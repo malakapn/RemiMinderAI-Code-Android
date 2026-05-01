@@ -150,7 +150,9 @@ class FirebaseAuthService {
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
-        throw Exception('Google sign-in cancelled');
+        throw Exception(
+          'Google Sign-In was cancelled or returned null — possible SHA-1 mismatch or account picker dismissed',
+        );
       }
 
       // Get authentication tokens
