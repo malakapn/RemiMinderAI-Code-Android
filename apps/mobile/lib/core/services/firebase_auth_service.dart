@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async';
 import '../models/user.dart';
@@ -18,7 +19,9 @@ class FirebaseAuthService {
     TokenManager? tokenManager,
     SecureStorage? secureStorage,
   })  : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn.standard(),
+        // Default constructor: Android/iOS use OAuth client IDs from
+        // google-services.json / GoogleService-Info.plist (no hardcoded clientId).
+        _googleSignIn = googleSignIn ?? GoogleSignIn(),
         _tokenManager = tokenManager ?? TokenManager(SecureStorage()),
         _secureStorage = secureStorage ?? SecureStorage();
 
@@ -172,6 +175,20 @@ class FirebaseAuthService {
       );
 
       return user;
+    } on PlatformException catch (e) {
+      if (e.code == 'sign_in_canceled' ||
+          e.code == 'SIGN_IN_CANCELED' ||
+          e.code == 'sign_in_cancelled') {
+        throw Exception('Google sign-in cancelled');
+      }
+      if (e.code == 'sign_in_failed' || e.code == 'SIGN_IN_FAILED') {
+        throw Exception(
+          'Google Sign-In failed. Please ensure your Google account is configured correctly.',
+        );
+      }
+      throw Exception(
+        'Google Sign-In failed. Please ensure your Google account is configured correctly.',
+      );
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
     } catch (e) {

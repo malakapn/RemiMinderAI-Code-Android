@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/auth_state.dart';
@@ -140,6 +141,9 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AuthState.loading();
 
     try {
+      // Ensure SHA-1 debug fingerprint is registered in Firebase Console for this to work
+      // GoogleSignIn() has no hardcoded clientId; OAuth clients come from
+      // google-services.json / GoogleService-Info.plist (see FirebaseAuthService).
       final user =
           await _authRepository.signInWithGoogle(selectedRole: selectedRole);
 
@@ -152,7 +156,33 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState.authenticated(user,
           profile: AuthProfile.fromUserProfile(profile));
     } catch (e) {
-      state = AuthState.error(e.toString());
+      const googleConfigureMsg =
+          'Google Sign-In failed. Please ensure your Google account is configured correctly.';
+
+      if (e is PlatformException) {
+        final code = e.code;
+        if (code == 'sign_in_failed' || code == 'SIGN_IN_FAILED') {
+          state = AuthState.error(googleConfigureMsg);
+        } else if (code == 'sign_in_canceled' ||
+            code == 'SIGN_IN_CANCELED' ||
+            code == 'sign_in_cancelled') {
+          state = AuthState.error('Google sign-in was cancelled.');
+        } else {
+          state = AuthState.error(googleConfigureMsg);
+        }
+        return;
+      }
+
+      final msg = e.toString();
+      if (msg.contains(googleConfigureMsg) ||
+          msg.contains('sign_in_failed') ||
+          msg.contains('SIGN_IN_FAILED')) {
+        state = AuthState.error(googleConfigureMsg);
+      } else if (msg.contains('cancelled')) {
+        state = AuthState.error('Google sign-in was cancelled.');
+      } else {
+        state = AuthState.error(e.toString());
+      }
     }
   }
 

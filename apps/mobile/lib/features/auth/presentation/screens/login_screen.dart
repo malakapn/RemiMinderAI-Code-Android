@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -23,7 +24,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// Convert technical errors to user-friendly messages
   String _getUserFriendlyErrorMessage(dynamic error) {
+    if (error is PlatformException) {
+      final code = error.code;
+      if (code == 'sign_in_failed' || code == 'SIGN_IN_FAILED') {
+        return 'Google Sign-In failed. Please ensure your Google account is configured correctly.';
+      }
+      if (code == 'sign_in_canceled' ||
+          code == 'SIGN_IN_CANCELED' ||
+          code == 'sign_in_cancelled') {
+        return 'Google sign-in was cancelled.';
+      }
+    }
+
     final errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('google sign-in failed. please ensure') ||
+        errorString.contains('sign_in_failed')) {
+      return 'Google Sign-In failed. Please ensure your Google account is configured correctly.';
+    }
+
+    if (errorString.contains('google sign-in was cancelled') ||
+        errorString.contains('google sign-in cancelled')) {
+      return 'Google sign-in was cancelled.';
+    }
 
     // Authentication errors
     if (errorString.contains('invalid email or password') ||
@@ -562,6 +585,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Check auth state after login attempt
       final authState = ref.read(authNotifierProvider);
 
+      if (authState.hasError) {
+        if (mounted) {
+          final errorMessage = _getUserFriendlyErrorMessage(
+            authState.errorMessage ?? 'Google Sign-In failed',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
+        }
+        return;
+      }
+
       if (authState.isAuthenticated) {
         // Navigate to appropriate home screen based on selected role (not backend role)
         final user = authState.user;
@@ -582,14 +617,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Google Sign In failed')),
+            SnackBar(
+              content: Text(
+                _getUserFriendlyErrorMessage('Google Sign-In failed'),
+              ),
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google Sign In failed: ${e.toString()}')),
+          SnackBar(content: Text(_getUserFriendlyErrorMessage(e))),
         );
       }
     }
