@@ -77,7 +77,8 @@ flutter:
   assets:
     - assets/images/
     - assets/icon.png
-    # Optional: copy `.env.example` to `.env` and add `- .env` here for local overrides.
+    # Required for flutter_dotenv: copy `.env.example` to `.env` in this folder before build/run.
+    - .env
     # Logo assets for authentication (currently JPEG, ideally SVG)
     - assets/images/google_logo.svg
     # - assets/images/apple_logo.svg  # Not available yet

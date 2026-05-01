@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'billing_redirect_stub.dart'
@@ -67,23 +68,14 @@ class Environment {
   static bool get isStaging => flutterEnv == 'staging';
   static bool get isDevelopment => flutterEnv == 'development';
 
-  /// Load environment variables from .env file
+  /// Load environment variables from `.env` (must be listed under `flutter: assets:` in pubspec).
   static Future<void> load() async {
     try {
-      // Load the .env inside the mobile folder FIRST
       await dotenv.load(fileName: '.env');
       _isLoaded = true;
-      return;
-    } catch (e) {
-      // Fallback to root .env ONLY if mobile .env missing
-    }
-
-    try {
-      await dotenv.load(
-          fileName: '/Users/jibinkunjumon/developments/MediMinder/.env');
-      _isLoaded = true;
-    } catch (e) {
-      // No .env found. Running with defaults.
+    } catch (e, st) {
+      debugPrint('Environment.load: could not load .env ($e)');
+      debugPrint('$st');
       _isLoaded = false;
     }
   }

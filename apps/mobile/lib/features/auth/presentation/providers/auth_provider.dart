@@ -159,7 +159,9 @@ class AuthNotifier extends Notifier<AuthState> {
     final webClientId = Environment.googleWebClientId;
     if (webClientId == null || webClientId.isEmpty) {
       state = AuthState.error(
-        'Google Sign-In is not configured. Please contact support.',
+        'Google Sign-In is not configured. Copy apps/mobile/.env.example to '
+        'apps/mobile/.env, set GOOGLE_WEB_CLIENT_ID to your Firebase Web client ID, '
+        'then rebuild (see pubspec.yaml assets).',
       );
       return;
     }
@@ -170,14 +172,15 @@ class AuthNotifier extends Notifier<AuthState> {
       final user =
           await _authRepository.signInWithGoogle(selectedRole: selectedRole);
 
-      // Bootstrap user in backend
-      await _backendApiService.bootstrapUser();
-
-      // Fetch user profile from backend
-      final profile = await _backendApiService.getMyProfile();
-
-      state = AuthState.authenticated(user,
-          profile: AuthProfile.fromUserProfile(profile));
+      try {
+        await _backendApiService.bootstrapUser();
+        final profile = await _backendApiService.getMyProfile();
+        state = AuthState.authenticated(user,
+            profile: AuthProfile.fromUserProfile(profile));
+      } catch (_) {
+        // Same as email sign-in: backend optional when Firebase session is valid
+        state = AuthState.authenticated(user);
+      }
     } catch (e) {
       const googleConfigureMsg =
           'Google Sign-In failed. Please ensure your Google account is configured correctly.';

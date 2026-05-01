@@ -373,6 +373,14 @@ class FirebaseAuthService {
         return Exception('This account has been disabled');
       case 'too-many-requests':
         return Exception('Too many failed attempts. Please try again later');
+      case 'operation-not-allowed':
+        return Exception(
+          'This sign-in method is not enabled for this app. Check Firebase Console → Authentication.',
+        );
+      case 'network-request-failed':
+        return Exception(
+          'Network error. Check your connection and try again.',
+        );
       default:
         return Exception('Authentication failed: ${e.message}');
     }
