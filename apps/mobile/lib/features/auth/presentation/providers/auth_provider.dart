@@ -150,17 +150,8 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  /// Sign in with Google OAuth (Firebase + `GOOGLE_CLIENT_ID` / `GOOGLE_WEB_CLIENT_ID` in `apps/mobile/.env`; see ENV_SETUP.md).
+  /// Sign in with Google OAuth (Firebase + Web client ID; see ENV_SETUP.md).
   Future<void> signInWithGoogle({UserRole? selectedRole}) async {
-    final webClientId = Environment.googleWebClientId;
-    if (webClientId == null || webClientId.isEmpty) {
-      state = AuthState.error(
-        'Google Sign-In is not configured. Set GOOGLE_CLIENT_ID or '
-        'GOOGLE_WEB_CLIENT_ID in apps/mobile/.env (see ENV_SETUP.md), then rebuild.',
-      );
-      return;
-    }
-
     state = AuthState.loading();
 
     try {

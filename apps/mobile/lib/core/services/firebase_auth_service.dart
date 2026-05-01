@@ -10,7 +10,7 @@ import 'secure_storage.dart';
 
 GoogleSignIn _defaultGoogleSignIn() {
   final webClientId = Environment.googleWebClientId;
-  if (webClientId != null && webClientId.isNotEmpty) {
+  if (webClientId.isNotEmpty) {
     return GoogleSignIn(
       scopes: const <String>['email', 'profile', 'openid'],
       serverClientId: webClientId,

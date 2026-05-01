@@ -24,19 +24,44 @@ class Environment {
   static String get flutterEnv =>
       _isLoaded ? (dotenv.env['FLUTTER_ENV'] ?? 'development') : 'development';
 
-  /// OAuth 2.0 **Web client** ID from Firebase (Project settings → Your apps → Web client,
-  /// or Authentication → Sign-in method → Google). On Android this is often required so
-  /// `GoogleSignIn` returns a non-null **id token** for `GoogleAuthProvider.credential`.
+  /// OAuth Web client ID for Google Sign-In + Firebase (`serverClientId`).
   ///
-  /// Accepts `GOOGLE_WEB_CLIENT_ID` or `GOOGLE_CLIENT_ID` (see repository root ENV_SETUP.md).
-  static String? get googleWebClientId {
-    if (!_isLoaded) return null;
-    final primary = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
-    if (primary != null && primary.isNotEmpty) return primary;
-    final legacy = dotenv.env['GOOGLE_CLIENT_ID']?.trim();
-    if (legacy != null && legacy.isNotEmpty) return legacy;
-    return null;
+  /// Resolution order: `apps/mobile/.env` (`GOOGLE_WEB_CLIENT_ID` / `GOOGLE_CLIENT_ID`),
+  /// then `--dart-define=GOOGLE_WEB_CLIENT_ID=...`, then
+  /// `--dart-define=GOOGLE_CLIENT_ID=...`, then [defaultFirebaseWebClientId] from ENV_SETUP.md.
+  ///
+  /// Note: Previously this returned null whenever `.env` failed to load; CI/APK builds often
+  /// had no bundle → "Google Sign-In is not configured" even when Firebase was set up.
+  static String get googleWebClientId {
+    String? pick(String? raw) {
+      final t = raw?.trim();
+      return (t != null && t.isNotEmpty) ? t : null;
+    }
+
+    if (_isLoaded) {
+      final fromDotenv = pick(dotenv.env['GOOGLE_WEB_CLIENT_ID']) ??
+          pick(dotenv.env['GOOGLE_CLIENT_ID']);
+      if (fromDotenv != null) return fromDotenv;
+    }
+
+    const fromDefine = String.fromEnvironment(
+      'GOOGLE_WEB_CLIENT_ID',
+      defaultValue: '',
+    );
+    if (fromDefine.isNotEmpty) return fromDefine.trim();
+
+    const fromDefineLegacy = String.fromEnvironment(
+      'GOOGLE_CLIENT_ID',
+      defaultValue: '',
+    );
+    if (fromDefineLegacy.isNotEmpty) return fromDefineLegacy.trim();
+
+    return defaultFirebaseWebClientId;
   }
+
+  /// Firebase Web client ID for this repo (public; same value as ENV_SETUP.md).
+  static const String defaultFirebaseWebClientId =
+      '575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com';
 
   /// Default app URL scheme for Stripe Checkout return URLs (mobile).
   static String get _billingUrlScheme {

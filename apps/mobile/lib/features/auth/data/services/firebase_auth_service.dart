@@ -3,14 +3,14 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../config/environment.dart';
+import '../../../../core/config/environment.dart';
 import '../models/user.dart';
 import 'token_manager.dart';
 import 'secure_storage.dart';
 
 GoogleSignIn _defaultGoogleSignIn() {
   final webClientId = Environment.googleWebClientId;
-  if (webClientId != null && webClientId.isNotEmpty) {
+  if (webClientId.isNotEmpty) {
     return GoogleSignIn(
       scopes: const <String>['email', 'profile', 'openid'],
       serverClientId: webClientId,
