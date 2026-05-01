@@ -66,14 +66,16 @@ class FirebaseAuthService {
       await _secureStorage.write('firebase_uid', userCredential.user!.uid);
       await _secureStorage.write('auth_provider', 'firebase');
 
+      final dn = fullName?.trim();
+      final display = (dn != null && dn.isNotEmpty) ? dn : 'User';
+
       // Create User object
       final user = User(
         id: userCredential.user!.uid, // Firebase UID
         email: email,
         role: role,
-        fullName: fullName,
-        displayName:
-            fullName ?? "User", // Temporary, will be replaced by backend
+        fullName: fullName?.trim().isEmpty == true ? null : fullName?.trim(),
+        displayName: display, // Temporary, will be replaced by backend
         authUid: userCredential.user!.uid,
       );
 
@@ -201,6 +203,17 @@ class FirebaseAuthService {
           e.code == 'SIGN_IN_CANCELED' ||
           e.code == 'sign_in_cancelled') {
         throw Exception('Google sign-in cancelled');
+      }
+      final detail = '${e.message ?? ''} ${e.details ?? ''}'.toLowerCase();
+      // Android: DEVELOPER_ERROR / ApiException 10 = OAuth client / SHA-1 mismatch.
+      if (detail.contains('developer_error') ||
+          detail.contains('apiexception: 10') ||
+          detail.contains('statuscode.developer_error')) {
+        throw Exception(
+          'Google Sign-In is not set up for this Android build. In Firebase Console → '
+          'Project settings → your Android app, add this keystore’s SHA-1 fingerprint, '
+          'then use an updated google-services.json (or rebuild from CI with the correct secret).',
+        );
       }
       if (e.code == 'sign_in_failed' || e.code == 'SIGN_IN_FAILED') {
         throw Exception(

@@ -19,10 +19,13 @@ Future<void> main() async {
   // Initialize Firebase with error handling
   try {
     await Firebase.initializeApp();
-  } catch (e) {
-    // Log error but continue - app can still show welcome screen
-    // This prevents app crash on Firebase init failure
-    debugPrint('Firebase initialization failed: $e');
+    if (Firebase.apps.isEmpty) {
+      debugPrint(
+        'Firebase: initializeApp returned but no default apps — email/Google auth will fail.',
+      );
+    }
+  } catch (e, st) {
+    debugPrint('Firebase initialization failed: $e\n$st');
   }
 
   runApp(

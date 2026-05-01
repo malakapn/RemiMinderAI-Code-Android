@@ -35,13 +35,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return 'An account with this email already exists. Please sign in instead.';
     }
 
-    if (errorString.contains('weak password') ||
-        errorString.contains('password')) {
+    if (errorString.contains('weak-password') ||
+        errorString.contains('password is too weak')) {
       return 'Password is too weak. Please use at least 8 characters with letters and numbers.';
     }
 
     if (errorString.contains('invalid email')) {
       return 'Please enter a valid email address.';
+    }
+
+    if (errorString.contains('operation-not-allowed') ||
+        errorString.contains('sign-in method is not enabled')) {
+      return 'Email/password sign-up is disabled in Firebase. Enable Email/Password under '
+          'Firebase Console → Authentication → Sign-in method.';
+    }
+
+    if (errorString.contains('network-request-failed')) {
+      return 'Network error. Check your connection and try again.';
+    }
+
+    if (errorString.contains('too-many-requests')) {
+      return 'Too many attempts. Wait a few minutes and try again.';
+    }
+
+    if (errorString.contains('firebase') &&
+        (errorString.contains('no app') ||
+            errorString.contains('not initialized'))) {
+      return 'Firebase failed to start on this device. Try a fresh install or a newer APK build.';
     }
 
     // Network/API errors

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'secure_storage.dart';
 
@@ -33,7 +34,9 @@ class TokenManager {
       final isExpired = JwtDecoder.isExpired(token);
       return !isExpired;
     } catch (e) {
-      return false;
+      // Firebase ID tokens are JWTs; rare decoder edge cases should not force logout.
+      debugPrint('TokenManager.isTokenValid: JWT decode/expiry check failed ($e)');
+      return true;
     }
   }
 

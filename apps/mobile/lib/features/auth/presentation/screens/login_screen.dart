@@ -81,6 +81,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'No account found with this email address.';
     }
 
+    if (errorString.contains('google sign-in is not set up for this android') ||
+        errorString.contains('developer_error') ||
+        errorString.contains('apiexception: 10')) {
+      return 'Google Sign-In is not set up for this app build. Add your debug keystore SHA-1 '
+          'to the Firebase Android app and rebuild with a matching google-services.json.';
+    }
+
     if (errorString.contains('google sign-in is not configured')) {
       return 'Google Sign-In is not configured. Please contact support.';
     }
