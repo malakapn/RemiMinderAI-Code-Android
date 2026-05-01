@@ -4,13 +4,10 @@ import 'package:flutter/material.dart';
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-  static const Color _background = Color(0xFFF8F4E8);
-  static const Color _teal = Color(0xFF1B4E59);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _background,
+      backgroundColor: const Color(0xFFF8F4E8),
       body: SafeArea(
         child: Center(
           child: Column(
@@ -28,7 +25,7 @@ class SplashScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: _teal,
+                  color: Color(0xFF1B4E59),
                 ),
               ),
               const SizedBox(height: 8),
@@ -36,7 +33,7 @@ class SplashScreen extends StatelessWidget {
                 'Smart AI for Health & Care Coordination',
                 style: TextStyle(
                   fontSize: 14,
-                  color: _teal.withOpacity(0.7),
+                  color: const Color(0xFF1B4E59).withOpacity(0.7),
                 ),
               ),
               const SizedBox(height: 32),
@@ -45,7 +42,7 @@ class SplashScreen extends StatelessWidget {
                 height: 28,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(_teal),
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B4E59)),
                 ),
               ),
             ],
