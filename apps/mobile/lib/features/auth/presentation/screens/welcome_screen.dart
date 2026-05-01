@@ -35,11 +35,11 @@ class WelcomeScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // App Logo
                     Image.asset(
-                      'assets/images/RemiMinder_logo.png',
-                      width: 120,
-                      height: 120,
+                      'assets/icon.png',
+                      width: 160,
+                      height: 160,
+                      fit: BoxFit.contain,
                     ),
 
                     const SizedBox(height: 32),

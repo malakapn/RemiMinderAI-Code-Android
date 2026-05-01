@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'billing_redirect_stub.dart'
+    if (dart.library.io) 'billing_redirect.dart' as billing_redirect;
 
 /// Environment configuration for MediMinder Flutter app
 class Environment {
@@ -20,28 +24,87 @@ class Environment {
   static String get flutterEnv =>
       _isLoaded ? (dotenv.env['FLUTTER_ENV'] ?? 'development') : 'development';
 
+  /// OAuth Web client ID for Google Sign-In + Firebase (`serverClientId`).
+  ///
+  /// Resolution order: `apps/mobile/.env` (`GOOGLE_WEB_CLIENT_ID` / `GOOGLE_CLIENT_ID`),
+  /// then `--dart-define=GOOGLE_WEB_CLIENT_ID=...`, then
+  /// `--dart-define=GOOGLE_CLIENT_ID=...`, then [defaultFirebaseWebClientId] from ENV_SETUP.md.
+  ///
+  /// Note: Previously this returned null whenever `.env` failed to load; CI/APK builds often
+  /// had no bundle → "Google Sign-In is not configured" even when Firebase was set up.
+  static String get googleWebClientId {
+    String? pick(String? raw) {
+      final t = raw?.trim();
+      return (t != null && t.isNotEmpty) ? t : null;
+    }
+
+    if (_isLoaded) {
+      final fromDotenv = pick(dotenv.env['GOOGLE_WEB_CLIENT_ID']) ??
+          pick(dotenv.env['GOOGLE_CLIENT_ID']);
+      if (fromDotenv != null) return fromDotenv;
+    }
+
+    const fromDefine = String.fromEnvironment(
+      'GOOGLE_WEB_CLIENT_ID',
+      defaultValue: '',
+    );
+    if (fromDefine.isNotEmpty) return fromDefine.trim();
+
+    const fromDefineLegacy = String.fromEnvironment(
+      'GOOGLE_CLIENT_ID',
+      defaultValue: '',
+    );
+    if (fromDefineLegacy.isNotEmpty) return fromDefineLegacy.trim();
+
+    return defaultFirebaseWebClientId;
+  }
+
+  /// Firebase Web client ID for this repo (public; same value as ENV_SETUP.md).
+  static const String defaultFirebaseWebClientId =
+      '575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com';
+
+  /// Default app URL scheme for Stripe Checkout return URLs (mobile).
+  static String get _billingUrlScheme {
+    if (_isLoaded && dotenv.env['BILLING_URL_SCHEME'] != null) {
+      final s = dotenv.env['BILLING_URL_SCHEME']!.trim();
+      if (s.isNotEmpty) return s;
+    }
+    return billing_redirect.defaultBillingUrlScheme();
+  }
+
+  /// Stripe Checkout success URL; must include literal `{CHECKOUT_SESSION_ID}` for Stripe.
+  static String get billingSuccessUrl {
+    if (_isLoaded &&
+        dotenv.env['BILLING_SUCCESS_URL'] != null &&
+        dotenv.env['BILLING_SUCCESS_URL']!.trim().isNotEmpty) {
+      return dotenv.env['BILLING_SUCCESS_URL']!.trim();
+    }
+    return '$_billingUrlScheme://billing/success?session_id={CHECKOUT_SESSION_ID}';
+  }
+
+  /// Stripe Checkout cancel URL.
+  static String get billingCancelUrl {
+    if (_isLoaded &&
+        dotenv.env['BILLING_CANCEL_URL'] != null &&
+        dotenv.env['BILLING_CANCEL_URL']!.trim().isNotEmpty) {
+      return dotenv.env['BILLING_CANCEL_URL']!.trim();
+    }
+    return '$_billingUrlScheme://billing/cancel';
+  }
+
   // Environment checks
   static bool get isProduction => flutterEnv == 'production';
   static bool get isStaging => flutterEnv == 'staging';
   static bool get isDevelopment => flutterEnv == 'development';
 
-  /// Load environment variables from .env file
+  /// Load environment variables from `.env` (must be listed under `flutter: assets:` in pubspec).
   static Future<void> load() async {
     try {
-      // Load the .env inside the mobile folder FIRST
       await dotenv.load(fileName: '.env');
       _isLoaded = true;
-      return;
-    } catch (e) {
-      // Fallback to root .env ONLY if mobile .env missing
-    }
-
-    try {
-      await dotenv.load(
-          fileName: '/Users/jibinkunjumon/developments/MediMinder/.env');
-      _isLoaded = true;
-    } catch (e) {
-      // No .env found. Running with defaults.
+    } catch (e, st) {
+      debugPrint('Environment.load: could not load .env ($e)');
+      debugPrint('$st');
       _isLoaded = false;
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/auth_state.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../../../core/models/user.dart';
+import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/services/token_manager.dart';
@@ -93,6 +94,8 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AuthState.loading();
 
     try {
+      // createUserWithEmailAndPassword() already signs the user into Firebase;
+      // tokens are saved in FirebaseAuthService. Backend bootstrap/profile is optional.
       final user = await _authRepository.signUp(
         email: email,
         password: password,
@@ -100,16 +103,22 @@ class AuthNotifier extends Notifier<AuthState> {
         fullName: fullName,
       );
 
-      // Bootstrap user in backend with full name
-      await _backendApiService.bootstrapUser(fullName: fullName);
+      try {
+        await _backendApiService.bootstrapUser(fullName: fullName);
+        final profile = await _backendApiService.getMyProfile();
 
-      // Fetch user profile from backend
-      final profile = await _backendApiService.getMyProfile();
-
-      state = AuthState.authenticated(user,
-          profile: AuthProfile.fromUserProfile(profile));
+        state = AuthState.authenticated(user,
+            profile: AuthProfile.fromUserProfile(profile));
+      } catch (_) {
+        // Backend profile load failed but Firebase account is valid
+        // Do NOT sign out — authenticate with Firebase user only
+        state = AuthState.authenticated(user);
+      }
     } catch (e) {
-      state = AuthState.error(e.toString());
+      if (!state.hasError) {
+        state = AuthState.error(e.toString());
+      }
+      rethrow;
     }
   }
 
@@ -119,23 +128,28 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AuthState.loading();
 
     try {
+      // Repository → FirebaseAuthService.signIn →
+      // FirebaseAuth.instance.signInWithEmailAndPassword(); tokens persisted there.
       final user = await _authRepository.signIn(email, password,
           selectedRole: selectedRole);
 
-      // Bootstrap user in backend
-      await _backendApiService.bootstrapUser();
+      try {
+        await _backendApiService.bootstrapUser();
+        final profile = await _backendApiService.getMyProfile();
 
-      // Fetch user profile from backend
-      final profile = await _backendApiService.getMyProfile();
-
-      state = AuthState.authenticated(user,
-          profile: AuthProfile.fromUserProfile(profile));
+        state = AuthState.authenticated(user,
+            profile: AuthProfile.fromUserProfile(profile));
+      } catch (_) {
+        // Backend profile load failed; Firebase session is still valid
+        // Do NOT sign out — authenticate with Firebase user only
+        state = AuthState.authenticated(user);
+      }
     } catch (e) {
       state = AuthState.error(e.toString());
     }
   }
 
-  /// Sign in with Google OAuth
+  /// Sign in with Google OAuth (Firebase + Web client ID; see ENV_SETUP.md).
   Future<void> signInWithGoogle({UserRole? selectedRole}) async {
     state = AuthState.loading();
 
@@ -143,15 +157,17 @@ class AuthNotifier extends Notifier<AuthState> {
       final user =
           await _authRepository.signInWithGoogle(selectedRole: selectedRole);
 
-      // Bootstrap user in backend
-      await _backendApiService.bootstrapUser();
-
-      // Fetch user profile from backend
-      final profile = await _backendApiService.getMyProfile();
-
-      state = AuthState.authenticated(user,
-          profile: AuthProfile.fromUserProfile(profile));
+      try {
+        await _backendApiService.bootstrapUser();
+        final profile = await _backendApiService.getMyProfile();
+        state = AuthState.authenticated(user,
+            profile: AuthProfile.fromUserProfile(profile));
+      } catch (_) {
+        // Same as email sign-in: backend optional when Firebase session is valid
+        state = AuthState.authenticated(user);
+      }
     } catch (e) {
+      // Preserve full exception text so the login UI can show the exact failure.
       state = AuthState.error(e.toString());
     }
   }

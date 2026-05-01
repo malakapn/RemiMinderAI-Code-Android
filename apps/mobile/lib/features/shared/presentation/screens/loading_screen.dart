@@ -63,18 +63,18 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
 
           print('🔄 LoadingScreen: Setting app language to: $appLanguage');
           if (!mounted) return;
-          ref.read(localeProvider.notifier).setLocaleFromString(appLanguage);
+          await ref.read(localeProvider.notifier).setLocaleFromString(appLanguage);
         } else {
           print(
               '🔄 LoadingScreen: No auth token available, using default language');
           if (!mounted) return;
-          ref.read(localeProvider.notifier).setLocaleFromString('en');
+          await ref.read(localeProvider.notifier).setLocaleFromString('en');
         }
       } catch (e) {
         print('🔄 LoadingScreen: Failed to fetch language preferences: $e');
         print('🔄 LoadingScreen: Using default language (English)');
         if (!mounted) return;
-        ref.read(localeProvider.notifier).setLocaleFromString('en');
+        await ref.read(localeProvider.notifier).setLocaleFromString('en');
       }
 
       print('🔄 LoadingScreen: Navigating to role selection...');

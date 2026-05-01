@@ -25,37 +25,40 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
 
-  /// Convert technical errors to user-friendly messages
-  String _getUserFriendlyErrorMessage(dynamic error) {
-    final errorString = error.toString().toLowerCase();
-
-    // Authentication errors
-    if (errorString.contains('user already registered') ||
-        errorString.contains('account with this email already exists')) {
-      return 'An account with this email already exists. Please sign in instead.';
-    }
-
-    if (errorString.contains('weak password') ||
-        errorString.contains('password')) {
-      return 'Password is too weak. Please use at least 8 characters with letters and numbers.';
-    }
-
-    if (errorString.contains('invalid email')) {
-      return 'Please enter a valid email address.';
-    }
-
-    // Network/API errors
-    if (errorString.contains('connection refused') ||
-        errorString.contains('network')) {
-      return 'Connection error. Please check your internet connection and try again.';
-    }
-
-    if (errorString.contains('timeout')) {
-      return 'Request timed out. Please try again.';
-    }
-
-    // Generic fallback
-    return 'Registration failed. Please try again or contact support if the problem persists.';
+  /// Shows the exact exception text on screen when registration fails.
+  void _showFullRegistrationErrorDialog(Object error) {
+    final text = error.toString();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Registration error'),
+        content: SingleChildScrollView(
+          child: Container(
+            width: double.maxFinite,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.shade700, width: 1.5),
+            ),
+            child: SelectableText(
+              text,
+              style: TextStyle(
+                color: Colors.red.shade900,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -512,10 +515,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         }
       } catch (e) {
         if (mounted) {
-          final errorMessage = _getUserFriendlyErrorMessage(e);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage)),
-          );
+          _showFullRegistrationErrorDialog(e);
         }
       }
     }

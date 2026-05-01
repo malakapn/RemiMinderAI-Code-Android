@@ -210,7 +210,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 onPressed: () {
-                  context.go('/patient/notifications');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Coming soon')),
+                  );
                 },
               ),
             ],
@@ -263,7 +265,14 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final reminder = _upNextReminder;
     final title = reminder?['title'] as String?;
     final message = reminder?['message'] as String?;
+    final previewText = title?.trim().isNotEmpty == true ? title! : (message ?? '');
     final scheduledTime = reminder?['scheduled_time'] as String?;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final maxPreviewHeight = screenHeight < 700
+        ? 120.0
+        : screenHeight < 850
+            ? 160.0
+            : 220.0;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -325,22 +334,29 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
               ),
             )
           else ...[
+            // Long AI-generated preview text can exceed card height.
+            // Keep it readable by allowing vertical scrolling inside the card.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxPreviewHeight),
+              child: SingleChildScrollView(
+                child: Text(
+                  previewText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
             Text(
-              title?.trim().isNotEmpty == true ? title! : (message ?? ''),
-              style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
               _formatDueText(scheduledTime),
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 16,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 16,
+              ),
             ),
-          ),
           ],
           const SizedBox(height: 20),
           Row(
@@ -493,26 +509,15 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
               }).toList(),
             ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    context.go('/patient/reminders');
-                  },
-                  child: const Text('View All'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: Add new item
-                  },
-                  child: const Text('Add Item'),
-                ),
-              ),
-            ],
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                context.go('/patient/reminders');
+              },
+              icon: const Icon(Icons.add_alert_outlined),
+              label: const Text('Add Reminder'),
+            ),
           ),
         ],
       ),
@@ -546,32 +551,32 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                   children: [
                     ..._tasks.map((task) {
                       return Column(
-        children: [
-          _buildTodoItem(
+                        children: [
+                          _buildTodoItem(
                             task.title,
                             _formatTaskCreatedAt(task.createdAt),
-            false,
-          ),
-          const Divider(height: 12),
+                            false,
+                          ),
+                          const Divider(height: 12),
                         ],
                       );
                     }),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Navigate to full todo list
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Task'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-        ],
-      ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          // TODO: Navigate to full todo list
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Task'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
 

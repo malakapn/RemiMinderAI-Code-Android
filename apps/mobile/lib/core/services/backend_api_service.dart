@@ -177,4 +177,44 @@ class BackendApiService {
     final jsonData = json.decode(response.body) as Map<String, dynamic>;
     return jsonData['phone'] as String?;
   }
+
+  /// Stripe Checkout (subscription). Opens returned URL in the device browser.
+  /// [interval] must be `monthly` or `yearly` (matches Stripe Price IDs on server).
+  Future<String> createSubscriptionCheckoutUrl({
+    required String interval,
+  }) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) {
+      throw Exception('Authentication required. Please log in again.');
+    }
+
+    final uri = Uri.parse(
+      '${Environment.apiBaseUrl}/api/billing/create-checkout-session',
+    );
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'interval': interval,
+        'success_url': Environment.billingSuccessUrl,
+        'cancel_url': Environment.billingCancelUrl,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Checkout failed: ${response.statusCode} - ${response.body}',
+      );
+    }
+
+    final data = json.decode(response.body) as Map<String, dynamic>;
+    final url = data['url'] as String?;
+    if (url == null || url.isEmpty) {
+      throw Exception('Invalid checkout response');
+    }
+    return url;
+  }
 }

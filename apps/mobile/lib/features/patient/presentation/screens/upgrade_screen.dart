@@ -1,7 +1,62 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class UpgradeScreen extends StatelessWidget {
+import '../../../../core/services/backend_api_service.dart';
+
+enum _BillingPlan { monthly, yearly }
+
+/// Premium upgrade: monthly / yearly Stripe subscription via Checkout.
+class UpgradeScreen extends StatefulWidget {
   const UpgradeScreen({super.key});
+
+  @override
+  State<UpgradeScreen> createState() => _UpgradeScreenState();
+}
+
+class _UpgradeScreenState extends State<UpgradeScreen> {
+  _BillingPlan _selectedPlan = _BillingPlan.monthly;
+  bool _loading = false;
+
+  Future<void> _openCheckout() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+
+    try {
+      final interval =
+          _selectedPlan == _BillingPlan.monthly ? 'monthly' : 'yearly';
+      final url = await BackendApiService().createSubscriptionCheckoutUrl(
+        interval: interval,
+      );
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!mounted) return;
+      if (!launched) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open the payment page. Try again.'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Complete checkout in your browser, then return to the app.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,15 +67,14 @@ class UpgradeScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color(0xFF1A4D4D), // Dark teal-green
-                    Color(0xFF051818), // Very dark green/black
+                    Color(0xFF1A4D4D),
+                    Color(0xFF051818),
                   ],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
@@ -46,19 +100,16 @@ class UpgradeScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 48), // Balance the back button
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
-
-            // Scrollable Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Main Title
                     Text(
                       'Unlock Premium Care',
                       style: theme.textTheme.headlineMedium?.copyWith(
@@ -67,10 +118,7 @@ class UpgradeScreen extends StatelessWidget {
                       ),
                       textAlign: TextAlign.center,
                     ),
-
                     const SizedBox(height: 8),
-
-                    // Subtitle
                     Text(
                       'Get more peace of mind.',
                       style: theme.textTheme.bodyLarge?.copyWith(
@@ -78,10 +126,7 @@ class UpgradeScreen extends StatelessWidget {
                       ),
                       textAlign: TextAlign.center,
                     ),
-
                     const SizedBox(height: 32),
-
-                    // Benefits List
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
@@ -98,146 +143,41 @@ class UpgradeScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 32),
-
-                    // Pricing Cards
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Monthly Plan
                         Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color:
-                                    theme.colorScheme.primary.withOpacity(0.2),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Monthly Plan',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '\$9.99',
-                                  style:
-                                      theme.textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                                Text(
-                                  '/ month',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withOpacity(0.6),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Cancel anytime',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withOpacity(0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: _planCard(
+                            theme: theme,
+                            title: 'Monthly Plan',
+                            price: '\$9.99',
+                            period: '/ month',
+                            selected: _selectedPlan == _BillingPlan.monthly,
+                            onTap: () =>
+                                setState(() => _selectedPlan = _BillingPlan.monthly),
                           ),
                         ),
-
                         const SizedBox(width: 16),
-
-                        // Annual Plan
                         Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color:
-                                  theme.colorScheme.primary.withOpacity(0.06),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color:
-                                    theme.colorScheme.primary.withOpacity(0.3),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: theme.colorScheme.primary
-                                      .withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Annual Plan',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '\$99.99',
-                                  style:
-                                      theme.textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                                Text(
-                                  '/ year',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withOpacity(0.6),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Cancel anytime',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withOpacity(0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: _planCard(
+                            theme: theme,
+                            title: 'Annual Plan',
+                            price: '\$99.99',
+                            period: '/ year',
+                            selected: _selectedPlan == _BillingPlan.yearly,
+                            highlight: true,
+                            onTap: () =>
+                                setState(() => _selectedPlan = _BillingPlan.yearly),
                           ),
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 32),
-
-                    // Continue to Payment Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Payment flow coming soon')),
-                          );
-                        },
+                        onPressed: _loading ? null : _openCheckout,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme.colorScheme.primary,
                           foregroundColor: Colors.white,
@@ -246,21 +186,29 @@ class UpgradeScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          'Continue to Payment',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: _loading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Continue to payment',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
-                    // No thanks option
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: _loading
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       child: Text(
                         "No thanks, I'll stay on the free plan",
                         style: TextStyle(
@@ -272,6 +220,93 @@ class UpgradeScreen extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _planCard({
+    required ThemeData theme,
+    required String title,
+    required String price,
+    required String period,
+    required bool selected,
+    required VoidCallback onTap,
+    bool highlight = false,
+  }) {
+    final borderColor = selected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.primary.withOpacity(highlight ? 0.3 : 0.2);
+    final borderWidth = selected ? 2.5 : 2.0;
+    final bg = highlight
+        ? theme.colorScheme.primary.withOpacity(0.06)
+        : Colors.white;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: borderColor,
+            width: borderWidth,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(highlight ? 0.08 : 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            if (selected)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Selected',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              price,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            Text(
+              period,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Cancel anytime',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

@@ -1,14 +1,18 @@
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user.dart';
+import 'google_sign_in_config.dart';
 import 'token_manager.dart';
 import 'secure_storage.dart';
 
 /// Firebase Authentication service for Email/Password and Google authentication
 class FirebaseAuthService {
   final firebase_auth.FirebaseAuth _firebaseAuth;
-  final GoogleSignIn _googleSignIn;
+  final GoogleSignIn? _injectedGoogleSignIn;
+  GoogleSignIn? _cachedGoogleSignIn;
   final TokenManager _tokenManager;
   final SecureStorage _secureStorage;
 
@@ -18,9 +22,18 @@ class FirebaseAuthService {
     TokenManager? tokenManager,
     SecureStorage? secureStorage,
   })  : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn.standard(),
+        _injectedGoogleSignIn = googleSignIn,
         _tokenManager = tokenManager ?? TokenManager(SecureStorage()),
         _secureStorage = secureStorage ?? SecureStorage();
+
+  Future<GoogleSignIn> _googleSignIn() async {
+    if (_injectedGoogleSignIn != null) return _injectedGoogleSignIn!;
+    _cachedGoogleSignIn ??= GoogleSignIn(
+      scopes: const <String>['email', 'profile', 'openid'],
+      serverClientId: await resolveGoogleWebClientId(),
+    );
+    return _cachedGoogleSignIn!;
+  }
 
   /// Sign up a new user with Firebase Email/Password
   Future<User> signUp({
@@ -39,6 +52,8 @@ class FirebaseAuthService {
         throw Exception('Firebase sign up failed - no user returned');
       }
 
+      await userCredential.user!.reload();
+
       // Get Firebase ID token
       final idToken = await userCredential.user!.getIdToken();
       if (idToken == null) {
@@ -51,22 +66,27 @@ class FirebaseAuthService {
       await _secureStorage.write('firebase_uid', userCredential.user!.uid);
       await _secureStorage.write('auth_provider', 'firebase');
 
+      final dn = fullName?.trim();
+      final display = (dn != null && dn.isNotEmpty) ? dn : 'User';
+
       // Create User object
       final user = User(
         id: userCredential.user!.uid, // Firebase UID
         email: email,
         role: role,
-        fullName: fullName,
-        displayName:
-            fullName ?? "User", // Temporary, will be replaced by backend
+        fullName: fullName?.trim().isEmpty == true ? null : fullName?.trim(),
+        displayName: display, // Temporary, will be replaced by backend
         authUid: userCredential.user!.uid,
       );
 
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
-    } catch (e) {
-      throw Exception('Firebase sign up failed: $e');
+    } catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception('Firebase sign up failed: ${e.toString()}'),
+        st,
+      );
     }
   }
 
@@ -84,8 +104,11 @@ class FirebaseAuthService {
         throw Exception('Firebase sign in failed - no user returned');
       }
 
+      final signedInUser = userCredential.user!;
+      await signedInUser.reload();
+
       // Get Firebase ID token
-      final idToken = await userCredential.user!.getIdToken();
+      final idToken = await signedInUser.getIdToken();
       if (idToken == null) {
         throw Exception('Failed to get Firebase ID token');
       }
@@ -93,33 +116,38 @@ class FirebaseAuthService {
       // Store Firebase token securely
       await _tokenManager.saveTokens(
           idToken, ''); // Firebase doesn't provide refresh tokens
-      await _secureStorage.write('firebase_uid', userCredential.user!.uid);
+      await _secureStorage.write('firebase_uid', signedInUser.uid);
       await _secureStorage.write('auth_provider', 'firebase');
 
       // Create User object
       final user = User(
-        id: userCredential.user!.uid, // Firebase UID
+        id: signedInUser.uid, // Firebase UID
         email: email,
         role: selectedRole ?? UserRole.patient, // Default role
-        fullName: userCredential.user!.displayName,
-        displayName: userCredential.user!.displayName ??
+        fullName: signedInUser.displayName,
+        displayName: signedInUser.displayName ??
             "User", // Temporary, will be replaced by backend
-        authUid: userCredential.user!.uid,
+        authUid: signedInUser.uid,
       );
 
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
-    } catch (e) {
-      throw Exception('Firebase sign in failed: $e');
+    } catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception('Firebase sign in failed: ${e.toString()}'),
+        st,
+      );
     }
   }
 
   /// Sign in with Google OAuth
   Future<User> signInWithGoogle({UserRole? selectedRole}) async {
     try {
+      final googleSignIn = await _googleSignIn();
+
       // Start Google Sign-In process
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
         throw Exception('Google sign-in cancelled');
@@ -130,13 +158,17 @@ class FirebaseAuthService {
           await googleUser.authentication;
 
       if (googleAuth.idToken == null) {
-        throw Exception('Missing Google ID token');
+        throw Exception(
+          'Missing Google ID token. Ensure Web client ID matches this Firebase project '
+          '(Android: default_web_client_id from google-services.json; see ENV_SETUP.md).',
+        );
       }
 
       // Create Firebase credential
       final firebase_auth.AuthCredential credential =
           firebase_auth.GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
+        accessToken: googleAuth.accessToken,
       );
 
       // Sign in to Firebase with Google credential
@@ -172,10 +204,21 @@ class FirebaseAuthService {
       );
 
       return user;
+    } on PlatformException catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception(
+          'Google Sign-In PlatformException: ${e.toString()} '
+          '(code=${e.code}, message=${e.message ?? ""}, details=${e.details})',
+        ),
+        st,
+      );
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
-    } catch (e) {
-      throw Exception('Google sign-in failed: $e');
+    } catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception('Google sign-in failed: ${e.toString()}'),
+        st,
+      );
     }
   }
 
@@ -183,7 +226,16 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     try {
       await _firebaseAuth.signOut();
-      await _googleSignIn.signOut(); // Also sign out from Google
+      if (_injectedGoogleSignIn != null) {
+        await _injectedGoogleSignIn!.signOut();
+      } else {
+        final g = _cachedGoogleSignIn ??
+            GoogleSignIn(
+              scopes: const <String>['email', 'profile', 'openid'],
+              serverClientId: await resolveGoogleWebClientId(),
+            );
+        await g.signOut();
+      }
       await _tokenManager.clearTokens();
       await _secureStorage.delete('firebase_uid');
       await _secureStorage.delete('auth_provider');
@@ -235,10 +287,24 @@ class FirebaseAuthService {
       print(
           '🔥 FirebaseAuthService: Firebase user found: ${firebaseUser.email ?? firebaseUser.uid}');
 
-      // Check if we have stored tokens
-      final hasToken = await _tokenManager.isTokenValid();
+      // Sync stored JWT with Firebase — if missing/expired, refresh so
+      // getCurrentUser() does not return null while a session still exists.
+      var hasToken = await _tokenManager.isTokenValid();
       if (!hasToken) {
-        print('🔥 FirebaseAuthService: Token is not valid');
+        try {
+          final idToken = await firebaseUser.getIdToken(true);
+          if (idToken != null) {
+            await _tokenManager.saveTokens(idToken, '');
+            await _secureStorage.write('firebase_uid', firebaseUser.uid);
+            await _secureStorage.write('auth_provider', 'firebase');
+            hasToken = true;
+          }
+        } catch (e) {
+          print('🔥 FirebaseAuthService: Token refresh failed: $e');
+        }
+      }
+      if (!hasToken) {
+        print('🔥 FirebaseAuthService: Token is not valid after refresh');
         return null;
       }
       print('🔥 FirebaseAuthService: Token is valid, creating User object');
@@ -294,30 +360,23 @@ class FirebaseAuthService {
   Future<void> updatePassword(String newPassword) async {
     try {
       await _firebaseAuth.currentUser?.updatePassword(newPassword);
-    } catch (e) {
-      throw Exception(
-          'Failed to update password. You may need to re-authenticate.');
+    } catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception(
+          'Failed to update password. You may need to re-authenticate. '
+          'Underlying error: ${e.toString()}',
+        ),
+        st,
+      );
     }
   }
 
   Exception _handleFirebaseAuthError(firebase_auth.FirebaseAuthException e) {
-    switch (e.code) {
-      case 'email-already-in-use':
-        return Exception('An account with this email already exists');
-      case 'weak-password':
-        return Exception('Password is too weak');
-      case 'invalid-email':
-        return Exception('Invalid email address');
-      case 'user-not-found':
-        return Exception('No account found with this email');
-      case 'wrong-password':
-        return Exception('Incorrect password');
-      case 'user-disabled':
-        return Exception('This account has been disabled');
-      case 'too-many-requests':
-        return Exception('Too many failed attempts. Please try again later');
-      default:
-        return Exception('Authentication failed: ${e.message}');
-    }
+    final buf = StringBuffer('FirebaseAuthException: ')
+      ..write(e.toString())
+      ..write(', code=${e.code}')
+      ..write(', message=${e.message ?? ''}');
+    if (e.email != null) buf.write(', email=${e.email}');
+    return Exception(buf.toString());
   }
 }

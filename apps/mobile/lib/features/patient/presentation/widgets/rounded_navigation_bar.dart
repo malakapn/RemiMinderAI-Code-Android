@@ -234,7 +234,7 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      margin: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 12),
       height: 70,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -262,55 +262,105 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem(
-            NavigationItem.home,
-            Icons.home_outlined,
-            Icons.home,
-            'Home',
-          ),
-          _buildNavItem(
-            NavigationItem.visits,
-            Icons.grid_view,
-            Icons.grid_view,
-            'Visits',
-          ),
-          _buildNavItem(
-            NavigationItem.overview,
-            Icons.assignment,
-            Icons.assignment,
-            'Overview',
-          ),
-          _buildNavItem(
-            NavigationItem.careTeam,
-            Icons.group,
-            Icons.group,
-            'Care Team',
-          ),
-          _buildNavItem(
-            NavigationItem.profile,
-            Icons.account_circle_outlined,
-            Icons.account_circle,
-            'Profile',
-          ),
-        ],
+        children: widget.routes != null
+            ? _caregiverNavItems()
+            : _patientNavItems(),
       ),
     );
+  }
+
+  List<Widget> _patientNavItems() {
+    return [
+      _buildNavItem(
+        NavigationItem.home,
+        Icons.home_outlined,
+        Icons.home,
+        'Home',
+      ),
+      _buildNavItem(
+        NavigationItem.visits,
+        Icons.grid_view,
+        Icons.grid_view,
+        'Visits',
+      ),
+      _buildNavItem(
+        NavigationItem.overview,
+        Icons.assignment,
+        Icons.assignment,
+        'Overview',
+      ),
+      _buildNavItem(
+        NavigationItem.careTeam,
+        Icons.group,
+        Icons.group,
+        'Care Team',
+      ),
+      _buildNavItem(
+        NavigationItem.profile,
+        Icons.account_circle_outlined,
+        Icons.account_circle,
+        'Profile',
+      ),
+    ];
+  }
+
+  List<Widget> _caregiverNavItems() {
+    return [
+      _buildNavItem(
+        NavigationItem.home,
+        Icons.home_outlined,
+        Icons.home,
+        'Home',
+        compact: true,
+      ),
+      _buildNavItem(
+        NavigationItem.visits,
+        Icons.grid_view,
+        Icons.grid_view,
+        'Visits',
+        compact: true,
+      ),
+      _buildNavItem(
+        NavigationItem.overview,
+        Icons.assignment,
+        Icons.assignment,
+        'Overview',
+        compact: true,
+      ),
+      _buildNavItem(
+        NavigationItem.careTeam,
+        Icons.group,
+        Icons.group,
+        'Care\nTeam',
+        compact: true,
+      ),
+      _buildNavItem(
+        NavigationItem.profile,
+        Icons.account_circle_outlined,
+        Icons.account_circle,
+        'Profile',
+        compact: true,
+      ),
+    ];
   }
 
   Widget _buildNavItem(
     NavigationItem item,
     IconData inactiveIcon,
     IconData activeIcon,
-    String label,
-  ) {
+    String label, {
+    bool compact = false,
+  }) {
     final isSelected = item == widget.currentItem;
 
     return GestureDetector(
       onTap: () => _onItemTapped(item),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 4 : 12,
+          vertical: 8,
+        ),
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF2C6E6E)
@@ -326,13 +376,17 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
               color: isSelected
                   ? const Color(0xFFFFD700) // Brighter gold for active state
                   : const Color(0xFFE6CFA1), // Soft gold for inactive state
-              size: 24,
+              size: compact ? 22 : 24,
             ),
             const SizedBox(height: 2),
             Text(
               label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11, // Slightly larger, 10-12pt range
+                fontSize: compact ? 9 : 11,
+                height: 1.05,
                 color: isSelected
                     ? Colors.white // White/beige for active state
                     : const Color(0xFFE6CFA1), // Soft gold for inactive state

@@ -21,39 +21,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberMe = false; // Remember me checkbox state
   String? _userRole;
 
-  /// Convert technical errors to user-friendly messages
-  String _getUserFriendlyErrorMessage(dynamic error) {
-    final errorString = error.toString().toLowerCase();
-
-    // Authentication errors
-    if (errorString.contains('invalid email or password') ||
-        errorString.contains('invalid_credentials')) {
-      return 'Invalid email or password. Please check your credentials and try again.';
-    }
-
-    if (errorString.contains('email not confirmed') ||
-        errorString.contains('email_not_confirmed')) {
-      return 'Please check your email and confirm your account before signing in.';
-    }
-
-    if (errorString.contains('user not found') ||
-        errorString.contains('user_not_found')) {
-      return 'No account found with this email address.';
-    }
-
-    // Network/API errors
-    if (errorString.contains('connection refused') ||
-        errorString.contains('network') ||
-        errorString.contains('failed to get user profile')) {
-      return 'Connection error. Please check your internet connection and try again.';
-    }
-
-    if (errorString.contains('timeout')) {
-      return 'Request timed out. Please try again.';
-    }
-
-    // Generic fallback
-    return 'Sign in failed. Please try again or contact support if the problem persists.';
+  /// Shows the exact exception text on screen for debugging failed sign-in.
+  void _showFullAuthErrorDialog(Object error) {
+    final text = error.toString();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign-in error'),
+        content: SingleChildScrollView(
+          child: Container(
+            width: double.maxFinite,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.shade700, width: 1.5),
+            ),
+            child: SelectableText(
+              text,
+              style: TextStyle(
+                color: Colors.red.shade900,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -109,10 +110,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (authState.hasError) {
         if (mounted) {
-          final errorMessage = _getUserFriendlyErrorMessage(
-              authState.errorMessage ?? 'Authentication failed');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage)),
+          _showFullAuthErrorDialog(
+            authState.errorMessage ?? 'Authentication failed',
           );
         }
         return;
@@ -135,18 +134,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Authentication failed. Please try again.')),
+          _showFullAuthErrorDialog(
+            Exception('Authentication failed. Please try again.'),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        final errorMessage = _getUserFriendlyErrorMessage(e);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        _showFullAuthErrorDialog(e);
       }
     }
   }
@@ -562,6 +557,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Check auth state after login attempt
       final authState = ref.read(authNotifierProvider);
 
+      if (authState.hasError) {
+        if (mounted) {
+          _showFullAuthErrorDialog(
+            authState.errorMessage ?? 'Google Sign-In failed',
+          );
+        }
+        return;
+      }
+
       if (authState.isAuthenticated) {
         // Navigate to appropriate home screen based on selected role (not backend role)
         final user = authState.user;
@@ -581,16 +585,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Google Sign In failed')),
-          );
+          _showFullAuthErrorDialog(Exception('Google Sign-In failed'));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google Sign In failed: ${e.toString()}')),
-        );
+        _showFullAuthErrorDialog(e);
       }
     }
   }

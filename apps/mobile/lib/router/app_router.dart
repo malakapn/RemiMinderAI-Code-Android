@@ -8,7 +8,7 @@ import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/patient/presentation/screens/patient_home_screen.dart';
 import '../features/caregiver/presentation/screens/caregiver_home_screen.dart';
-import '../features/caregiver/presentation/screens/patient_list_screen.dart';
+import '../features/caregiver/presentation/screens/patient_tab_screen.dart';
 import '../features/caregiver/presentation/screens/patient_overview_screen.dart';
 import '../features/caregiver/presentation/screens/alert_list_screen.dart';
 import '../features/caregiver/presentation/screens/accept_invitations_screen.dart';
@@ -122,7 +122,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/caregiver/patients',
-            builder: (context, state) => const PatientListScreen(),
+            builder: (context, state) => const PatientTabScreen(),
           ),
           GoRoute(
             path: '/caregiver/patient-overview',

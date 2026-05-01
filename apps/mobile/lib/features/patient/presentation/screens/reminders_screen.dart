@@ -1,121 +1,48 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class RemindersScreen extends StatefulWidget {
+import '../../../../core/services/notification_service.dart';
+import '../../../reminders/data/reminder_repository.dart';
+
+class RemindersScreen extends ConsumerStatefulWidget {
   const RemindersScreen({super.key});
 
   @override
-  State<RemindersScreen> createState() => _RemindersScreenState();
+  ConsumerState<RemindersScreen> createState() => _RemindersScreenState();
 }
 
-class _RemindersScreenState extends State<RemindersScreen>
+class _RemindersScreenState extends ConsumerState<RemindersScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  // Mock reminders data
-  final List<Map<String, dynamic>> _allReminders = [
-    {
-      'id': '1',
-      'title': 'Lisinopril 10mg',
-      'description': 'Blood pressure medication',
-      'scheduledTime': DateTime.now().add(const Duration(hours: 2)),
-      'status': 'pending',
-      'type': 'medication',
-      'dosage': '10mg',
-      'frequency': 'Once daily',
-      'snoozeCount': 0,
-      'snoozeUntil': null,
-      'createdAt': DateTime.now().subtract(const Duration(days: 7)),
-    },
-    {
-      'id': '2',
-      'title': 'Metformin 500mg',
-      'description': 'Diabetes medication',
-      'scheduledTime': DateTime.now().add(const Duration(hours: 6)),
-      'status': 'pending',
-      'type': 'medication',
-      'dosage': '500mg',
-      'frequency': 'Twice daily',
-      'snoozeCount': 1,
-      'snoozeUntil': null,
-      'createdAt': DateTime.now().subtract(const Duration(days: 5)),
-    },
-    {
-      'id': '3',
-      'title': 'Blood Pressure Check',
-      'description': 'Home blood pressure monitoring',
-      'scheduledTime': DateTime.now().subtract(const Duration(hours: 1)),
-      'status': 'completed',
-      'type': 'measurement',
-      'dosage': null,
-      'frequency': 'Twice weekly',
-      'snoozeCount': 0,
-      'snoozeUntil': null,
-      'createdAt': DateTime.now().subtract(const Duration(days: 3)),
-    },
-    {
-      'id': '4',
-      'title': 'Atorvastatin 20mg',
-      'description': 'Cholesterol medication',
-      'scheduledTime': DateTime.now().add(const Duration(hours: 12)),
-      'status': 'snoozed',
-      'type': 'medication',
-      'dosage': '20mg',
-      'frequency': 'Once daily',
-      'snoozeCount': 2,
-      'snoozeUntil': DateTime.now().add(const Duration(hours: 1)),
-      'createdAt': DateTime.now().subtract(const Duration(days: 2)),
-    },
-    {
-      'id': '5',
-      'title': 'Cardiology Appointment',
-      'description': 'Follow-up with Dr. Johnson',
-      'scheduledTime': DateTime.now().add(const Duration(days: 2)),
-      'status': 'pending',
-      'type': 'appointment',
-      'dosage': null,
-      'frequency': 'Every 3 months',
-      'snoozeCount': 0,
-      'snoozeUntil': null,
-      'createdAt': DateTime.now().subtract(const Duration(days: 1)),
-    },
-  ];
+  List<Reminder> _filterReminders(List<Reminder> all) {
+    var reminders = List<Reminder>.from(all);
 
-  List<Map<String, dynamic>> get _filteredReminders {
-    var reminders = _allReminders;
-
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      reminders = reminders.where((reminder) {
-        final title = reminder['title'].toLowerCase();
-        final description = reminder['description'].toLowerCase();
-        final query = _searchQuery.toLowerCase();
-        return title.contains(query) || description.contains(query);
+    if (_searchQuery.trim().isNotEmpty) {
+      final query = _searchQuery.toLowerCase().trim();
+      reminders = reminders.where((r) {
+        return r.title.toLowerCase().contains(query) ||
+            r.description.toLowerCase().contains(query);
       }).toList();
     }
 
-    // Apply tab filter
     switch (_tabController.index) {
-      case 0: // All
+      case 0:
         return reminders;
-      case 1: // Today
-        return reminders.where((reminder) {
-          final scheduledTime = reminder['scheduledTime'] as DateTime;
-          final today = DateTime.now();
-          return scheduledTime.year == today.year &&
-              scheduledTime.month == today.month &&
-              scheduledTime.day == today.day;
+      case 1:
+        final today = DateTime.now();
+        return reminders.where((r) {
+          final t = r.scheduledTime;
+          return t.year == today.year && t.month == today.month && t.day == today.day;
         }).toList();
-      case 2: // Pending
-        return reminders
-            .where((reminder) => reminder['status'] == 'pending')
-            .toList();
-      case 3: // Completed
-        return reminders
-            .where((reminder) => reminder['status'] == 'completed')
-            .toList();
+      case 2:
+        return reminders.where((r) => r.status == 'pending').toList();
+      case 3:
+        return reminders.where((r) => r.status == 'completed').toList();
       default:
         return reminders;
     }
@@ -139,6 +66,8 @@ class _RemindersScreenState extends State<RemindersScreen>
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -186,64 +115,92 @@ class _RemindersScreenState extends State<RemindersScreen>
               )
             : null,
       ),
-      body: Column(
-        children: [
-          // Search Bar (when active)
-          if (_searchQuery.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                controller: _searchController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: 'Search reminders...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: _clearSearch,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
+      body: uid == null
+          ? Center(
+              child: Text(
+                'Sign in to view reminders',
+                style: TextStyle(color: Theme.of(context).colorScheme.secondary),
               ),
-            ),
-
-          // Reminders List
-          Expanded(
-            child: _filteredReminders.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredReminders.length,
-                    itemBuilder: (context, index) {
-                      final reminder = _filteredReminders[index];
-                      return _buildReminderCard(reminder);
+            )
+          : Column(
+              children: [
+                if (_searchQuery.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'Search reminders...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: _clearSearch,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                    ),
+                  ),
+                Expanded(
+                  child: StreamBuilder<List<Reminder>>(
+                    stream: ref.read(reminderRepositoryProvider).getReminders(uid),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting &&
+                          !snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              'Could not load reminders\n${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      final filtered = _filterReminders(snapshot.data ?? []);
+                      if (filtered.isEmpty) {
+                        return _buildEmptyState();
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          return _buildReminderCard(filtered[index], uid);
+                        },
+                      );
                     },
                   ),
-          ),
-        ],
-      ),
+                ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addNewReminder,
+        onPressed: uid == null ? null : _addNewReminder,
         backgroundColor: Theme.of(context).colorScheme.primary,
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildReminderCard(Map<String, dynamic> reminder) {
-    final scheduledTime = reminder['scheduledTime'] as DateTime;
-    final status = reminder['status'] as String;
-    final type = reminder['type'] as String;
+  Widget _buildReminderCard(Reminder reminder, String uid) {
+    final scheduledTime = reminder.scheduledTime;
+    final status = reminder.status;
+    final type = reminder.type;
 
     return Dismissible(
-      key: Key(reminder['id']),
+      key: ValueKey(reminder.id),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
@@ -258,28 +215,29 @@ class _RemindersScreenState extends State<RemindersScreen>
         ),
       ),
       confirmDismiss: (direction) async {
-        return await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Delete Reminder'),
-            content:
-                const Text('Are you sure you want to delete this reminder?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+        return await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Delete Reminder'),
+                content:
+                    const Text('Are you sure you want to delete this reminder?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Delete'),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        );
+            ) ??
+            false;
       },
       onDismissed: (direction) {
-        _deleteReminder(reminder['id']);
+        _deleteReminder(uid, reminder.id);
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
@@ -294,7 +252,6 @@ class _RemindersScreenState extends State<RemindersScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with type icon and status
                 Row(
                   children: [
                     Container(
@@ -315,7 +272,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            reminder['title'],
+                            reminder.title,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -326,7 +283,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                             ),
                           ),
                           Text(
-                            reminder['description'],
+                            reminder.description,
                             style: TextStyle(
                               fontSize: 14,
                               color: Theme.of(context).colorScheme.secondary,
@@ -338,10 +295,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                     _buildStatusBadge(status),
                   ],
                 ),
-
                 const SizedBox(height: 12),
-
-                // Time and dosage info
                 Row(
                   children: [
                     Icon(
@@ -357,7 +311,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                         color: Theme.of(context).colorScheme.secondary,
                       ),
                     ),
-                    if (reminder['dosage'] != null) ...[
+                    if (reminder.dosage != null && reminder.dosage!.isNotEmpty) ...[
                       const SizedBox(width: 16),
                       Icon(
                         Icons.medication,
@@ -366,7 +320,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        reminder['dosage'],
+                        reminder.dosage!,
                         style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context).colorScheme.secondary,
@@ -375,8 +329,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                     ],
                   ],
                 ),
-
-                if (status == 'snoozed' && reminder['snoozeUntil'] != null) ...[
+                if (status == 'snoozed' && reminder.snoozeUntil != null) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding:
@@ -386,7 +339,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Snoozed until ${_formatTime(reminder['snoozeUntil'])}',
+                      'Snoozed until ${_formatTime(reminder.snoozeUntil!)}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.orange,
@@ -394,15 +347,13 @@ class _RemindersScreenState extends State<RemindersScreen>
                     ),
                   ),
                 ],
-
-                // Action buttons
                 if (status == 'pending' || status == 'snoozed') ...[
                   const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => _markAsCompleted(reminder['id']),
+                          onPressed: () => _markAsCompleted(uid, reminder.id),
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(
                               color: Theme.of(context).colorScheme.primary,
@@ -414,7 +365,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => _snoozeReminder(reminder['id']),
+                          onPressed: () => _snoozeReminder(uid, reminder.id),
                           child: const Text('Snooze'),
                         ),
                       ),
@@ -492,7 +443,7 @@ class _RemindersScreenState extends State<RemindersScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isEmpty
+            _searchQuery.trim().isEmpty
                 ? 'No reminders found'
                 : 'No reminders match your search',
             style: TextStyle(
@@ -503,7 +454,7 @@ class _RemindersScreenState extends State<RemindersScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isEmpty
+            _searchQuery.trim().isEmpty
                 ? 'Create your first reminder to get started'
                 : 'Try adjusting your search terms',
             style: TextStyle(
@@ -512,7 +463,7 @@ class _RemindersScreenState extends State<RemindersScreen>
             ),
             textAlign: TextAlign.center,
           ),
-          if (_searchQuery.isEmpty) ...[
+          if (_searchQuery.trim().isEmpty) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _addNewReminder,
@@ -560,7 +511,6 @@ class _RemindersScreenState extends State<RemindersScreen>
     final difference = dateTime.difference(now);
 
     if (difference.isNegative) {
-      // Past
       final hours = difference.inHours.abs();
       final minutes = difference.inMinutes.abs() % 60;
 
@@ -572,7 +522,6 @@ class _RemindersScreenState extends State<RemindersScreen>
         return '$minutes minutes ago';
       }
     } else {
-      // Future
       final hours = difference.inHours;
       final minutes = difference.inMinutes % 60;
 
@@ -591,7 +540,7 @@ class _RemindersScreenState extends State<RemindersScreen>
   void _toggleSearch() {
     setState(() {
       if (_searchQuery.isEmpty) {
-        _searchQuery = ' '; // Trigger search mode
+        _searchQuery = ' ';
       } else {
         _clearSearch();
       }
@@ -605,55 +554,293 @@ class _RemindersScreenState extends State<RemindersScreen>
     });
   }
 
-  void _addNewReminder() {
-    // TODO: Navigate to create reminder screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Create New Reminder - Coming Soon!')),
+  Future<void> _addNewReminder() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final dosageCtrl = TextEditingController();
+    final freqCtrl = TextEditingController();
+    String type = 'medication';
+    DateTime scheduled = DateTime.now().add(const Duration(hours: 1));
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: StatefulBuilder(
+            builder: (ctx, setModal) {
+              Future<void> pickDate() async {
+                final d = await showDatePicker(
+                  context: ctx,
+                  initialDate: scheduled,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2100),
+                );
+                if (d != null) {
+                  setModal(() {
+                    scheduled = DateTime(
+                      d.year,
+                      d.month,
+                      d.day,
+                      scheduled.hour,
+                      scheduled.minute,
+                    );
+                  });
+                }
+              }
+
+              Future<void> pickTime() async {
+                final t = await showTimePicker(
+                  context: ctx,
+                  initialTime: TimeOfDay.fromDateTime(scheduled),
+                );
+                if (t != null) {
+                  setModal(() {
+                    scheduled = DateTime(
+                      scheduled.year,
+                      scheduled.month,
+                      scheduled.day,
+                      t.hour,
+                      t.minute,
+                    );
+                  });
+                }
+              }
+
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'New reminder',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(ctx).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Title',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: type,
+                      decoration: const InputDecoration(
+                        labelText: 'Type',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'medication', child: Text('Medication')),
+                        DropdownMenuItem(value: 'appointment', child: Text('Appointment')),
+                        DropdownMenuItem(value: 'measurement', child: Text('Measurement')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setModal(() => type = v);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: pickDate,
+                            child: Text(
+                              '${scheduled.year}-${scheduled.month.toString().padLeft(2, '0')}-${scheduled.day.toString().padLeft(2, '0')}',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: pickTime,
+                            child: Text(
+                              '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')}',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: dosageCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Dosage (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: freqCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Frequency (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () async {
+                              final title = titleCtrl.text.trim();
+                              if (title.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Title is required'),
+                                  ),
+                                );
+                                return;
+                              }
+                              try {
+                                final created =
+                                    await ref.read(reminderRepositoryProvider).createReminder(
+                                  uid,
+                                  Reminder(
+                                    id: '',
+                                    title: title,
+                                    description: descCtrl.text.trim(),
+                                    type: type,
+                                    scheduledTime: scheduled,
+                                    status: 'pending',
+                                    dosage: dosageCtrl.text.trim().isEmpty
+                                        ? null
+                                        : dosageCtrl.text.trim(),
+                                    frequency: freqCtrl.text.trim().isEmpty
+                                        ? null
+                                        : freqCtrl.text.trim(),
+                                    snoozeCount: 0,
+                                    snoozeUntil: null,
+                                    createdAt: DateTime.now(),
+                                  ),
+                                );
+                                final notifId = created.id.hashCode & 0x7fffffff;
+                                await NotificationService().scheduleReminder(
+                                  id: notifId,
+                                  title: created.title,
+                                  body: created.description,
+                                  scheduledTime: created.scheduledTime,
+                                );
+                                if (ctx.mounted) Navigator.of(ctx).pop();
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Reminder created'),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed: $e')),
+                                  );
+                                }
+                              }
+                            },
+                            child: const Text('Save'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
-  void _editReminder(Map<String, dynamic> reminder) {
+  void _editReminder(Reminder reminder) {
     // TODO: Navigate to edit reminder screen
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Edit ${reminder['title']} - Coming Soon!')),
+      SnackBar(content: Text('Edit ${reminder.title} - Coming Soon!')),
     );
   }
 
-  void _markAsCompleted(String id) {
-    setState(() {
-      final index = _allReminders.indexWhere((r) => r['id'] == id);
-      if (index != -1) {
-        _allReminders[index]['status'] = 'completed';
+  Future<void> _markAsCompleted(String uid, String id) async {
+    try {
+      await ref.read(reminderRepositoryProvider).completeReminder(uid, id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reminder marked as completed!')),
+        );
       }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reminder marked as completed!')),
-    );
-  }
-
-  void _snoozeReminder(String id) {
-    setState(() {
-      final index = _allReminders.indexWhere((r) => r['id'] == id);
-      if (index != -1) {
-        _allReminders[index]['status'] = 'snoozed';
-        _allReminders[index]['snoozeUntil'] =
-            DateTime.now().add(const Duration(hours: 1));
-        _allReminders[index]['snoozeCount'] =
-            (_allReminders[index]['snoozeCount'] ?? 0) + 1;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
       }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reminder snoozed for 1 hour')),
-    );
+    }
   }
 
-  void _deleteReminder(String id) {
-    setState(() {
-      _allReminders.removeWhere((r) => r['id'] == id);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reminder deleted')),
-    );
+  Future<void> _snoozeReminder(String uid, String id) async {
+    try {
+      await ref.read(reminderRepositoryProvider).snoozeReminder(uid, id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reminder snoozed for 30 minutes')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteReminder(String uid, String id) async {
+    try {
+      await ref.read(reminderRepositoryProvider).deleteReminder(uid, id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reminder deleted')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e')),
+        );
+      }
+    }
   }
 
   void _showAdherenceStats() {
@@ -669,7 +856,6 @@ class _RemindersScreenState extends State<RemindersScreen>
         ),
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -695,24 +881,18 @@ class _RemindersScreenState extends State<RemindersScreen>
                 ],
               ),
             ),
-
-            // Stats Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Overall adherence
                     _buildAdherenceStat('This Week', 0.85, '6/7 days'),
                     const SizedBox(height: 16),
                     _buildAdherenceStat('This Month', 0.92, '28/30 days'),
                     const SizedBox(height: 16),
                     _buildAdherenceStat('Overall', 0.88, '89/101 doses'),
-
                     const SizedBox(height: 32),
-
-                    // Medication breakdown
                     Text(
                       'By Medication',
                       style: TextStyle(
@@ -722,7 +902,6 @@ class _RemindersScreenState extends State<RemindersScreen>
                       ),
                     ),
                     const SizedBox(height: 16),
-
                     _buildMedicationAdherence(
                         'Lisinopril 10mg', 0.95, '19/20 doses'),
                     const SizedBox(height: 12),
@@ -731,10 +910,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                     const SizedBox(height: 12),
                     _buildMedicationAdherence(
                         'Atorvastatin 20mg', 0.90, '18/20 doses'),
-
                     const SizedBox(height: 32),
-
-                    // Tips
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -768,7 +944,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                             style: TextStyle(
                               fontSize: 14,
                               height: 1.5,
-                              color: Colors.blue[700],
+                              color: Colors.blue,
                             ),
                           ),
                         ],
