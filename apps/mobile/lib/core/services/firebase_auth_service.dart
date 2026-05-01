@@ -3,28 +3,16 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../config/environment.dart';
 import '../models/user.dart';
+import 'google_sign_in_config.dart';
 import 'token_manager.dart';
 import 'secure_storage.dart';
-
-GoogleSignIn _defaultGoogleSignIn() {
-  final webClientId = Environment.googleWebClientId;
-  if (webClientId.isNotEmpty) {
-    return GoogleSignIn(
-      scopes: const <String>['email', 'profile', 'openid'],
-      serverClientId: webClientId,
-    );
-  }
-  return GoogleSignIn(
-    scopes: const <String>['email', 'profile'],
-  );
-}
 
 /// Firebase Authentication service for Email/Password and Google authentication
 class FirebaseAuthService {
   final firebase_auth.FirebaseAuth _firebaseAuth;
-  final GoogleSignIn _googleSignIn;
+  final GoogleSignIn? _injectedGoogleSignIn;
+  GoogleSignIn? _cachedGoogleSignIn;
   final TokenManager _tokenManager;
   final SecureStorage _secureStorage;
 
@@ -34,9 +22,18 @@ class FirebaseAuthService {
     TokenManager? tokenManager,
     SecureStorage? secureStorage,
   })  : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? _defaultGoogleSignIn(),
+        _injectedGoogleSignIn = googleSignIn,
         _tokenManager = tokenManager ?? TokenManager(SecureStorage()),
         _secureStorage = secureStorage ?? SecureStorage();
+
+  Future<GoogleSignIn> _googleSignIn() async {
+    if (_injectedGoogleSignIn != null) return _injectedGoogleSignIn!;
+    _cachedGoogleSignIn ??= GoogleSignIn(
+      scopes: const <String>['email', 'profile', 'openid'],
+      serverClientId: await resolveGoogleWebClientId(),
+    );
+    return _cachedGoogleSignIn!;
+  }
 
   /// Sign up a new user with Firebase Email/Password
   Future<User> signUp({
@@ -139,8 +136,10 @@ class FirebaseAuthService {
   /// Sign in with Google OAuth
   Future<User> signInWithGoogle({UserRole? selectedRole}) async {
     try {
+      final googleSignIn = await _googleSignIn();
+
       // Start Google Sign-In process
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
         throw Exception('Google sign-in cancelled');
@@ -152,8 +151,8 @@ class FirebaseAuthService {
 
       if (googleAuth.idToken == null) {
         throw Exception(
-          'Missing Google ID token. On Android, set GOOGLE_WEB_CLIENT_ID in .env '
-          'to your Firebase Web client ID (see Firebase Console → Project settings).',
+          'Missing Google ID token. Ensure Web client ID matches this Firebase project '
+          '(Android: default_web_client_id from google-services.json; see ENV_SETUP.md).',
         );
       }
 
@@ -222,7 +221,16 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     try {
       await _firebaseAuth.signOut();
-      await _googleSignIn.signOut(); // Also sign out from Google
+      if (_injectedGoogleSignIn != null) {
+        await _injectedGoogleSignIn!.signOut();
+      } else {
+        final g = _cachedGoogleSignIn ??
+            GoogleSignIn(
+              scopes: const <String>['email', 'profile', 'openid'],
+              serverClientId: await resolveGoogleWebClientId(),
+            );
+        await g.signOut();
+      }
       await _tokenManager.clearTokens();
       await _secureStorage.delete('firebase_uid');
       await _secureStorage.delete('auth_provider');

@@ -34,6 +34,8 @@ GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
 # GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
 ```
 
+On Android the app also reads **`default_web_client_id`** from the merged `google-services.json` (no `.env` required) so the Web client ID always matches your Firebase project.
+
 `GOOGLE_CLIENT_ID` matches the name used in the shared examples below; the app checks `GOOGLE_WEB_CLIENT_ID` first, then `GOOGLE_CLIENT_ID`. If neither is present in the loaded `.env` file, the app still uses the Firebase **Web client ID** documented for this repository (same as below) so Google Sign-In works in CI and fresh builds; override anytime via `.env` or `--dart-define=GOOGLE_WEB_CLIENT_ID=...`.
 
 ### Both backend and mobile (example root `.env`)
