@@ -82,8 +82,11 @@ class FirebaseAuthService {
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
-    } catch (e) {
-      throw Exception('Firebase sign up failed: $e');
+    } catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception('Firebase sign up failed: ${e.toString()}'),
+        st,
+      );
     }
   }
 
@@ -130,8 +133,11 @@ class FirebaseAuthService {
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
-    } catch (e) {
-      throw Exception('Firebase sign in failed: $e');
+    } catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception('Firebase sign in failed: ${e.toString()}'),
+        st,
+      );
     }
   }
 
@@ -198,35 +204,21 @@ class FirebaseAuthService {
       );
 
       return user;
-    } on PlatformException catch (e) {
-      if (e.code == 'sign_in_canceled' ||
-          e.code == 'SIGN_IN_CANCELED' ||
-          e.code == 'sign_in_cancelled') {
-        throw Exception('Google sign-in cancelled');
-      }
-      final detail = '${e.message ?? ''} ${e.details ?? ''}'.toLowerCase();
-      // Android: DEVELOPER_ERROR / ApiException 10 = OAuth client / SHA-1 mismatch.
-      if (detail.contains('developer_error') ||
-          detail.contains('apiexception: 10') ||
-          detail.contains('statuscode.developer_error')) {
-        throw Exception(
-          'Google Sign-In is not set up for this Android build. In Firebase Console → '
-          'Project settings → your Android app, add this keystore’s SHA-1 fingerprint, '
-          'then use an updated google-services.json (or rebuild from CI with the correct secret).',
-        );
-      }
-      if (e.code == 'sign_in_failed' || e.code == 'SIGN_IN_FAILED') {
-        throw Exception(
-          'Google Sign-In failed. Please ensure your Google account is configured correctly.',
-        );
-      }
-      throw Exception(
-        'Google Sign-In failed. Please ensure your Google account is configured correctly.',
+    } on PlatformException catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception(
+          'Google Sign-In PlatformException: ${e.toString()} '
+          '(code=${e.code}, message=${e.message ?? ""}, details=${e.details})',
+        ),
+        st,
       );
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
-    } catch (e) {
-      throw Exception('Google sign-in failed: $e');
+    } catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception('Google sign-in failed: ${e.toString()}'),
+        st,
+      );
     }
   }
 
@@ -368,42 +360,23 @@ class FirebaseAuthService {
   Future<void> updatePassword(String newPassword) async {
     try {
       await _firebaseAuth.currentUser?.updatePassword(newPassword);
-    } catch (e) {
-      throw Exception(
-          'Failed to update password. You may need to re-authenticate.');
+    } catch (e, st) {
+      Error.throwWithStackTrace(
+        Exception(
+          'Failed to update password. You may need to re-authenticate. '
+          'Underlying error: ${e.toString()}',
+        ),
+        st,
+      );
     }
   }
 
   Exception _handleFirebaseAuthError(firebase_auth.FirebaseAuthException e) {
-    switch (e.code) {
-      case 'email-already-in-use':
-        return Exception('An account with this email already exists');
-      case 'weak-password':
-        return Exception('Password is too weak');
-      case 'invalid-email':
-        return Exception('Invalid email address');
-      case 'invalid-credential':
-        return Exception(
-          'Invalid email or password. Please check your credentials and try again.',
-        );
-      case 'user-not-found':
-        return Exception('No account found with this email');
-      case 'wrong-password':
-        return Exception('Incorrect password');
-      case 'user-disabled':
-        return Exception('This account has been disabled');
-      case 'too-many-requests':
-        return Exception('Too many failed attempts. Please try again later');
-      case 'operation-not-allowed':
-        return Exception(
-          'This sign-in method is not enabled for this app. Check Firebase Console → Authentication.',
-        );
-      case 'network-request-failed':
-        return Exception(
-          'Network error. Check your connection and try again.',
-        );
-      default:
-        return Exception('Authentication failed: ${e.message}');
-    }
+    final buf = StringBuffer('FirebaseAuthException: ')
+      ..write(e.toString())
+      ..write(', code=${e.code}')
+      ..write(', message=${e.message ?? ''}');
+    if (e.email != null) buf.write(', email=${e.email}');
+    return Exception(buf.toString());
   }
 }
