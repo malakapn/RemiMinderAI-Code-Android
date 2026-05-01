@@ -159,9 +159,8 @@ class AuthNotifier extends Notifier<AuthState> {
     final webClientId = Environment.googleWebClientId;
     if (webClientId == null || webClientId.isEmpty) {
       state = AuthState.error(
-        'Google Sign-In is not configured. Copy apps/mobile/.env.example to '
-        'apps/mobile/.env, set GOOGLE_WEB_CLIENT_ID to your Firebase Web client ID, '
-        'then rebuild (see pubspec.yaml assets).',
+        'Google Sign-In is not configured. Set GOOGLE_CLIENT_ID or '
+        'GOOGLE_WEB_CLIENT_ID in apps/mobile/.env (see ENV_SETUP.md), then rebuild.',
       );
       return;
     }

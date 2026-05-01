@@ -27,11 +27,15 @@ class Environment {
   /// OAuth 2.0 **Web client** ID from Firebase (Project settings → Your apps → Web client,
   /// or Authentication → Sign-in method → Google). On Android this is often required so
   /// `GoogleSignIn` returns a non-null **id token** for `GoogleAuthProvider.credential`.
+  ///
+  /// Accepts `GOOGLE_WEB_CLIENT_ID` or `GOOGLE_CLIENT_ID` (see repository root ENV_SETUP.md).
   static String? get googleWebClientId {
     if (!_isLoaded) return null;
-    final v = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
-    if (v == null || v.isEmpty) return null;
-    return v;
+    final primary = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+    if (primary != null && primary.isNotEmpty) return primary;
+    final legacy = dotenv.env['GOOGLE_CLIENT_ID']?.trim();
+    if (legacy != null && legacy.isNotEmpty) return legacy;
+    return null;
   }
 
   /// Default app URL scheme for Stripe Checkout return URLs (mobile).
