@@ -26,8 +26,9 @@ dependencies:
   # Firebase (initialized but not used for auth yet)
   firebase_core: ^4.0.0
   firebase_auth: ^6.0.0
-  firebase_messaging: ^15.0.0
-  cloud_firestore: ^6.0.0 # satisfies cloud_firestore >=5.0.0 with firebase_core ^4
+  # ^16.x required with firebase_core ^4 + cloud_firestore ^6 (platform_interface ^6)
+  firebase_messaging: ^16.1.0
+  cloud_firestore: ^6.0.0
 
   # Secure Storage (for JWT tokens)
   flutter_secure_storage: ^10.0.0
