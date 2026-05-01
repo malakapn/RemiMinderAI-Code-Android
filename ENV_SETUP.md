@@ -25,7 +25,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 # Google Sign-In Client ID (from Google Cloud Console)
 # For iOS: com.googleusercontent.apps.xxxxxxxxxx-xxxxxxxxxxxxxxxxxx
 # For Android: xxxxxxxxxx-xxxxxxxxxxxxxxxxxx.googleusercontent.com
-GOOGLE_CLIENT_ID=your-google-client-id-here
+GOOGLE_CLIENT_ID=575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com
 
 # =============================================================================
 # API CONFIGURATION
