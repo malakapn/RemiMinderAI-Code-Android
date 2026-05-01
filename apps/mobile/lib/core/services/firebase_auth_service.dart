@@ -42,6 +42,8 @@ class FirebaseAuthService {
         throw Exception('Firebase sign up failed - no user returned');
       }
 
+      await userCredential.user!.reload();
+
       // Get Firebase ID token
       final idToken = await userCredential.user!.getIdToken();
       if (idToken == null) {
@@ -87,8 +89,11 @@ class FirebaseAuthService {
         throw Exception('Firebase sign in failed - no user returned');
       }
 
+      final signedInUser = userCredential.user!;
+      await signedInUser.reload();
+
       // Get Firebase ID token
-      final idToken = await userCredential.user!.getIdToken();
+      final idToken = await signedInUser.getIdToken();
       if (idToken == null) {
         throw Exception('Failed to get Firebase ID token');
       }
@@ -96,18 +101,18 @@ class FirebaseAuthService {
       // Store Firebase token securely
       await _tokenManager.saveTokens(
           idToken, ''); // Firebase doesn't provide refresh tokens
-      await _secureStorage.write('firebase_uid', userCredential.user!.uid);
+      await _secureStorage.write('firebase_uid', signedInUser.uid);
       await _secureStorage.write('auth_provider', 'firebase');
 
       // Create User object
       final user = User(
-        id: userCredential.user!.uid, // Firebase UID
+        id: signedInUser.uid, // Firebase UID
         email: email,
         role: selectedRole ?? UserRole.patient, // Default role
-        fullName: userCredential.user!.displayName,
-        displayName: userCredential.user!.displayName ??
+        fullName: signedInUser.displayName,
+        displayName: signedInUser.displayName ??
             "User", // Temporary, will be replaced by backend
-        authUid: userCredential.user!.uid,
+        authUid: signedInUser.uid,
       );
 
       return user;
@@ -252,10 +257,24 @@ class FirebaseAuthService {
       print(
           '🔥 FirebaseAuthService: Firebase user found: ${firebaseUser.email ?? firebaseUser.uid}');
 
-      // Check if we have stored tokens
-      final hasToken = await _tokenManager.isTokenValid();
+      // Sync stored JWT with Firebase — if missing/expired, refresh so
+      // getCurrentUser() does not return null while a session still exists.
+      var hasToken = await _tokenManager.isTokenValid();
       if (!hasToken) {
-        print('🔥 FirebaseAuthService: Token is not valid');
+        try {
+          final idToken = await firebaseUser.getIdToken(true);
+          if (idToken != null) {
+            await _tokenManager.saveTokens(idToken, '');
+            await _secureStorage.write('firebase_uid', firebaseUser.uid);
+            await _secureStorage.write('auth_provider', 'firebase');
+            hasToken = true;
+          }
+        } catch (e) {
+          print('🔥 FirebaseAuthService: Token refresh failed: $e');
+        }
+      }
+      if (!hasToken) {
+        print('🔥 FirebaseAuthService: Token is not valid after refresh');
         return null;
       }
       print('🔥 FirebaseAuthService: Token is valid, creating User object');
@@ -325,6 +344,10 @@ class FirebaseAuthService {
         return Exception('Password is too weak');
       case 'invalid-email':
         return Exception('Invalid email address');
+      case 'invalid-credential':
+        return Exception(
+          'Invalid email or password. Please check your credentials and try again.',
+        );
       case 'user-not-found':
         return Exception('No account found with this email');
       case 'wrong-password':

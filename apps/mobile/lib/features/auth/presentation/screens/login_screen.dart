@@ -38,6 +38,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final errorString = error.toString().toLowerCase();
 
+    if (errorString.contains('account created, but we could not finish setup')) {
+      return 'Your account was created, but setup did not finish. Please sign in with your email and password.';
+    }
+
+    if (errorString.contains('signed in, but we could not load your profile')) {
+      return 'We could not load your profile. Please check your connection and try signing in again.';
+    }
+
+    if (errorString.contains('incorrect password') ||
+        errorString.contains('wrong-password')) {
+      return 'Incorrect password. Please try again or use Forgot password.';
+    }
+
+    if (errorString.contains('no account found with this email') ||
+        errorString.contains('user-not-found')) {
+      return 'No account found with this email address.';
+    }
+
+    if (errorString.contains('invalid email address') ||
+        errorString.contains('invalid-email')) {
+      return 'That email address does not look valid. Please check and try again.';
+    }
+
+    if (errorString.contains('too many failed attempts') ||
+        errorString.contains('too-many-requests')) {
+      return 'Too many sign-in attempts. Please wait a few minutes and try again.';
+    }
+
+    if (errorString.contains('invalid email or password') ||
+        errorString.contains('invalid_credentials') ||
+        errorString.contains('invalid-credential')) {
+      return 'Invalid email or password. Please check your credentials and try again.';
+    }
+
+    if (errorString.contains('email not confirmed') ||
+        errorString.contains('email_not_confirmed')) {
+      return 'Please verify your email before logging in. Check your inbox.';
+    }
+
+    if (errorString.contains('user not found')) {
+      return 'No account found with this email address.';
+    }
+
     if (errorString.contains('google sign-in failed. please ensure') ||
         errorString.contains('sign_in_failed')) {
       return 'Google Sign-In failed. Please ensure your Google account is configured correctly.';
@@ -46,22 +89,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (errorString.contains('google sign-in was cancelled') ||
         errorString.contains('google sign-in cancelled')) {
       return 'Google sign-in was cancelled.';
-    }
-
-    // Authentication errors
-    if (errorString.contains('invalid email or password') ||
-        errorString.contains('invalid_credentials')) {
-      return 'Invalid email or password. Please check your credentials and try again.';
-    }
-
-    if (errorString.contains('email not confirmed') ||
-        errorString.contains('email_not_confirmed')) {
-      return 'Please check your email and confirm your account before signing in.';
-    }
-
-    if (errorString.contains('user not found') ||
-        errorString.contains('user_not_found')) {
-      return 'No account found with this email address.';
     }
 
     // Network/API errors

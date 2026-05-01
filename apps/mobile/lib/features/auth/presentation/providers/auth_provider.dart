@@ -94,6 +94,10 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AuthState.loading();
 
     try {
+      // createUserWithEmailAndPassword() already signs the user into Firebase;
+      // no follow-up signInWithEmailAndPassword() is required. Tokens are saved
+      // in FirebaseAuthService; this notifier becomes authenticated after backend
+      // bootstrap + profile load succeed.
       final user = await _authRepository.signUp(
         email: email,
         password: password,
@@ -101,16 +105,24 @@ class AuthNotifier extends Notifier<AuthState> {
         fullName: fullName,
       );
 
-      // Bootstrap user in backend with full name
-      await _backendApiService.bootstrapUser(fullName: fullName);
+      try {
+        await _backendApiService.bootstrapUser(fullName: fullName);
+        final profile = await _backendApiService.getMyProfile();
 
-      // Fetch user profile from backend
-      final profile = await _backendApiService.getMyProfile();
-
-      state = AuthState.authenticated(user,
-          profile: AuthProfile.fromUserProfile(profile));
+        state = AuthState.authenticated(user,
+            profile: AuthProfile.fromUserProfile(profile));
+      } catch (_) {
+        await _authRepository.signOut();
+        const msg =
+            'Account created, but we could not finish setup. Please sign in with your email and password.';
+        state = AuthState.error(msg);
+        throw Exception(msg);
+      }
     } catch (e) {
-      state = AuthState.error(e.toString());
+      if (!state.hasError) {
+        state = AuthState.error(e.toString());
+      }
+      rethrow;
     }
   }
 
@@ -120,17 +132,24 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AuthState.loading();
 
     try {
+      // Repository → FirebaseAuthService.signIn →
+      // FirebaseAuth.instance.signInWithEmailAndPassword(); tokens persisted there.
       final user = await _authRepository.signIn(email, password,
           selectedRole: selectedRole);
 
-      // Bootstrap user in backend
-      await _backendApiService.bootstrapUser();
+      try {
+        await _backendApiService.bootstrapUser();
+        final profile = await _backendApiService.getMyProfile();
 
-      // Fetch user profile from backend
-      final profile = await _backendApiService.getMyProfile();
-
-      state = AuthState.authenticated(user,
-          profile: AuthProfile.fromUserProfile(profile));
+        state = AuthState.authenticated(user,
+            profile: AuthProfile.fromUserProfile(profile));
+      } catch (_) {
+        await _authRepository.signOut();
+        state = AuthState.error(
+          'Signed in, but we could not load your profile. Please try again.',
+        );
+        return;
+      }
     } catch (e) {
       state = AuthState.error(e.toString());
     }
