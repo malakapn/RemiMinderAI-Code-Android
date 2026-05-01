@@ -151,9 +151,9 @@ class AuthNotifier extends Notifier<AuthState> {
 
   /// Sign in with Google OAuth (Firebase + Web client ID; see ENV_SETUP.md).
   Future<void> signInWithGoogle({UserRole? selectedRole}) async {
-    state = AuthState.loading();
-
     try {
+      state = AuthState.loading();
+
       final user =
           await _authRepository.signInWithGoogle(selectedRole: selectedRole);
 
@@ -166,8 +166,8 @@ class AuthNotifier extends Notifier<AuthState> {
         // Same as email sign-in: backend optional when Firebase session is valid
         state = AuthState.authenticated(user);
       }
-    } catch (e) {
-      // Preserve full exception text so the login UI can show the exact failure.
+    } catch (e, st) {
+      print('signInWithGoogle error: $e\n$st');
       state = AuthState.error(e.toString());
     }
   }
