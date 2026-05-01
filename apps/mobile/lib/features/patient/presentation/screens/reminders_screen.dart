@@ -757,8 +757,11 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                                 if (ctx.mounted) Navigator.of(ctx).pop();
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Reminder created')),
-                                );
+                                    const SnackBar(
+                                      content: Text('Reminder created'),
+                                    ),
+                                  );
+                                }
                               } catch (e) {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
