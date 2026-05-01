@@ -12,7 +12,6 @@ import 'secure_storage.dart';
 class FirebaseAuthService {
   final firebase_auth.FirebaseAuth _firebaseAuth;
   final GoogleSignIn? _injectedGoogleSignIn;
-  GoogleSignIn? _cachedGoogleSignIn;
   final TokenManager _tokenManager;
   final SecureStorage _secureStorage;
 
@@ -28,11 +27,12 @@ class FirebaseAuthService {
 
   Future<GoogleSignIn> _googleSignIn() async {
     if (_injectedGoogleSignIn != null) return _injectedGoogleSignIn!;
-    _cachedGoogleSignIn ??= GoogleSignIn(
+    final serverClientId = await resolveGoogleWebClientId();
+    print('FirebaseAuthService GoogleSignIn serverClientId: $serverClientId');
+    return GoogleSignIn(
       scopes: const <String>['email', 'profile', 'openid'],
-      serverClientId: await resolveGoogleWebClientId(),
+      serverClientId: serverClientId,
     );
-    return _cachedGoogleSignIn!;
   }
 
   /// Sign up a new user with Firebase Email/Password
@@ -231,11 +231,10 @@ class FirebaseAuthService {
       if (_injectedGoogleSignIn != null) {
         await _injectedGoogleSignIn!.signOut();
       } else {
-        final g = _cachedGoogleSignIn ??
-            GoogleSignIn(
-              scopes: const <String>['email', 'profile', 'openid'],
-              serverClientId: await resolveGoogleWebClientId(),
-            );
+        final g = GoogleSignIn(
+          scopes: const <String>['email', 'profile', 'openid'],
+          serverClientId: await resolveGoogleWebClientId(),
+        );
         await g.signOut();
       }
       await _tokenManager.clearTokens();
