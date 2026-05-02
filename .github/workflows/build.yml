@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Secrets: DEBUG_KEYSTORE_BASE64, KEYSTORE_ALIAS, KEYSTORE_STORE_PASSWORD, KEYSTORE_KEY_PASSWORD
   build:
     runs-on: ubuntu-latest
 
@@ -26,18 +27,23 @@ jobs:
           flutter-version: '3.41.6'
           channel: 'stable'
 
+      # Sri's upload keystore (base64). SHA-1 confirmation uses secrets.KEYSTORE_* below.
       - name: Restore debug keystore
         run: |
           mkdir -p ~/.android
           echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > ~/.android/debug.keystore
 
       - name: Print SHA-1 (confirm)
+        env:
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
           keytool -list -v \
             -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android \
-            -keypass android | grep SHA1
+            -alias "$KEYSTORE_ALIAS" \
+            -storepass "$KEYSTORE_STORE_PASSWORD" \
+            -keypass "$KEYSTORE_KEY_PASSWORD" | grep SHA1
 
       - name: Create google-services.json
         run: |
