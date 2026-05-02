@@ -135,7 +135,7 @@ class _TwelveHourPickerBodyState extends State<_TwelveHourPickerBody> {
                     child: _ScrollWheel(
                       controller: _hourCtr,
                       itemCount: 12,
-                      itemBuilder: (_, i) => '${i + 1}',
+                      itemBuilder: (i) => '${i + 1}',
                       onSelected: (i) =>
                           setState(() => _hour12 = i + 1),
                       label: 'Hour',
@@ -146,7 +146,8 @@ class _TwelveHourPickerBodyState extends State<_TwelveHourPickerBody> {
                     child: _ScrollWheel(
                       controller: _minuteCtr,
                       itemCount: 60,
-                      itemBuilder: (_, i) => i.toString().padLeft(2, '0'),
+                      itemBuilder: (i) =>
+                          i.toString().padLeft(2, '0'),
                       onSelected: (i) =>
                           setState(() => _minute = i),
                       label: 'Min',
