@@ -625,7 +625,7 @@ class NotificationService {
     String? notificationBody,
   }) async {
     debugPrint('[NotificationService] scheduleFromReminderData start reminderId=$reminderId '
-        'recurring=$isRec pattern=$recurrencePattern at=$scheduledTime '
+        'recurring=$isRecurring pattern=$recurrencePattern at=$scheduledTime '
         'initialized=$_isInitialized');
     if (!_isInitialized) await initialize();
     await _debugLogAndroidChannelState('scheduleFromReminderData(pre-schedule)');
