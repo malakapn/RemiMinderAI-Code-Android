@@ -27,13 +27,14 @@ jobs:
           flutter-version: '3.41.6'
           channel: 'stable'
 
-      # Upload keystore for Gradle release signing (matches android/app/build.gradle.kts).
+      # Same base64 secret: ~/.android/debug.keystore (keytool / SHA-1) and upload-keystore.jks (Gradle release).
       - name: Restore upload keystore
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
-          mkdir -p apps/mobile/android/app
-          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > apps/mobile/android/app/upload-keystore.jks
+          mkdir -p "$HOME/.android" apps/mobile/android/app
+          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
+          cp "$HOME/.android/debug.keystore" apps/mobile/android/app/upload-keystore.jks
 
       - name: Print SHA-1 (confirm)
         env:
@@ -42,7 +43,7 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
           keytool -list -v \
-            -keystore apps/mobile/android/app/upload-keystore.jks \
+            -keystore "$HOME/.android/debug.keystore" \
             -alias "$KEYSTORE_ALIAS" \
             -storepass "$KEYSTORE_STORE_PASSWORD" \
             -keypass "$KEYSTORE_KEY_PASSWORD" | grep SHA1
