@@ -27,11 +27,13 @@ jobs:
           flutter-version: '3.41.6'
           channel: 'stable'
 
-      # Sri's upload keystore (base64). SHA-1 confirmation uses secrets.KEYSTORE_* below.
+      # Sri's upload keystore (base64).
       - name: Restore debug keystore
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
           mkdir -p ~/.android
-          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > ~/.android/debug.keystore
+          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > ~/.android/debug.keystore
 
       - name: Print SHA-1 (confirm)
         env:
