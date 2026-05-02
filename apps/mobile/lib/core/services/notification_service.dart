@@ -113,6 +113,8 @@ class NotificationService {
 
     await _setupRemoteMessageInteractions();
 
+    await _ensureFcmMessagingPermission();
+
     // Request necessary permissions
     await requestPermissions();
     await requestExactAlarmPermission();
@@ -124,6 +126,20 @@ class NotificationService {
     tz.initializeTimeZones();
     final String timeZoneName = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(timeZoneName));
+  }
+
+  /// Required on iOS (and helps some Android setups) before [FirebaseMessaging.getToken].
+  Future<void> _ensureFcmMessagingPermission() async {
+    if (kIsWeb) return;
+    try {
+      await _fcm.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (e) {
+      debugPrint('FirebaseMessaging.requestPermission skipped: $e');
+    }
   }
 
   void setNavigationHandler(void Function(String route) handler) {
@@ -384,6 +400,7 @@ class NotificationService {
     if (_fcmToken != null) return _fcmToken;
 
     try {
+      await _ensureFcmMessagingPermission();
       _fcmToken = await _fcm.getToken();
       return _fcmToken;
     } catch (e) {

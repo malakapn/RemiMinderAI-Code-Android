@@ -566,10 +566,10 @@ async def get_user_language_preferences(firebase_uid: str) -> dict:
             query = text("""
                 SELECT app_language, visit_language
                 FROM users
-                WHERE firebase_uid = :firebase_uid
+                WHERE id::text = :internal_user_id
             """)
 
-            result = conn.execute(query, {"firebase_uid": firebase_uid})
+            result = conn.execute(query, {"internal_user_id": firebase_uid})
             row = result.fetchone()
 
             if not row:
@@ -592,7 +592,7 @@ async def get_user_language_preferences(firebase_uid: str) -> dict:
             return preferences
 
     except Exception as e:
-        logger.error(f"Error getting language preferences for firebase_uid={firebase_uid}: {e}")
+        logger.error(f"Error getting language preferences for user_id={firebase_uid}: {e}")
         raise
 
 
@@ -618,11 +618,11 @@ async def update_user_language_preferences(firebase_uid: str, app_language: str,
                 SET app_language = :app_language,
                     visit_language = :visit_language,
                     updated_at = now()
-                WHERE firebase_uid = :firebase_uid
+                WHERE id::text = :internal_user_id
             """)
 
             result = conn.execute(query, {
-                "firebase_uid": firebase_uid,
+                "internal_user_id": firebase_uid,
                 "app_language": app_language,
                 "visit_language": visit_language
             })
@@ -631,7 +631,7 @@ async def update_user_language_preferences(firebase_uid: str, app_language: str,
             return success
 
     except Exception as e:
-        logger.error(f"Error updating language preferences for firebase_uid={firebase_uid}: {e}")
+        logger.error(f"Error updating language preferences for user_id={firebase_uid}: {e}")
         raise
 
 

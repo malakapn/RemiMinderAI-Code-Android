@@ -132,8 +132,11 @@ class _LanguageSettingsScreenState
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString();
+        final short =
+            msg.length > 140 ? '${msg.substring(0, 140)}...' : msg;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save language settings')),
+          SnackBar(content: Text('Failed to save language settings: $short')),
         );
       }
     } finally {

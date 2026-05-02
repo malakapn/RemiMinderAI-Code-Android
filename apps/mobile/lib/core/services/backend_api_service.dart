@@ -237,7 +237,7 @@ class BackendApiService {
       }),
     ).timeout(_apiTimeout);
 
-    if (response.statusCode != 200) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       debugPrint(
           'FCM token registration failed: ${response.statusCode} - ${response.body}');
       throw Exception(

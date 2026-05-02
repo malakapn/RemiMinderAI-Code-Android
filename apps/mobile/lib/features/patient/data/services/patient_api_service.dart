@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/summary_item.dart';
 import '../models/models.dart';
 import '../../../../core/config/environment.dart';
-import '../../../../core/services/auth_service.dart';
+
 
 class PatientApiService {
   final String baseUrl;
@@ -13,26 +13,30 @@ class PatientApiService {
   PatientApiService({
     String? baseUrl,
     String? authToken,
-    AuthService? authService,
   })  : baseUrl = baseUrl ?? Environment.apiBaseUrl,
-        _authToken = authToken ?? '' {
-    if (_authToken.isEmpty && authService != null) {
-      _initToken(authService);
-    }
-  }
+        _authToken = authToken ?? '';
 
   static String? _staticToken;
 
-  static Future<void> _initToken(AuthService authService) async {
-    _staticToken = await authService.getAccessToken();
+  /// Resolved auth header: explicit per-instance token beats process-wide cache.
+  String get _token {
+    final t = _authToken.trim();
+    if (t.isNotEmpty) {
+      return t;
+    }
+    return (_staticToken ?? '').trim();
   }
-
-  String get _token => _staticToken ?? _authToken;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $_token',
+        if (_token.isNotEmpty) 'Authorization': 'Bearer $_token',
       };
+
+  static void clearSessionCaches() {
+    _staticToken = null;
+    _summariesCache = null;
+    _latestStatusCache = null;
+  }
 
   static void setCachedLatestVisitStatus(Map<String, dynamic> status) {
     _latestStatusCache = CacheEntry(status, DateTime.now());
@@ -342,6 +346,10 @@ class PatientApiService {
 
   // Summaries List
   Future<List<SummaryItem>> getSummaries() async {
+    if (_token.isEmpty) {
+      throw Exception(
+          'Authentication required - sign in again to load summaries.');
+    }
     final response = await http.get(
       Uri.parse('$baseUrl/api/summaries'),
       headers: _headers,
@@ -491,14 +499,19 @@ class PatientApiService {
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(response.body);
+      final dynamic raw = json.decode(response.body);
+      if (raw is! Map<String, dynamic>) {
+        throw Exception('Invalid language preferences payload');
+      }
       return {
-        'app_language': data['app_language'] as String,
-        'visit_language': data['visit_language'] as String,
+        'app_language': (raw['app_language'] ?? 'en').toString(),
+        'visit_language': (raw['visit_language'] ?? 'en').toString(),
       };
-    } else {
-      throw Exception('Failed to load language preferences');
     }
+
+    throw Exception(
+      'Failed to load language preferences: ${response.statusCode} ${response.body}',
+    );
   }
 
   Future<void> updateLanguagePreferences({
@@ -514,8 +527,11 @@ class PatientApiService {
       }),
     );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update language preferences');
+    final ok = response.statusCode >= 200 && response.statusCode < 300;
+    if (!ok) {
+      throw Exception(
+        'Failed to update language preferences: ${response.statusCode} ${response.body}',
+      );
     }
   }
 }
