@@ -210,7 +210,14 @@ class NotificationService {
 
     // Request necessary permissions
     await requestPermissions();
-    await requestExactAlarmPermission();
+    final exactAlarmGranted = await requestExactAlarmPermission();
+    if (exactAlarmGranted != true) {
+      debugPrint(
+        '[NotificationService] WARN: exact alarm permission not granted '
+        '(result=$exactAlarmGranted). Scheduled reminders may not fire at the '
+        'requested time on Android 12+; open app notification / alarm settings.',
+      );
+    }
 
     _isInitialized = true;
     debugPrint('[NotificationService] initialize() done; '

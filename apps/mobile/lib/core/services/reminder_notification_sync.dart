@@ -135,13 +135,16 @@ class ReminderNotificationSync {
     await syncPatientFromMapped(mapped);
   }
 
+  /// Skips only reminders clearly in the past; allows a 1-minute buffer so a
+  /// row just created (or clock/API skew) is not dropped from the rebuild.
   static Future<void> _scheduleOnePatientRow(
     NotificationService svc,
     Map<String, dynamic> r,
     DateTime now,
   ) async {
     final scheduledTime = r['scheduledTime'] as DateTime?;
-    if (scheduledTime == null || scheduledTime.isBefore(now)) return;
+    final skipIfBefore = now.subtract(const Duration(minutes: 1));
+    if (scheduledTime == null || scheduledTime.isBefore(skipIfBefore)) return;
 
     final status = r['status']?.toString().toLowerCase() ?? '';
     if (status == 'completed' ||

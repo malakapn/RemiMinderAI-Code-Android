@@ -929,7 +929,23 @@ class _RemindersScreenState extends State<RemindersScreen>
         if (mounted)
           ScaffoldMessenger.of(context)
               .showSnackBar(const SnackBar(content: Text('Reminder created!')));
-        _loadReminders();
+        await _loadReminders(
+          mergeReminderForSync: {
+            'id': reminderId,
+            'title': title,
+            'description': dosage.isNotEmpty
+                ? dosage
+                : (serverMessage != null && serverMessage.isNotEmpty)
+                    ? serverMessage
+                    : '',
+            'scheduledTime': scheduledTime.toLocal(),
+            'status': 'pending',
+            'type': type,
+            'dosage': dosage.isNotEmpty ? dosage : null,
+            'recurrence': recurrence,
+            'snoozeUntil': null,
+          },
+        );
       } else {
         throw Exception('Status ${response.statusCode}');
       }
@@ -1466,7 +1482,7 @@ class _RemindersScreenState extends State<RemindersScreen>
     );
   }
 
-  Future<void> _loadReminders() async {
+  Future<void> _loadReminders({Map<String, dynamic>? mergeReminderForSync}) async {
     try {
       setState(() {
         _isLoading = true;
@@ -1511,16 +1527,30 @@ class _RemindersScreenState extends State<RemindersScreen>
               : null,
         };
       }).toList();
+
+      final forSync = List<Map<String, dynamic>>.from(mapped);
+      if (mergeReminderForSync != null) {
+        final mergeId = mergeReminderForSync['id']?.toString();
+        if (mergeId != null && mergeId.isNotEmpty) {
+          final idx = forSync.indexWhere((r) => r['id']?.toString() == mergeId);
+          if (idx >= 0) {
+            forSync[idx] = {...forSync[idx], ...mergeReminderForSync};
+          } else {
+            forSync.add(Map<String, dynamic>.from(mergeReminderForSync));
+          }
+        }
+      }
+
       if (!mounted) return;
       setState(() {
         _allReminders
           ..clear()
-          ..addAll(mapped);
+          ..addAll(forSync);
         _isLoading = false;
       });
 
       // Reschedule local notifications for all future pending reminders.
-      await ReminderNotificationSync.syncPatientFromMapped(mapped);
+      await ReminderNotificationSync.syncPatientFromMapped(forSync);
     } catch (_) {
       if (!mounted) return;
       setState(() {
