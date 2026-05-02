@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/auth_state.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -158,7 +158,8 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  /// Explicit initialization trigger (called from LoadingScreen)
+  /// Re-runs auth resolution (e.g. pull-to-refresh on profile). The app starts at
+  /// `/welcome`; there is no separate splash route.
   Future<void> initialize() async {
     print("🔥 AuthNotifier.initialize() called");
     await _checkAuthStatus();
@@ -393,7 +394,7 @@ class AuthNotifier extends Notifier<AuthState> {
         await s.saveUserRole('');
         await s.saveFullName('');
       } catch (_) {}
-      // Always go to unauthenticated — never through loading state
+      // Unauthenticated — [GoRouter] sends users off protected routes to `/role-selection`.
       state = AuthState.unauthenticated();
     }
   }

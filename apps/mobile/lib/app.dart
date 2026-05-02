@@ -57,12 +57,13 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp>
     });
 
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-      if (next.status == AuthStatus.unauthenticated) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final r = ref.read(appRouterProvider);
-          r.go('/welcome');
-        });
-      }
+      if (next.status != AuthStatus.unauthenticated) return;
+      final wasLoggedIn = previous?.status == AuthStatus.authenticated &&
+          previous?.user != null;
+      if (!wasLoggedIn) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(appRouterProvider).go('/role-selection');
+      });
     });
 
     return MaterialApp.router(

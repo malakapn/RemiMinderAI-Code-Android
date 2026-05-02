@@ -28,7 +28,6 @@ import '../features/patient/presentation/screens/send_invitations_screen.dart';
 import '../features/patient/presentation/screens/notification_settings_screen.dart';
 import '../features/patient/presentation/screens/history_list_screen.dart';
 
-import '../features/shared/presentation/screens/loading_screen.dart';
 import '../features/patient/presentation/widgets/patient_app_shell.dart';
 import '../features/patient/presentation/widgets/rounded_navigation_bar.dart';
 
@@ -78,7 +77,7 @@ final _routerNotifierProvider =
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(_routerNotifierProvider.notifier);
 
-  bool isPublicAuthPath(String path) => path == '/loading' ||
+  bool isPublicAuthPath(String path) =>
       path == '/welcome' ||
       path == '/role-selection' ||
       path == '/login' ||
@@ -91,7 +90,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       path.startsWith('/patient') && path != '/patient/visit-details';
 
   return GoRouter(
-    initialLocation: '/loading',
+    initialLocation: '/welcome',
     refreshListenable: notifier,
     redirect: (context, state) {
       final authState = notifier.authState;
@@ -99,17 +98,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loggedIn = authState.isAuthenticated;
       final user = authState.user;
 
-      // Stay on loading while auth initialises
+      // Auth still resolving — stay on public auth stack (Welcome is first paint).
       if (authState.status == AuthStatus.initial ||
           authState.status == AuthStatus.loading) {
-        return path == '/loading' ? null : '/loading';
+        if (isPublicAuthPath(path)) return null;
+        return '/welcome';
       }
 
-      // Not logged in — send to welcome
-      // /loading is NOT a safe destination for unauthenticated users
+      // Signed out (or error) — keep onboarding routes; everything else → role picker
       if (!loggedIn) {
-        if (path == '/loading') return '/welcome';
-        return isPublicAuthPath(path) ? null : '/welcome';
+        return isPublicAuthPath(path) ? null : '/role-selection';
       }
 
       // Logged in — leave protected routes alone, push off auth pages
@@ -130,10 +128,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/loading',
-        builder: (context, state) => const LoadingScreen(),
-      ),
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),

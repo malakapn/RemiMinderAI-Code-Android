@@ -15,6 +15,9 @@ import '../../../../shared/widgets/twelve_hour_time_picker.dart';
 String _reminderCanonicalStatus(String? raw, DateTime scheduledTime) {
   var key = raw?.toLowerCase().trim() ?? '';
   key = key.replaceAll(' ', '_').replaceAll('-', '_');
+  if (key.contains('unknown')) {
+    key = 'unknown';
+  }
 
   switch (key) {
     case 'completed':
