@@ -203,8 +203,8 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  /// Caregiver accounts must have a patient invite (pending) or an accepted
-  /// care-team membership (at least one patient).
+  /// Caregivers without patients or a pending invite may still sign in; the
+  /// caregiver home screen shows an empty state until they connect.
   Future<void> _ensureCaregiverHasInviteOrTeam(UserProfile profile) async {
     if (profile.role != 'caregiver') return;
 
@@ -224,10 +224,7 @@ class AuthNotifier extends Notifier<AuthState> {
       email: profile.email.trim(),
     );
     if (v['ok'] != true) {
-      throw CaregiverInviteRequiredException(
-        'You need an invitation from a patient to sign in as a caregiver. '
-        'Ask your patient to invite you from their Care Team settings.',
-      );
+      return;
     }
   }
 
