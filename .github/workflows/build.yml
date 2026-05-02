@@ -1,4 +1,4 @@
-name: Flutter Build APK
+name: Flutter Build App Bundle
 
 on:
   push:
@@ -55,25 +55,25 @@ jobs:
         run: |
           cat > apps/mobile/.env << EOF
           GOOGLE_WEB_CLIENT_ID=575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com
-          API_BASE_URL=http://localhost:8000
-          MOBILE_API_BASE_URL=http://localhost:8000
-          FLUTTER_ENV=development
+          API_BASE_URL=https://remiminder-backend-575820802106.us-central1.run.app
+          MOBILE_API_BASE_URL=https://remiminder-backend-575820802106.us-central1.run.app
+          FLUTTER_ENV=production
           EOF
 
       - name: Get Flutter dependencies
         run: flutter pub get
         working-directory: apps/mobile
 
-      - name: Build release APK
+      - name: Build release App Bundle
         env:
           KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
-        run: flutter build apk --release
+        run: flutter build appbundle --release
         working-directory: apps/mobile
 
-      - name: Upload APK artifact
+      - name: Upload App Bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: remiminderai-release
-          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          name: remiminderai-release-aab
+          path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
