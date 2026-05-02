@@ -9,12 +9,20 @@ import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
+import '../../../../shared/widgets/twelve_hour_time_picker.dart';
 
 class RemindersScreen extends StatefulWidget {
-  const RemindersScreen({super.key, this.openAddOnLaunch = false});
+  const RemindersScreen({
+    super.key,
+    this.openAddOnLaunch = false,
+    this.prefillReminderTitle,
+  });
 
   /// When true (e.g. `/patient/reminders?add=1`), opens the new-reminder sheet once after first frame.
   final bool openAddOnLaunch;
+
+  /// Optional title when deep-linking from visit summary "Set reminder".
+  final String? prefillReminderTitle;
 
   @override
   State<RemindersScreen> createState() => _RemindersScreenState();
@@ -91,7 +99,9 @@ class _RemindersScreenState extends State<RemindersScreen>
     if (widget.openAddOnLaunch && !_consumedOpenAddIntent) {
       _consumedOpenAddIntent = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _addNewReminder();
+        if (mounted) {
+          _addNewReminder(titlePrefill: widget.prefillReminderTitle);
+        }
       });
     }
   }
@@ -638,8 +648,10 @@ class _RemindersScreenState extends State<RemindersScreen>
     });
   }
 
-  void _addNewReminder() {
-    final titleController = TextEditingController();
+  void _addNewReminder({String? titlePrefill}) {
+    final merged = (titlePrefill ?? widget.prefillReminderTitle)?.trim();
+    final titleController =
+        TextEditingController(text: merged != null && merged.isNotEmpty ? merged : '');
     var dosageText = '';
     String selectedType = 'medication';
     String selectedRecurrence = 'once';
@@ -740,8 +752,10 @@ class _RemindersScreenState extends State<RemindersScreen>
                         icon: const Icon(Icons.access_time),
                         label: Text(selectedTime.format(ctx)),
                         onPressed: () async {
-                          final t = await showTimePicker(
-                              context: ctx, initialTime: selectedTime);
+                          final t = await showTwelveHourTimePickerSheet(
+                            ctx,
+                            initialTime: selectedTime,
+                          );
                           if (t != null)
                             setModal(() {
                               selectedTime = t;
@@ -946,8 +960,10 @@ class _RemindersScreenState extends State<RemindersScreen>
                         icon: const Icon(Icons.access_time),
                         label: Text(selectedTime.format(ctx)),
                         onPressed: () async {
-                          final t = await showTimePicker(
-                              context: ctx, initialTime: selectedTime);
+                          final t = await showTwelveHourTimePickerSheet(
+                            ctx,
+                            initialTime: selectedTime,
+                          );
                           if (t != null) {
                             setModal(() {
                               selectedTime = t;

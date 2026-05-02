@@ -269,7 +269,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final q = state.uri.queryParameters;
           final openAdd = q['add'] == '1' || q['openAdd'] == 'true';
-          return RemindersScreen(openAddOnLaunch: openAdd);
+          final prefill =
+              q['prefill_title'] ?? q['title'] ?? q['prefillTitle'];
+          return RemindersScreen(
+            openAddOnLaunch: openAdd,
+            prefillReminderTitle: prefill,
+          );
         },
       ),
       GoRoute(

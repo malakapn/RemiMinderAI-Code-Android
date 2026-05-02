@@ -257,13 +257,19 @@ class _HistoryListScreenState extends State<HistoryListScreen>
           ),
 
           // Rounded Navigation Bar (anchored to bottom)
-          const Positioned(
+          Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: SafeArea(
               top: false,
-              child: RoundedNavigationBar(currentItem: NavigationItem.visits),
+              left: false,
+              right: false,
+              bottom: true,
+              minimum: EdgeInsets.zero,
+              maintainBottomViewPadding: true,
+              child: const RoundedNavigationBar(
+                  currentItem: NavigationItem.visits),
             ),
           ),
         ],

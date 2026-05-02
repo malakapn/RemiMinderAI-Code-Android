@@ -232,67 +232,69 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      height: 70,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF1A4D4D), // Dark teal-green
-            Color(0xFF051818), // Very dark green/black
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        height: 70,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF1A4D4D), // Dark teal-green
+              Color(0xFF051818), // Very dark green/black
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(35),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 25,
+              offset: const Offset(0, 8),
+            ),
           ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(35),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 25,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: const Border(
-          top: BorderSide(
-            color: Colors.white,
-            width: 0.5,
+          border: const Border(
+            top: BorderSide(
+              color: Colors.white,
+              width: 0.5,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem(
-            NavigationItem.home,
-            Icons.home_outlined,
-            Icons.home,
-            'Home',
-          ),
-          _buildNavItem(
-            NavigationItem.visits,
-            Icons.grid_view,
-            Icons.grid_view,
-            'Visits',
-          ),
-          _buildNavItem(
-            NavigationItem.overview,
-            Icons.assignment,
-            Icons.assignment,
-            'Overview',
-          ),
-          _buildNavItem(
-            NavigationItem.careTeam,
-            Icons.group,
-            Icons.group,
-            'Care Team',
-          ),
-          _buildNavItem(
-            NavigationItem.profile,
-            Icons.account_circle_outlined,
-            Icons.account_circle,
-            'Profile',
-          ),
-        ],
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildNavItem(
+              NavigationItem.home,
+              Icons.home_outlined,
+              Icons.home,
+              'Home',
+            ),
+            _buildNavItem(
+              NavigationItem.visits,
+              Icons.grid_view,
+              Icons.grid_view,
+              'Visits',
+            ),
+            _buildNavItem(
+              NavigationItem.overview,
+              Icons.assignment,
+              Icons.assignment,
+              'Overview',
+            ),
+            _buildNavItem(
+              NavigationItem.careTeam,
+              Icons.group,
+              Icons.group,
+              'Care Team',
+            ),
+            _buildNavItem(
+              NavigationItem.profile,
+              Icons.account_circle_outlined,
+              Icons.account_circle,
+              'Profile',
+            ),
+          ],
+        ),
       ),
     );
   }

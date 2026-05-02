@@ -10,6 +10,7 @@ import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../shared/utilities/greeting_utils.dart';
 import '../../data/models/patient_task.dart';
+import '../../data/services/patient_api_service.dart';
 import '../../data/services/patient_tasks_api_service.dart';
 import '../widgets/widgets.dart';
 
@@ -33,12 +34,19 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   bool _remindersError = false;
   bool _showAllTodoItems = false;
 
+  bool _loadingVisitSummaryTodos = true;
+  List<String> _visitSummaryMedications = [];
+  List<String> _visitSummaryFollowUps = [];
+  List<String> _visitSummaryLifestyle = [];
+  final Set<String> _checkedVisitSummaryKeys = {};
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _fetchTasks();
     _fetchUpNextReminder();
+    _fetchVisitSummaryTodos();
     _requestNotificationPermissions();
   }
 
@@ -53,6 +61,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
     if (state == AppLifecycleState.resumed) {
       _fetchTasks();
       _fetchUpNextReminder();
+      _fetchVisitSummaryTodos();
     }
   }
 
@@ -154,6 +163,97 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         _remindersError = true;
       });
     }
+  }
+
+  Future<void> _fetchVisitSummaryTodos() async {
+    try {
+      final accessToken = await _authService.getAccessToken();
+      if (accessToken == null || accessToken.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _loadingVisitSummaryTodos = false;
+          _visitSummaryMedications = [];
+          _visitSummaryFollowUps = [];
+          _visitSummaryLifestyle = [];
+        });
+        return;
+      }
+
+      final api = PatientApiService(
+        baseUrl: Environment.apiBaseUrl,
+        authToken: accessToken,
+      );
+      final summaries = await api.getSummaries();
+      if (summaries.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _visitSummaryMedications = [];
+          _visitSummaryFollowUps = [];
+          _visitSummaryLifestyle = [];
+          _loadingVisitSummaryTodos = false;
+        });
+        return;
+      }
+
+      final visitId = summaries.first.visitId;
+      final structured = await api.getVisitSummaryStructured(visitId);
+      if (!mounted) return;
+
+      if (structured['status'] == 'processing') {
+        setState(() {
+          _visitSummaryMedications = [];
+          _visitSummaryFollowUps = [];
+          _visitSummaryLifestyle = [];
+          _loadingVisitSummaryTodos = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _visitSummaryMedications =
+            _toSummaryStringList(structured['medications']);
+        _visitSummaryFollowUps =
+            _toSummaryStringList(structured['decisions']);
+        _visitSummaryLifestyle = _toSummaryStringList(structured['actions']);
+        _loadingVisitSummaryTodos = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingVisitSummaryTodos = false;
+        _visitSummaryMedications = [];
+        _visitSummaryFollowUps = [];
+        _visitSummaryLifestyle = [];
+      });
+    }
+  }
+
+  List<String> _toSummaryStringList(dynamic value) {
+    if (value is List) {
+      return value
+          .map((e) => e.toString().trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      return [value.trim()];
+    }
+    return [];
+  }
+
+  void _toggleVisitSummaryCheck(String key) {
+    setState(() {
+      if (_checkedVisitSummaryKeys.contains(key)) {
+        _checkedVisitSummaryKeys.remove(key);
+      } else {
+        _checkedVisitSummaryKeys.add(key);
+      }
+    });
+  }
+
+  void _openSetReminderFromSummary(String medicationLine) {
+    final encoded = Uri.encodeComponent(medicationLine);
+    context.go('/patient/reminders?add=1&prefill_title=$encoded');
   }
 
   @override
@@ -291,6 +391,16 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                 ),
                 const SizedBox(height: 16),
                 _buildTodaysSchedule(),
+
+                const SizedBox(height: 32),
+
+                // Visit summary checklist (latest AI summary)
+                const SectionHeader(
+                  title: 'After-visit to-dos',
+                  icon: Icons.health_and_safety_outlined,
+                ),
+                const SizedBox(height: 16),
+                _buildVisitSummaryTodos(),
 
                 const SizedBox(height: 32),
 
@@ -588,6 +698,157 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildVisitSummaryTodos() {
+    final hasItems = _visitSummaryMedications.isNotEmpty ||
+        _visitSummaryFollowUps.isNotEmpty ||
+        _visitSummaryLifestyle.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: _loadingVisitSummaryTodos
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : !hasItems
+              ? Text(
+                  'When your latest visit summary is ready, medications, follow-ups, and lifestyle actions will show here.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_visitSummaryMedications.isNotEmpty) ...[
+                      Text(
+                        'Medications',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._visitSummaryMedications.asMap().entries.map((e) {
+                        final key = 'med:${e.key}';
+                        final done = _checkedVisitSummaryKeys.contains(key);
+                        return _visitSummaryTodoTile(
+                          keyId: key,
+                          label: e.value,
+                          isDone: done,
+                          trailing: TextButton.icon(
+                            onPressed: () =>
+                                _openSetReminderFromSummary(e.value),
+                            icon: const Icon(Icons.add_alarm, size: 18),
+                            label: const Text('+ Set reminder'),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_visitSummaryFollowUps.isNotEmpty) ...[
+                      Text(
+                        'Follow-up appointments & decisions',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._visitSummaryFollowUps.asMap().entries.map((e) {
+                        final key = 'follow:${e.key}';
+                        final done = _checkedVisitSummaryKeys.contains(key);
+                        return _visitSummaryTodoTile(
+                          keyId: key,
+                          label: e.value,
+                          isDone: done,
+                          trailing: null,
+                        );
+                      }),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_visitSummaryLifestyle.isNotEmpty) ...[
+                      Text(
+                        'Lifestyle actions',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._visitSummaryLifestyle.asMap().entries.map((e) {
+                        final key = 'life:${e.key}';
+                        final done = _checkedVisitSummaryKeys.contains(key);
+                        return _visitSummaryTodoTile(
+                          keyId: key,
+                          label: e.value,
+                          isDone: done,
+                          trailing: null,
+                        );
+                      }),
+                    ],
+                  ],
+                ),
+    );
+  }
+
+  Widget _visitSummaryTodoTile({
+    required String keyId,
+    required String label,
+    required bool isDone,
+    Widget? trailing,
+  }) {
+    return Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: isDone,
+              onChanged: (_) => _toggleVisitSummaryCheck(keyId),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    decoration: isDone ? TextDecoration.lineThrough : null,
+                    color: isDone
+                        ? Theme.of(context).colorScheme.secondary.withOpacity(0.6)
+                        : Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+            if (trailing != null) trailing,
+          ],
+        ),
+        const Divider(height: 12),
+      ],
     );
   }
 

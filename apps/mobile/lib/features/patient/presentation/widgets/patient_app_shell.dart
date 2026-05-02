@@ -28,14 +28,22 @@ class _PatientAppShellState extends State<PatientAppShell> {
           // Screen content
           widget.child,
 
-          // Floating navigation bar
+          // Floating navigation bar (SafeArea keeps content above home indicator / gesture inset)
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: RoundedNavigationBar(
-              currentItem: widget.currentItem,
-              routes: widget.routes,
+            child: SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              bottom: true,
+              minimum: EdgeInsets.zero,
+              maintainBottomViewPadding: true,
+              child: RoundedNavigationBar(
+                currentItem: widget.currentItem,
+                routes: widget.routes,
+              ),
             ),
           ),
         ],

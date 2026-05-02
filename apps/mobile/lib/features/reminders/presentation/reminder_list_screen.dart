@@ -17,6 +17,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/reminder_provider.dart';
 import '../../../shared/widgets/reminder_card.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
+import '../../../../core/services/notification_service.dart';
 
 class ReminderListScreen extends ConsumerStatefulWidget {
   const ReminderListScreen({super.key});
@@ -143,7 +144,6 @@ class _ReminderListScreenState extends ConsumerState<ReminderListScreen> {
         SnackBar(content: Text('Failed to snooze reminder: $e')),
       );
     }
-  }
   }
 
   @override
