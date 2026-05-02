@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import traceback
+import urllib.request
 import uuid
 import logging
 from datetime import timedelta
@@ -40,6 +41,37 @@ def _get_storage_client() -> storage.Client:
         except Exception as e:
             logger.warning("Failed to build GCS client from service account: %s", e)
     return storage.Client()
+
+
+def get_backend_storage_client() -> storage.Client:
+    """Same credential routing as uploads (Firebase SA JSON or ADC); use from workers/STT."""
+    return _get_storage_client()
+
+
+def _compute_metadata_default_sa_email() -> str | None:
+    """Cloud Run/GCE runtime default service account email (IAM signBlob)."""
+    try:
+        req = urllib.request.Request(
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
+            headers={"Metadata-Flavor": "Google"},
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            email = resp.read().decode("utf-8").strip()
+            return email if email else None
+    except Exception:
+        return None
+
+
+def _credential_signing_service_account_email(creds) -> str | None:
+    """Resolve service account email for IAM v4 URLs when ADC omits `.service_account_email`."""
+    for attr in ("service_account_email", "signer_email"):
+        val = getattr(creds, attr, None)
+        if isinstance(val, str) and ".gserviceaccount.com" in val:
+            return val
+    signer = getattr(creds, "_service_account_email", None)
+    if isinstance(signer, str) and ".gserviceaccount.com" in signer:
+        return signer
+    return None
 
 
 def _get_signing_credentials():
@@ -90,7 +122,9 @@ def _generate_signed_url(blob, expiration_hours: int = 24) -> str:
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
         )
         creds.refresh(GoogleAuthRequest())
-        sa_email = getattr(creds, "service_account_email", None)
+        sa_email = _credential_signing_service_account_email(creds)
+        if not sa_email:
+            sa_email = _compute_metadata_default_sa_email()
         access_token = getattr(creds, "token", None)
         if sa_email and access_token:
             return blob.generate_signed_url(
