@@ -261,13 +261,7 @@ class _HistoryListScreenState extends State<HistoryListScreen>
             left: 0,
             right: 0,
             bottom: 0,
-            child: SafeArea(
-              top: false,
-              left: false,
-              right: false,
-              bottom: true,
-              minimum: EdgeInsets.zero,
-              maintainBottomViewPadding: true,
+            child: BottomNavSafeWrapper(
               child: const RoundedNavigationBar(
                   currentItem: NavigationItem.visits),
             ),

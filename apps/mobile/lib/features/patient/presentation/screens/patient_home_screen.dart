@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/config/environment.dart';
@@ -10,6 +11,7 @@ import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../shared/utilities/greeting_utils.dart';
 import '../../data/models/patient_task.dart';
+import '../../data/models/summary_item.dart';
 import '../../data/services/patient_api_service.dart';
 import '../../data/services/patient_tasks_api_service.dart';
 import '../widgets/widgets.dart';
@@ -23,6 +25,10 @@ class PatientHomeScreen extends ConsumerStatefulWidget {
 
 class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
     with WidgetsBindingObserver {
+  static const Color _visitTodoMedColor = Color(0xFF00897B);
+  static const Color _visitTodoFollowColor = Color(0xFFC9A227);
+  static const Color _visitTodoLifestyleColor = Color(0xFF1976D2);
+
   final AuthService _authService = AuthService();
   final PatientTasksApiService _tasksApiService = PatientTasksApiService();
   List<PatientTask> _tasks = [];
@@ -39,6 +45,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   List<String> _visitSummaryFollowUps = [];
   List<String> _visitSummaryLifestyle = [];
   final Set<String> _checkedVisitSummaryKeys = {};
+  String? _visitSummarySourceLabel;
 
   @override
   void initState() {
@@ -175,6 +182,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
           _visitSummaryMedications = [];
           _visitSummaryFollowUps = [];
           _visitSummaryLifestyle = [];
+          _visitSummarySourceLabel = null;
         });
         return;
       }
@@ -191,11 +199,13 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
           _visitSummaryFollowUps = [];
           _visitSummaryLifestyle = [];
           _loadingVisitSummaryTodos = false;
+          _visitSummarySourceLabel = null;
         });
         return;
       }
 
       final visitId = summaries.first.visitId;
+      final sourceSummary = summaries.first;
       final structured = await api.getVisitSummaryStructured(visitId);
       if (!mounted) return;
 
@@ -205,6 +215,8 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
           _visitSummaryFollowUps = [];
           _visitSummaryLifestyle = [];
           _loadingVisitSummaryTodos = false;
+          _visitSummarySourceLabel =
+              _formatVisitSourceLine(sourceSummary);
         });
         return;
       }
@@ -216,6 +228,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
             _toSummaryStringList(structured['decisions']);
         _visitSummaryLifestyle = _toSummaryStringList(structured['actions']);
         _loadingVisitSummaryTodos = false;
+        _visitSummarySourceLabel = _formatVisitSourceLine(sourceSummary);
       });
     } catch (_) {
       if (!mounted) return;
@@ -224,6 +237,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         _visitSummaryMedications = [];
         _visitSummaryFollowUps = [];
         _visitSummaryLifestyle = [];
+        _visitSummarySourceLabel = null;
       });
     }
   }
@@ -239,6 +253,25 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
       return [value.trim()];
     }
     return [];
+  }
+
+  /// e.g. "From: Medical Visit · May 2, 2026"
+  String _formatVisitSourceLine(SummaryItem s) {
+    final title = (s.title?.trim().isNotEmpty == true)
+        ? s.title!.trim()
+        : '${s.specialty} Visit';
+    DateTime? dt;
+    final vd = s.visitDate;
+    if (vd != null && vd.trim().isNotEmpty) {
+      dt = DateTime.tryParse(vd.trim());
+    }
+    dt ??= DateTime.tryParse(s.summaryCreatedAt);
+    final datePart =
+        dt != null ? DateFormat('MMM d, y').format(dt.toLocal()) : '';
+    if (datePart.isEmpty) {
+      return 'From: $title';
+    }
+    return 'From: $title · $datePart';
   }
 
   void _toggleVisitSummaryCheck(String key) {
@@ -727,23 +760,50 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
               ),
             )
           : !hasItems
-              ? Text(
-                  'When your latest visit summary is ready, medications, follow-ups, and lifestyle actions will show here.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_visitSummarySourceLabel != null) ...[
+                      Text(
+                        _visitSummarySourceLabel!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    Text(
+                      'When your latest visit summary is ready, medications, follow-ups, and lifestyle actions will show here.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ),
+                  ],
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_visitSummaryMedications.isNotEmpty) ...[
+                    if (_visitSummarySourceLabel != null) ...[
                       Text(
-                        'Medications',
+                        _visitSummarySourceLabel!,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_visitSummaryMedications.isNotEmpty) ...[
+                      Text(
+                        'Medications',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _visitTodoMedColor,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -754,6 +814,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                           keyId: key,
                           label: e.value,
                           isDone: done,
+                          accentColor: _visitTodoMedColor,
                           trailing: TextButton.icon(
                             onPressed: () =>
                                 _openSetReminderFromSummary(e.value),
@@ -767,10 +828,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                     if (_visitSummaryFollowUps.isNotEmpty) ...[
                       Text(
                         'Follow-up appointments & decisions',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: _visitTodoFollowColor,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -781,6 +842,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                           keyId: key,
                           label: e.value,
                           isDone: done,
+                          accentColor: _visitTodoFollowColor,
                           trailing: null,
                         );
                       }),
@@ -789,10 +851,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                     if (_visitSummaryLifestyle.isNotEmpty) ...[
                       Text(
                         'Lifestyle actions',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: _visitTodoLifestyleColor,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -803,6 +865,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                           keyId: key,
                           label: e.value,
                           isDone: done,
+                          accentColor: _visitTodoLifestyleColor,
                           trailing: null,
                         );
                       }),
@@ -816,38 +879,55 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
     required String keyId,
     required String label,
     required bool isDone,
+    required Color accentColor,
     Widget? trailing,
   }) {
     return Column(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Checkbox(
-              value: isDone,
-              onChanged: (_) => _toggleVisitSummaryCheck(keyId),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: accentColor.withOpacity(0.07),
+            border: Border(
+              left: BorderSide(width: 4, color: accentColor),
             ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    decoration: isDone ? TextDecoration.lineThrough : null,
-                    color: isDone
-                        ? Theme.of(context).colorScheme.secondary.withOpacity(0.6)
-                        : Theme.of(context).colorScheme.primary,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Checkbox(
+                value: isDone,
+                activeColor: accentColor,
+                onChanged: (_) => _toggleVisitSummaryCheck(keyId),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      decoration:
+                          isDone ? TextDecoration.lineThrough : null,
+                      color: isDone
+                          ? Theme.of(context)
+                              .colorScheme
+                              .secondary
+                              .withOpacity(0.6)
+                          : Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (trailing != null) trailing,
-          ],
+              if (trailing != null) trailing,
+            ],
+          ),
         ),
-        const Divider(height: 12),
+        const SizedBox(height: 8),
       ],
     );
   }

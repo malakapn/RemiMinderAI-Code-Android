@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'bottom_nav_safe_wrapper.dart';
 import 'rounded_navigation_bar.dart';
 
 /// App shell that wraps all patient screens with a floating bottom navigation bar
@@ -33,13 +34,7 @@ class _PatientAppShellState extends State<PatientAppShell> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: SafeArea(
-              top: false,
-              left: false,
-              right: false,
-              bottom: true,
-              minimum: EdgeInsets.zero,
-              maintainBottomViewPadding: true,
+            child: BottomNavSafeWrapper(
               child: RoundedNavigationBar(
                 currentItem: widget.currentItem,
                 routes: widget.routes,
