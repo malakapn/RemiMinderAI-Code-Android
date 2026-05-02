@@ -81,11 +81,13 @@ class NotificationService {
     ),
   ];
 
-  /// High-priority medication channel: heads-up, sound, vibration; stays in shade until dismissed.
+  /// High-priority medication channel: heads-up, alarm audio, vibration; persistent until Taken/dismissed.
+  /// [fullScreenIntent] can wake the device with a full-screen UI when permitted (manifest + user settings).
   AndroidNotificationDetails _medicationAndroidDetails({
     required String body,
     List<AndroidNotificationAction>? actions,
     bool ongoing = true,
+    bool fullScreenIntent = false,
   }) {
     return AndroidNotificationDetails(
       _channelId,
@@ -103,6 +105,7 @@ class NotificationService {
       onlyAlertOnce: false,
       ongoing: ongoing,
       autoCancel: !ongoing,
+      fullScreenIntent: fullScreenIntent,
       actions: actions ?? _androidMedicationActions,
     );
   }
@@ -378,6 +381,8 @@ class NotificationService {
       android: _medicationAndroidDetails(
         body: medicationReminderPrivacyBody,
         actions: _androidMedicationActions,
+        ongoing: true,
+        fullScreenIntent: true,
       ),
       iOS: _darwinReminderDetails,
     );
@@ -422,6 +427,9 @@ class NotificationService {
     final details = NotificationDetails(
       android: _medicationAndroidDetails(
         body: medicationReminderPrivacyBody,
+        actions: _androidMedicationActions,
+        ongoing: true,
+        fullScreenIntent: true,
       ),
       iOS: _darwinReminderDetails,
     );
@@ -456,6 +464,7 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    if (!_isInitialized) await initialize();
     await _notifications.show(
       notificationId,
       title,

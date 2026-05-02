@@ -1003,7 +1003,10 @@ class _RemindersScreenState extends State<RemindersScreen>
                       await _updateReminderApi(
                           id: id,
                           title: title,
-                          scheduledTime: selectedDate);
+                          scheduledTime: selectedDate,
+                          recurrence:
+                              reminder['recurrence']?.toString() ?? 'once',
+                      );
                     },
                     child: const Text('Save Changes',
                         style:
@@ -1022,6 +1025,7 @@ class _RemindersScreenState extends State<RemindersScreen>
     required String id,
     required String title,
     required DateTime scheduledTime,
+    String recurrence = 'once',
   }) async {
     try {
       final token = await _authService.getAccessToken();
@@ -1038,7 +1042,8 @@ class _RemindersScreenState extends State<RemindersScreen>
         }),
       );
       if (response.statusCode == 200) {
-        // Reschedule local notification with new time
+        final isRecurring = recurrence != 'once';
+        // Reschedule local notification: cancel prior alarm, register new fire time.
         try {
           await NotificationService().cancelFromReminderId(id);
           await NotificationService().scheduleFromReminderData(
@@ -1046,6 +1051,8 @@ class _RemindersScreenState extends State<RemindersScreen>
             medicationName: title,
             dosage: '',
             scheduledTime: scheduledTime.toLocal(),
+            isRecurring: isRecurring,
+            recurrencePattern: recurrence,
           );
         } catch (_) {}
         if (mounted) {
@@ -1437,6 +1444,7 @@ class _RemindersScreenState extends State<RemindersScreen>
               (r['display_status'] ?? r['status'])?.toString() ?? 'pending',
           'type': r['reminder_type']?.toString() ?? 'task',
           'dosage': null,
+          'recurrence': r['recurrence']?.toString() ?? 'once',
           'snoozeUntil': r['snooze_until'] != null
               ? DateTime.tryParse(r['snooze_until'].toString())
               : null,

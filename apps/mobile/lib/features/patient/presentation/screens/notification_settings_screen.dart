@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/services/notification_service.dart';
+
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
 
@@ -503,10 +505,22 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     );
   }
 
-  void _sendTestNotification() {
-    // TODO: Send test notification
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Test notification sent!')),
-    );
+  Future<void> _sendTestNotification() async {
+    try {
+      await NotificationService().showInstantNotification(
+        notificationId: 90001,
+        title: '💊 Test Notification',
+        body: 'Notifications are working correctly! ✅',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Test notification sent!')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Test notification failed: $e')),
+      );
+    }
   }
 }
