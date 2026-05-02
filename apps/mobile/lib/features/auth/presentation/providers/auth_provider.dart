@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/auth_state.dart';
@@ -12,8 +11,6 @@ import '../../../../core/services/token_manager.dart';
 import '../../../../core/services/secure_storage.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
-
-import '../../../patient/data/services/patient_api_service.dart';
 
 // =============================================================================
 // PROVIDERS
@@ -95,12 +92,6 @@ class AuthNotifier extends Notifier<AuthState> {
       String? confirmedName;
 
       try {
-        try {
-          await _backendApiService.bootstrapUser().timeout(const Duration(seconds: 6));
-        } catch (e) {
-          print('🔐 AuthNotifier: bootstrapUser skipped before profile: $e');
-        }
-
         final backendProfile = await _backendApiService
             .getMyProfile()
             .timeout(const Duration(seconds: 8));
@@ -396,7 +387,6 @@ class AuthNotifier extends Notifier<AuthState> {
     } catch (e) {
       print('🔐 AuthNotifier: signOut failed: $e');
     } finally {
-      PatientApiService.clearSessionCaches();
       // Clear cached role so next login starts fresh
       try {
         final s = SecureStorage();
@@ -465,14 +455,13 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final token = await _notificationService.getFcmToken();
       if (token != null && token.isNotEmpty) {
-        final deviceType = Platform.isIOS ? 'ios' : 'android';
         await _backendApiService.registerFcmToken(
           fcmToken: token,
-          deviceType: deviceType,
+          deviceType: 'android',
         );
       }
-    } catch (e) {
-      print('🔐 AuthNotifier: FCM token sync failed (non-blocking): $e');
+    } catch (_) {
+      // Keep auth flow non-blocking if FCM sync fails.
     }
 
     if (_tokenRefreshListenerAttached) {
@@ -483,14 +472,13 @@ class AuthNotifier extends Notifier<AuthState> {
     await _notificationService.onTokenRefresh((token) async {
       try {
         if (token.isNotEmpty) {
-          final deviceType = Platform.isIOS ? 'ios' : 'android';
           await _backendApiService.registerFcmToken(
             fcmToken: token,
-            deviceType: deviceType,
+            deviceType: 'android',
           );
         }
-      } catch (e) {
-        print('🔐 AuthNotifier: FCM token refresh registration failed: $e');
+      } catch (_) {
+        // Do not fail app flow on background token refresh errors.
       }
     });
   }

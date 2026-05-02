@@ -10,10 +10,8 @@ import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../shared/utilities/greeting_utils.dart';
-import '../../data/models/patient_task.dart';
 import '../../data/models/summary_item.dart';
 import '../../data/services/patient_api_service.dart';
-import '../../data/services/patient_tasks_api_service.dart';
 import '../widgets/widgets.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
@@ -30,15 +28,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   static const Color _visitTodoLifestyleColor = Color(0xFF1976D2);
 
   final AuthService _authService = AuthService();
-  final PatientTasksApiService _tasksApiService = PatientTasksApiService();
-  List<PatientTask> _tasks = [];
-  bool _isLoadingTasks = true;
   bool _isLoadingUpNext = true;
   Map<String, dynamic>? _upNextReminder;
   List<Map<String, dynamic>> _todayReminders = [];
   List<Map<String, dynamic>> _upcomingReminders = [];
   bool _remindersError = false;
-  bool _showAllTodoItems = false;
 
   bool _loadingVisitSummaryTodos = true;
   List<String> _visitSummaryMedications = [];
@@ -51,7 +45,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _fetchTasks();
     _fetchUpNextReminder();
     _fetchVisitSummaryTodos();
     _requestNotificationPermissions();
@@ -66,7 +59,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _fetchTasks();
       _fetchUpNextReminder();
       _fetchVisitSummaryTodos();
     }
@@ -97,23 +89,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
           notificationBody: raw['message']?.toString(),
         );
       } catch (_) {}
-    }
-  }
-
-  Future<void> _fetchTasks() async {
-    try {
-      final tasks = await _tasksApiService.fetchTasks();
-      if (!mounted) return;
-      setState(() {
-        _tasks = tasks;
-        _isLoadingTasks = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _tasks = [];
-        _isLoadingTasks = false;
-      });
     }
   }
 
@@ -434,16 +409,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                 ),
                 const SizedBox(height: 16),
                 _buildVisitSummaryTodos(),
-
-                const SizedBox(height: 32),
-
-                // To-do List
-                const SectionHeader(
-                  title: 'To-do List',
-                  icon: Icons.checklist,
-                ),
-                const SizedBox(height: 16),
-                _buildTodoList(),
 
                 // Extra space for bottom navigation - this will be handled by the app shell
                 const SizedBox(height: 120),
@@ -930,155 +895,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         const SizedBox(height: 8),
       ],
     );
-  }
-
-  Widget _buildTodoList() {
-    final allReminderTasks = [..._todayReminders, ..._upcomingReminders];
-    final reminderTasks = allReminderTasks
-        .where((r) {
-          final rawType = (r['reminder_type'] ?? r['type'] ?? '')
-              .toString()
-              .trim()
-              .toLowerCase();
-          return rawType == 'task';
-        })
-        .toList();
-    final hasAnyTodos = _tasks.isNotEmpty || reminderTasks.isNotEmpty;
-    final todoRows = <Map<String, String>>[
-      ..._tasks.map((task) => {
-            'title': task.title,
-            'due': _formatTaskCreatedAt(task.createdAt),
-          }),
-      ...reminderTasks.map((taskReminder) {
-        final title = (taskReminder['title'] as String?)?.trim().isNotEmpty ==
-                true
-            ? taskReminder['title'] as String
-            : 'Task reminder';
-        final due = _formatDueText(
-          taskReminder['scheduled_time']?.toString(),
-        );
-        return {
-          'title': title,
-          'due': due,
-        };
-      }),
-    ];
-    final visibleTodoRows =
-        _showAllTodoItems ? todoRows : todoRows.take(3).toList();
-    final hasHiddenRows = todoRows.length > 3;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: _isLoadingTasks
-          ? const Center(child: CircularProgressIndicator())
-          : !hasAnyTodos
-              ? const Center(
-                  child: Text(
-                    'No tasks yet',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                )
-              : Column(
-                  children: [
-                    ...visibleTodoRows.map((row) {
-                      return Column(
-                        children: [
-                          _buildTodoItem(
-                            row['title'] ?? 'Task',
-                            row['due'] ?? 'Upcoming',
-                            false,
-                          ),
-                          const Divider(height: 12),
-                        ],
-                      );
-                    }),
-                    if (hasHiddenRows)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _showAllTodoItems = !_showAllTodoItems;
-                            });
-                          },
-                          icon: Icon(
-                            _showAllTodoItems
-                                ? Icons.expand_less
-                                : Icons.expand_more,
-                          ),
-                          label: Text(
-                            _showAllTodoItems ? 'Show less' : 'Show more',
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-    );
-  }
-
-  Widget _buildTodoItem(String title, String dueDate, bool isCompleted) {
-    return Row(
-      children: [
-        Checkbox(
-          value: isCompleted,
-          onChanged: (value) {
-            // TODO: Update todo status
-          },
-          activeColor: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isCompleted
-                      ? Theme.of(context).colorScheme.secondary.withOpacity(0.6)
-                      : Theme.of(context).colorScheme.primary,
-                  decoration: isCompleted ? TextDecoration.lineThrough : null,
-                ),
-              ),
-              Text(
-                dueDate,
-                style: TextStyle(
-                  fontSize: 12,
-                  color:
-                      Theme.of(context).colorScheme.secondary.withOpacity(0.7),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (isCompleted)
-          const Icon(
-            Icons.check_circle,
-            color: Colors.green,
-            size: 20,
-          ),
-      ],
-    );
-  }
-
-  String _formatTaskCreatedAt(DateTime? createdAt) {
-    if (createdAt == null) {
-      return 'Added recently';
-    }
-    return 'Added ${createdAt.month}/${createdAt.day}/${createdAt.year}';
   }
 
   String _formatDueText(String? scheduledTime) {
