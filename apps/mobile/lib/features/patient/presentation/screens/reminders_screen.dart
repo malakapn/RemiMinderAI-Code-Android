@@ -11,6 +11,62 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
 import '../../../../shared/widgets/twelve_hour_time_picker.dart';
 
+/// Normalizes API `status` / `display_status` values to stable lowercase keys.
+String _reminderCanonicalStatus(String? raw, DateTime scheduledTime) {
+  var key = raw?.toLowerCase().trim() ?? '';
+  key = key.replaceAll(' ', '_').replaceAll('-', '_');
+
+  switch (key) {
+    case 'completed':
+    case 'complete':
+    case 'done':
+    case 'taken':
+      return 'completed';
+    case 'snoozed':
+    case 'snooze':
+      return 'snoozed';
+    case 'missed':
+    case 'overdue':
+    case 'late':
+    case 'skipped':
+      return 'missed';
+    case 'upcoming':
+    case 'future':
+    case 'scheduled':
+      return 'upcoming';
+    case 'pending':
+    case 'active':
+    case 'in_progress':
+      return 'pending';
+    case 'due_now':
+      return 'pending';
+    default:
+      if (key.isEmpty || key == 'unknown' || key == 'null') {
+        final now = DateTime.now();
+        if (scheduledTime.isAfter(now)) return 'upcoming';
+        return 'missed';
+      }
+      return 'pending';
+  }
+}
+
+String _reminderStatusDisplayLabel(String canonical) {
+  switch (canonical) {
+    case 'completed':
+      return 'Completed';
+    case 'snoozed':
+      return 'Snoozed';
+    case 'missed':
+      return 'Missed';
+    case 'upcoming':
+      return 'Upcoming';
+    case 'pending':
+      return 'Pending';
+    default:
+      return 'Pending';
+  }
+}
+
 class RemindersScreen extends StatefulWidget {
   const RemindersScreen({
     super.key,
@@ -67,16 +123,16 @@ class _RemindersScreenState extends State<RemindersScreen>
         }).toList();
       case 2: // Pending / active
         return reminders.where((reminder) {
-          final s = reminder['status']?.toString().toLowerCase() ?? '';
+          final s = reminder['status']?.toString() ?? '';
           return s == 'pending' ||
               s == 'upcoming' ||
-              s == 'due now' ||
-              s == 'snoozed';
+              s == 'snoozed' ||
+              s == 'missed';
         }).toList();
       case 3: // Completed / done
         return reminders.where((reminder) {
-          final s = reminder['status']?.toString().toLowerCase() ?? '';
-          return s == 'completed' || s == 'skipped' || s == 'missed';
+          final s = reminder['status']?.toString() ?? '';
+          return s == 'completed';
         }).toList();
       default:
         return reminders;
@@ -415,8 +471,12 @@ class _RemindersScreenState extends State<RemindersScreen>
                 ],
 
                 // Action buttons
-                if (['pending', 'snoozed', 'upcoming', 'due now', 'missed']
-                    .contains(status.toLowerCase())) ...[
+                if ([
+                  'pending',
+                  'snoozed',
+                  'upcoming',
+                  'missed',
+                ].contains(status)) ...[
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -454,42 +514,36 @@ class _RemindersScreenState extends State<RemindersScreen>
     String text;
     IconData icon;
 
-    switch (status.toLowerCase()) {
+    switch (status) {
       case 'completed':
         color = Colors.green;
-        text = 'Done';
+        text = _reminderStatusDisplayLabel('completed');
         icon = Icons.check_circle;
         break;
-      case 'due now':
-        color = Colors.red;
-        text = 'Due Now';
-        icon = Icons.alarm;
-        break;
       case 'upcoming':
+        color = Colors.indigo;
+        text = _reminderStatusDisplayLabel('upcoming');
+        icon = Icons.schedule;
+        break;
       case 'pending':
         color = Colors.blue;
-        text = status == 'Upcoming' ? 'Upcoming' : 'Pending';
-        icon = Icons.schedule;
+        text = _reminderStatusDisplayLabel('pending');
+        icon = Icons.pending_actions;
         break;
       case 'missed':
         color = Colors.red;
-        text = 'Missed';
+        text = _reminderStatusDisplayLabel('missed');
         icon = Icons.warning_amber;
         break;
       case 'snoozed':
         color = Colors.orange;
-        text = 'Snoozed';
+        text = _reminderStatusDisplayLabel('snoozed');
         icon = Icons.snooze;
         break;
-      case 'skipped':
-        color = Colors.grey;
-        text = 'Skipped';
-        icon = Icons.skip_next;
-        break;
       default:
-        color = Colors.grey;
-        text = status;
-        icon = Icons.help;
+        color = Colors.blue;
+        text = _reminderStatusDisplayLabel('pending');
+        icon = Icons.help_outline;
     }
 
     return Container(
@@ -1432,16 +1486,20 @@ class _RemindersScreenState extends State<RemindersScreen>
         ...(data['past'] as List<dynamic>? ?? []),
       ];
       final mapped = merged.whereType<Map<String, dynamic>>().map((r) {
+        final scheduledTime =
+            (DateTime.tryParse(r['scheduled_time']?.toString() ?? '') ??
+                    DateTime.now())
+                .toLocal();
+        final rawStatus =
+            (r['display_status'] ?? r['status'])?.toString();
+        final status =
+            _reminderCanonicalStatus(rawStatus, scheduledTime);
         return {
           'id': r['id']?.toString() ?? '',
           'title': r['title']?.toString() ?? 'Reminder',
           'description': r['message']?.toString() ?? '',
-          'scheduledTime':
-              (DateTime.tryParse(r['scheduled_time']?.toString() ?? '') ??
-                      DateTime.now())
-                  .toLocal(),
-          'status':
-              (r['display_status'] ?? r['status'])?.toString() ?? 'pending',
+          'scheduledTime': scheduledTime,
+          'status': status,
           'type': r['reminder_type']?.toString() ?? 'task',
           'dosage': null,
           'recurrence': r['recurrence']?.toString() ?? 'once',

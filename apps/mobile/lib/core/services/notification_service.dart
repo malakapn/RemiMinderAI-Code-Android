@@ -198,6 +198,9 @@ class NotificationService {
             audioAttributesUsage: AudioAttributesUsage.alarm,
           ),
         );
+        debugPrint('[NotificationService] createNotificationChannel("$_channelId") invoked');
+      } else {
+        debugPrint('[NotificationService] WARN: Android plugin null — channel not created');
       }
     }
 
@@ -210,6 +213,33 @@ class NotificationService {
     await requestExactAlarmPermission();
 
     _isInitialized = true;
+    debugPrint('[NotificationService] initialize() done; '
+        'plugin ready (timezone + Android channel "$_channelId").');
+  }
+
+  /// Logs whether the medication channel exists (Android). Call after [initialize].
+  Future<void> _debugLogAndroidChannelState(String context) async {
+    if (!Platform.isAndroid) {
+      debugPrint('[NotificationService] [$context] channel check skipped (not Android)');
+      return;
+    }
+    final android = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) {
+      debugPrint(
+          '[NotificationService] [$context] WARN: Android platform plugin is null');
+      return;
+    }
+    try {
+      final list = await android.getNotificationChannels();
+      final hasChannel = list?.any((c) => c.id == _channelId) ?? false;
+      debugPrint(
+          '[NotificationService] [$context] channelId=$_channelId '
+          'registered=$hasChannel (total=${list?.length ?? 0})');
+    } catch (e, st) {
+      debugPrint(
+          '[NotificationService] [$context] getNotificationChannels failed: $e\n$st');
+    }
   }
 
   Future<void> _initializeTimezone() async {
@@ -404,7 +434,7 @@ class NotificationService {
     return false;
   }
 
-  Future<void> scheduleMedicationReminder({
+  Future<bool> scheduleMedicationReminder({
     required int notificationId,
     required DateTime scheduledTime,
     required String medicationId,
@@ -426,12 +456,14 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload ?? medicationId,
       );
+      return true;
     } catch (e, st) {
       debugPrint('scheduleMedicationReminder failed: $e\n$st');
+      return false;
     }
   }
 
-  Future<void> scheduleRecurringReminder({
+  Future<bool> scheduleRecurringReminder({
     required int notificationId,
     required DateTime firstReminderTime,
     required String medicationId,
@@ -470,8 +502,10 @@ class NotificationService {
         matchDateTimeComponents: matchTime,
         payload: medicationId,
       );
+      return true;
     } catch (e, st) {
       debugPrint('scheduleRecurringReminder failed: $e\n$st');
+      return false;
     }
   }
 
@@ -489,14 +523,23 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    debugPrint('[NotificationService] showInstantNotification start id=$notificationId '
+        'initialized=$_isInitialized');
     if (!_isInitialized) await initialize();
-    await _notifications.show(
-      notificationId,
-      title,
-      body,
-      _instantMedicationDetails(body),
-      payload: payload,
-    );
+    await _debugLogAndroidChannelState('showInstantNotification');
+    try {
+      await _notifications.show(
+        notificationId,
+        title,
+        body,
+        _instantMedicationDetails(body),
+        payload: payload,
+      );
+      debugPrint('[NotificationService] showInstantNotification SUCCESS id=$notificationId');
+    } catch (e, st) {
+      debugPrint('[NotificationService] showInstantNotification FAILED id=$notificationId: '
+          '$e\n$st');
+    }
   }
 
   String? _fcmToken;
@@ -581,23 +624,36 @@ class NotificationService {
     String recurrencePattern = 'once',
     String? notificationBody,
   }) async {
+    debugPrint('[NotificationService] scheduleFromReminderData start reminderId=$reminderId '
+        'recurring=$isRec pattern=$recurrencePattern at=$scheduledTime '
+        'initialized=$_isInitialized');
     if (!_isInitialized) await initialize();
+    await _debugLogAndroidChannelState('scheduleFromReminderData(pre-schedule)');
     // medicationName, dosage, notificationBody intentionally ignored for on-device text (privacy).
     final notificationId = reminderId.hashCode;
 
+    final bool ok;
     if (isRecurring) {
-      await scheduleRecurringReminder(
+      ok = await scheduleRecurringReminder(
         notificationId: notificationId,
         firstReminderTime: scheduledTime,
         medicationId: reminderId,
         recurrencePattern: recurrencePattern,
       );
     } else {
-      await scheduleMedicationReminder(
+      ok = await scheduleMedicationReminder(
         notificationId: notificationId,
         scheduledTime: scheduledTime,
         medicationId: reminderId,
       );
+    }
+    if (ok) {
+      debugPrint('[NotificationService] scheduleFromReminderData SUCCESS '
+          'reminderId=$reminderId notificationId=$notificationId');
+    } else {
+      debugPrint('[NotificationService] scheduleFromReminderData FAILED '
+          '(zonedSchedule returned false / threw) reminderId=$reminderId '
+          'notificationId=$notificationId');
     }
   }
 
@@ -611,10 +667,12 @@ class NotificationService {
     final notificationId = reminderId.hashCode;
     final newScheduledTime = DateTime.now().add(Duration(minutes: minutes));
 
-    await scheduleMedicationReminder(
+    final ok = await scheduleMedicationReminder(
       notificationId: notificationId + 1000000, // Different ID for snooze
       scheduledTime: newScheduledTime,
       medicationId: reminderId,
     );
+    debugPrint('[NotificationService] snoozeFromReminderId reminderId=$reminderId '
+        'success=$ok at=$newScheduledTime');
   }
 }
