@@ -38,10 +38,19 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("upload-keystore.jks")
-            storePassword = "rrRR123!@#"
-            keyAlias = "upload"
-            keyPassword = "rrRR123!@#"
+            // CI passes credentials via env (see .github/workflows/build.yml).
+            val ksPath =
+                System.getenv("ANDROID_UPLOAD_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+                    ?: "upload-keystore.jks"
+            storeFile = file(ksPath)
+            storePassword =
+                System.getenv("KEYSTORE_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
+                    ?: "rrRR123!@#"
+            keyAlias =
+                System.getenv("KEYSTORE_ALIAS")?.takeIf { it.isNotBlank() } ?: "upload"
+            keyPassword =
+                System.getenv("KEYSTORE_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+                    ?: "rrRR123!@#"
         }
     }
 
