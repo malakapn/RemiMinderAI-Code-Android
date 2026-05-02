@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
@@ -29,6 +30,9 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
+
+  static const MethodChannel _androidFullScreenIntentChannel =
+      MethodChannel('com.remiminder.app.dev/full_screen_intent');
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -80,6 +84,35 @@ class NotificationService {
       showsUserInterface: false,
     ),
   ];
+
+  /// Whether Android may use full-screen intents (API 34+: user / policy).
+  ///
+  /// Note: [AndroidFlutterLocalNotificationsPlugin.canScheduleExactNotifications] covers **exact alarms**,
+  /// not FSI. We query FSI eligibility via `NotificationManager.canUseFullScreenIntent` on the native side.
+  Future<bool> _androidUseFullScreenIntentForSchedule() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final allowed = await _androidFullScreenIntentChannel
+          .invokeMethod<bool>('canUseFullScreenIntent');
+      return allowed ?? false;
+    } catch (e, st) {
+      debugPrint('Full-screen intent capability check failed (safe fallback): $e\n$st');
+      return false;
+    }
+  }
+
+  Future<NotificationDetails> _scheduledMedicationNotificationDetails() async {
+    final useFullScreen = await _androidUseFullScreenIntentForSchedule();
+    return NotificationDetails(
+      android: _medicationAndroidDetails(
+        body: medicationReminderPrivacyBody,
+        actions: _androidMedicationActions,
+        ongoing: true,
+        fullScreenIntent: useFullScreen,
+      ),
+      iOS: _darwinReminderDetails,
+    );
+  }
 
   /// High-priority medication channel: heads-up, alarm audio, vibration; persistent until Taken/dismissed.
   /// [fullScreenIntent] can wake the device with a full-screen UI when permitted (manifest + user settings).
@@ -377,29 +410,25 @@ class NotificationService {
     required String medicationId,
     String? payload,
   }) async {
-    final details = NotificationDetails(
-      android: _medicationAndroidDetails(
-        body: medicationReminderPrivacyBody,
-        actions: _androidMedicationActions,
-        ongoing: true,
-        fullScreenIntent: true,
-      ),
-      iOS: _darwinReminderDetails,
-    );
+    final details = await _scheduledMedicationNotificationDetails();
 
     final tzScheduledTime = tz.TZDateTime.from(scheduledTime, tz.local);
 
-    await _notifications.zonedSchedule(
-      notificationId,
-      medicationReminderPrivacyTitle,
-      medicationReminderPrivacyBody,
-      tzScheduledTime,
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: payload ?? medicationId,
-    );
+    try {
+      await _notifications.zonedSchedule(
+        notificationId,
+        medicationReminderPrivacyTitle,
+        medicationReminderPrivacyBody,
+        tzScheduledTime,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload ?? medicationId,
+      );
+    } catch (e, st) {
+      debugPrint('scheduleMedicationReminder failed: $e\n$st');
+    }
   }
 
   Future<void> scheduleRecurringReminder({
@@ -424,30 +453,26 @@ class NotificationService {
         matchTime = DateTimeComponents.time;
     }
 
-    final details = NotificationDetails(
-      android: _medicationAndroidDetails(
-        body: medicationReminderPrivacyBody,
-        actions: _androidMedicationActions,
-        ongoing: true,
-        fullScreenIntent: true,
-      ),
-      iOS: _darwinReminderDetails,
-    );
+    final details = await _scheduledMedicationNotificationDetails();
 
     final timezone = tz.TZDateTime.from(firstReminderTime, tz.local);
 
-    await _notifications.zonedSchedule(
-      notificationId,
-      medicationReminderPrivacyTitle,
-      medicationReminderPrivacyBody,
-      timezone,
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: matchTime,
-      payload: medicationId,
-    );
+    try {
+      await _notifications.zonedSchedule(
+        notificationId,
+        medicationReminderPrivacyTitle,
+        medicationReminderPrivacyBody,
+        timezone,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: matchTime,
+        payload: medicationId,
+      );
+    } catch (e, st) {
+      debugPrint('scheduleRecurringReminder failed: $e\n$st');
+    }
   }
 
   Future<void> cancelReminder(int notificationId) async {
