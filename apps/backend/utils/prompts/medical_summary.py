@@ -1,7 +1,12 @@
 from datetime import datetime
+from typing import Optional
 
 
-def build_medical_summary_prompt(transcript: str, language_name: str = "English", current_datetime: str | None = None) -> str:
+def build_medical_summary_prompt(
+    transcript: str,
+    language_name: str = "English",
+    current_datetime: Optional[str] = None,
+) -> str:
     if current_datetime is None:
         current_datetime = datetime.now().strftime("%A, %B %d, %Y, %I:%M %p")
 

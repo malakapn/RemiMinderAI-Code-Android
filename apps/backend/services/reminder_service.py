@@ -18,7 +18,7 @@ from .db_reminders import (
 )
 
 from .message_generator import generate_reminder_message
-from .alert_service import check_and_send_caregiver_alerts
+from .alert_service import check_and_send_caregiver_alerts, notify_caregivers_patient_reminder_updated, notify_caregivers_reminder_created
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -149,10 +149,17 @@ async def create_new_reminder(data: ReminderCreate) -> Optional[Dict[str, Any]]:
         
         if reminder:
             logger.info(f"✅ Created reminder {reminder['id']} for patient {data.user_id}")
+            asyncio.create_task(
+                notify_caregivers_reminder_created(
+                    user_id=data.user_id,
+                    reminder_id=str(reminder["id"]),
+                    reminder_title=data.title,
+                )
+            )
             return _enrich_reminder_response(reminder)
-        
+
         return None
-        
+
     except Exception as e:
         logger.error(f"Error creating reminder: {str(e)}")
         raise
@@ -239,11 +246,15 @@ async def update_reminder_details(
         return await get_reminder_by_id(reminder_id, user_id)
     
     reminder = await db_update_reminder(reminder_id, user_id, update_dict)
-    
+
     if reminder:
         logger.info(f"✅ Updated reminder {reminder_id}")
+        title = reminder.get("title") or "A reminder"
+        asyncio.create_task(
+            notify_caregivers_patient_reminder_updated(user_id, reminder_id, title)
+        )
         return _enrich_reminder_response(reminder)
-    
+
     return None
 
 
@@ -397,3 +408,41 @@ async def get_caregiver_dashboard_data(caregiver_id: str, user_id: str) -> Dict[
     except Exception as e:
         logger.error(f"Error getting caregiver dashboard: {str(e)}")
         raise
+
+
+# ============================================================================
+# FCM Push Notifications
+# ============================================================================
+
+async def send_fcm_notification(
+    fcm_token: str,
+    title: str,
+    body: str,
+    data: Optional[dict] = None
+) -> bool:
+    """
+    Send a push notification via Firebase Cloud Messaging.
+    
+    Args:
+        fcm_token: The device's FCM registration token
+        title: Notification title
+        body: Notification body
+        data: Optional data payload
+        
+    Returns:
+        True if sent successfully
+    """
+    try:
+        from .fcm_service import send_medication_reminder
+        
+        result = send_medication_reminder(
+            fcm_token=fcm_token,
+            title=title,
+            body=body,
+            data=data
+        )
+        return result
+        
+    except Exception as e:
+        logger.error(f"FCM notification error: {str(e)}")
+        return False

@@ -6,7 +6,8 @@ Only contains functions actively used by upload endpoints.
 import json
 import logging
 import secrets
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timezone
 from fastapi import HTTPException
 from .cloud_sql_engine import get_cloud_sql_engine
 from sqlalchemy import text
@@ -27,7 +28,7 @@ async def get_user_uuid(firebase_uid: str) -> str:
             engine = get_cloud_sql_engine()
             with engine.connect() as conn:
                 query = text("""
-                    SELECT firebase_uid FROM users WHERE firebase_uid = :firebase_uid
+                    SELECT id FROM users WHERE firebase_uid = :firebase_uid
                 """)
 
                 result = conn.execute(query, {"firebase_uid": firebase_uid})
@@ -47,15 +48,37 @@ async def get_user_uuid(firebase_uid: str) -> str:
         raise
 
 
+async def get_firebase_uid_from_uuid(internal_uuid: str) -> str:
+    """
+    Look up Firebase UID from internal user UUID.
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT firebase_uid FROM users WHERE id = CAST(:id AS uuid)"),
+                {"id": internal_uuid},
+            )
+            row = result.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail=f"User not found for UUID {internal_uuid}")
+            return str(row[0])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting firebase_uid for uuid={internal_uuid}: {e}")
+        raise
+
+
 async def get_user_email(user_id: str) -> str:
     """
-    Get the user's email from Cloud SQL by user ID.
+    Get the user's email from Cloud SQL by internal user UUID.
     """
     try:
         engine = get_cloud_sql_engine()
         with engine.connect() as conn:
             query = text("""
-                SELECT email FROM users WHERE firebase_uid = :user_id
+                SELECT email FROM users WHERE id = CAST(:user_id AS uuid)
             """)
             result = conn.execute(query, {"user_id": user_id})
             row = result.fetchone()
@@ -73,8 +96,8 @@ async def save_raw_transcript(
     visit_id: str,
     user_id: str,
     transcript: str,
-    confidence: float | None = None,
-    language: str | None = None
+    confidence: Optional[float] = None,
+    language: Optional[str] = None
 ) -> str:
     """Save raw STT transcript to visit_transcripts table.
 
@@ -181,6 +204,43 @@ async def ensure_user_exists(firebase_uid: str, email: str, request_full_name: O
                         text("UPDATE users SET full_name = :full_name WHERE id = :user_id"),
                         {"full_name": name_to_set, "user_id": user_id},
                     )
+            return False
+
+        # No firebase_uid match yet. If the email already exists, link this
+        # Firebase account to the existing row instead of inserting a duplicate.
+        email_result = conn.execute(
+            text("SELECT id, full_name, firebase_uid FROM users WHERE email = :email"),
+            {"email": email},
+        )
+        email_user = email_result.fetchone()
+
+        if email_user:
+            user_id, current_full_name, existing_firebase_uid = email_user
+
+            # The email has already been verified by Firebase, so if the Firebase
+            # UID changed (for example after the user deleted and recreated their
+            # Firebase account), relink the existing backend row instead of
+            # treating it as a hard conflict.
+            if existing_firebase_uid != firebase_uid:
+                conn.execute(
+                    text("UPDATE users SET firebase_uid = :firebase_uid WHERE id = :user_id"),
+                    {"firebase_uid": firebase_uid, "user_id": user_id},
+                )
+
+            # Fill in a name if the existing row doesn't have one yet.
+            if not current_full_name or current_full_name.strip() == "":
+                name_to_set = None
+                if request_full_name and request_full_name.strip():
+                    name_to_set = request_full_name.strip()
+                elif firebase_name and firebase_name.strip():
+                    name_to_set = firebase_name.strip()
+
+                if name_to_set:
+                    conn.execute(
+                        text("UPDATE users SET full_name = :full_name WHERE id = :user_id"),
+                        {"full_name": name_to_set, "user_id": user_id},
+                    )
+
             return False
 
         # User doesn't exist - create new user
@@ -581,8 +641,8 @@ async def create_care_team_invitation(
     role: str,
     permission: str,
     token: str,
-    invited_by_user_id: str | None = None,
-    expires_at: str | None = None,
+    invited_by_user_id: Optional[str] = None,
+    expires_at: Optional[str] = None,
 ) -> str:
     """
     Create a new care team invitation.
@@ -594,7 +654,16 @@ async def create_care_team_invitation(
             query = text("""
                 INSERT INTO care_team_invitations
                 (patient_id, invitee_email, role, permission, status, token, invited_by_user_id, expires_at)
-                VALUES (:patient_id, :invitee_email, :role, :permission, 'pending', :token, :invited_by_user_id, :expires_at)
+                VALUES (
+                    :patient_id,
+                    :invitee_email,
+                    :role,
+                    :permission,
+                    'pending',
+                    :token,
+                    :invited_by_user_id,
+                    :expires_at
+                )
                 RETURNING id
             """)
             result = conn.execute(query, {
@@ -700,19 +769,31 @@ async def add_care_team_member(
     role: str,
     permission: str,
     status: str,
-    invited_by_user_id: str | None = None,
+    invited_by_user_id: Optional[str] = None,
+    consent_version: Optional[str] = None,
 ) -> Optional[str]:
     """
     Add a care team member.
     Returns the member ID if created, otherwise None.
+    When consent_version is set, consent_accepted_at is stored (invitation accept flow).
     """
     try:
         engine = get_cloud_sql_engine()
         with engine.begin() as conn:
             query = text("""
                 INSERT INTO care_team_members
-                (patient_id, member_user_id, role, permission, status, invited_by_user_id)
-                VALUES (:patient_id, :member_user_id, :role, :permission, :status, :invited_by_user_id)
+                (patient_id, member_user_id, role, permission, status, invited_by_user_id,
+                 consent_version, consent_accepted_at)
+                VALUES (
+                    :patient_id,
+                    :member_user_id,
+                    :role,
+                    :permission,
+                    :status,
+                    :invited_by_user_id,
+                    :consent_version,
+                    CASE WHEN :consent_version IS NOT NULL THEN timezone('utc', now()) ELSE NULL END
+                )
                 ON CONFLICT (patient_id, member_user_id) DO NOTHING
                 RETURNING id
             """)
@@ -723,6 +804,7 @@ async def add_care_team_member(
                 "permission": permission,
                 "status": status,
                 "invited_by_user_id": invited_by_user_id,
+                "consent_version": consent_version,
             })
             row = result.fetchone()
             return str(row[0]) if row else None
@@ -754,8 +836,14 @@ async def get_care_team_membership(
                     created_at,
                     revoked_at
                 FROM care_team_members
-                WHERE patient_id = :patient_id
-                  AND member_user_id = :member_user_id
+                WHERE patient_id::text IN (
+                    CAST(:patient_id AS text),
+                    COALESCE((SELECT id::text FROM users WHERE firebase_uid = :patient_id LIMIT 1), CAST(:patient_id AS text))
+                )
+                  AND member_user_id::text IN (
+                    CAST(:member_user_id AS text),
+                    COALESCE((SELECT id::text FROM users WHERE firebase_uid = :member_user_id LIMIT 1), CAST(:member_user_id AS text))
+                )
                   AND status = 'active'
                 LIMIT 1
             """)
@@ -810,8 +898,15 @@ async def get_care_team_members(patient_id: str) -> list[dict]:
                     m.created_at,
                     m.revoked_at
                 FROM care_team_members m
-                LEFT JOIN users u ON u.firebase_uid = m.member_user_id
-                WHERE m.patient_id = :patient_id
+                LEFT JOIN users u ON (
+                    u.firebase_uid::text = m.member_user_id::text
+                    OR u.id::text = m.member_user_id::text
+                )
+                WHERE m.patient_id::text IN (
+                    CAST(:patient_id AS text),
+                    COALESCE((SELECT id::text FROM users WHERE firebase_uid = :patient_id LIMIT 1), CAST(:patient_id AS text))
+                )
+                  AND m.status = 'active'
                 ORDER BY m.created_at DESC
             """)
             result = conn.execute(query, {"patient_id": patient_id})
@@ -841,9 +936,72 @@ async def get_care_team_members(patient_id: str) -> list[dict]:
         raise
 
 
+async def has_pending_care_team_invitation_for_email(email: str) -> bool:
+    """
+    True if there is at least one pending care-team invite for this address (case-insensitive).
+    Used for pre-signup caregiver eligibility (public validate endpoint).
+    """
+    normalized = (email or "").strip().lower()
+    if not normalized:
+        return False
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT 1
+                    FROM care_team_invitations i
+                    WHERE LOWER(TRIM(i.invitee_email::text)) = :email
+                      AND i.status = 'pending'
+                    LIMIT 1
+                """),
+                {"email": normalized},
+            )
+            return result.fetchone() is not None
+    except Exception as e:
+        logger.error("Error checking pending invite for email=%s: %s", email, e)
+        raise
+
+
+async def validate_caregiver_signup_allowed(
+    email: str, invite_token: Optional[str] = None
+) -> tuple[bool, str]:
+    """
+    Returns (allowed, reason_code). reason_code is 'ok' or a stable machine string.
+    If invite_token is set, it must match a pending invitation for the same email.
+    """
+    normalized = (email or "").strip().lower()
+    if not normalized:
+        return False, "email_required"
+
+    if invite_token and str(invite_token).strip():
+        inv = await get_care_team_invitation_by_token(str(invite_token).strip())
+        if not inv:
+            return False, "invalid_token"
+        inv_email = (inv.get("invitee_email") or "").strip().lower()
+        if inv_email != normalized:
+            return False, "email_mismatch"
+        if inv.get("status") != "pending":
+            return False, "not_pending"
+        exp = inv.get("expires_at")
+        if exp:
+            if isinstance(exp, str):
+                try:
+                    exp = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+                except ValueError:
+                    exp = None
+            if exp and exp < datetime.now(timezone.utc):
+                return False, "expired"
+        return True, "ok"
+
+    if await has_pending_care_team_invitation_for_email(normalized):
+        return True, "ok"
+    return False, "no_pending_invite"
+
+
 async def get_my_care_team_invitations(user_email: str) -> list[dict]:
     """
-    Fetch pending care team invitations for the given email.
+    Fetch care team invitations for the invitee email (recent history + pending).
     """
     try:
         engine = get_cloud_sql_engine()
@@ -858,12 +1016,19 @@ async def get_my_care_team_invitations(user_email: str) -> list[dict]:
                     i.status,
                     i.token,
                     i.created_at,
-                    u.full_name AS patient_name
+                    i.expires_at,
+                    u.full_name AS patient_name,
+                    inv.full_name AS invited_by_name
                 FROM care_team_invitations i
-                JOIN users u ON u.firebase_uid = i.patient_id
-                WHERE i.invitee_email = :email
-                  AND i.status = 'pending'
-                ORDER BY i.created_at DESC;
+                JOIN users u ON (
+                    u.firebase_uid::text = i.patient_id::text
+                    OR u.id::text = i.patient_id::text
+                )
+                LEFT JOIN users inv ON inv.id = i.invited_by_user_id
+                WHERE LOWER(TRIM(i.invitee_email::text)) = LOWER(TRIM(:email))
+                  AND i.status IN ('pending', 'accepted', 'declined', 'revoked')
+                ORDER BY i.created_at DESC
+                LIMIT 100;
             """)
             result = conn.execute(query, {"email": user_email})
             rows = result.fetchall()
@@ -881,11 +1046,131 @@ async def get_my_care_team_invitations(user_email: str) -> list[dict]:
                         "status": row[5],
                         "token": row[6],
                         "created_at": row[7],
-                        "patient_name": row[8],
+                        "expires_at": row[8],
+                        "patient_name": row[9],
+                        "invited_by_name": row[10],
                     })
             return invitations
     except Exception as e:
         logger.error(f"Error fetching care team invitations for email={user_email}: {e}")
+        raise
+
+
+async def decline_care_team_invitation_by_invitee(
+    invitation_id: str, invitee_email: str
+) -> Optional[str]:
+    """
+    Caregiver declines a pending invitation addressed to invitee_email.
+    Returns patient_id (text) if a row was updated, else None.
+    """
+    normalized = (invitee_email or "").strip().lower()
+    if not normalized:
+        return None
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""
+                    UPDATE care_team_invitations
+                    SET status = 'declined'
+                    WHERE id = :invitation_id
+                      AND LOWER(TRIM(invitee_email::text)) = :email
+                      AND status = 'pending'
+                    RETURNING patient_id::text
+                """),
+                {"invitation_id": invitation_id, "email": normalized},
+            )
+            row = result.fetchone()
+            if not row:
+                return None
+            return str(row[0]) if row[0] is not None else None
+    except Exception as e:
+        logger.error(
+            "Error declining care team invitation id=%s email=%s: %s",
+            invitation_id,
+            invitee_email,
+            e,
+        )
+        raise
+
+
+async def delete_user_account(firebase_uid: str) -> Optional[str]:
+    """
+    Permanently remove the user and dependent rows (FK-safe order).
+    Returns internal user id (text) if a user row was deleted, else None.
+    """
+    if not firebase_uid or not str(firebase_uid).strip():
+        return None
+    uid = str(firebase_uid).strip()
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.begin() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT id::text FROM users WHERE firebase_uid = :f LIMIT 1"
+                ),
+                {"f": uid},
+            ).fetchone()
+            if not row:
+                return None
+            user_id = row[0]
+
+            conn.execute(
+                text("""
+                    DELETE FROM caregiver_notes_audit
+                    WHERE note_id IN (
+                        SELECT id FROM caregiver_notes
+                        WHERE caregiver_id = :fb OR patient_id = :uid_txt
+                    )
+                """),
+                {"fb": uid, "uid_txt": user_id},
+            )
+            conn.execute(
+                text("""
+                    DELETE FROM caregiver_notes
+                    WHERE caregiver_id = :fb OR patient_id = :uid_txt
+                """),
+                {"fb": uid, "uid_txt": user_id},
+            )
+
+            conn.execute(
+                text("DELETE FROM fcm_tokens WHERE user_id = :fb OR user_id = :uid_txt"),
+                {"fb": uid, "uid_txt": user_id},
+            )
+
+            conn.execute(
+                text("""
+                    DELETE FROM care_team_invitations
+                    WHERE patient_id::text = :uid_txt
+                       OR invited_by_user_id::text = :uid_txt
+                       OR accepted_by_user_id::text = :uid_txt
+                """),
+                {"uid_txt": user_id},
+            )
+            conn.execute(
+                text("""
+                    DELETE FROM care_team_members
+                    WHERE patient_id::text = :uid_txt
+                       OR member_user_id::text = :uid_txt
+                       OR invited_by_user_id::text = :uid_txt
+                """),
+                {"uid_txt": user_id},
+            )
+
+            conn.execute(
+                text("DELETE FROM patient_tasks WHERE user_id::text = :uid_txt"),
+                {"uid_txt": user_id},
+            )
+
+            result = conn.execute(
+                text("DELETE FROM users WHERE id::text = :uid_txt"),
+                {"uid_txt": user_id},
+            )
+            if result.rowcount > 0:
+                return user_id
+            return None
+    except Exception as e:
+        logger.error("Error deleting user account firebase_uid=%s: %s", uid, e)
         raise
 
 
@@ -994,7 +1279,10 @@ async def get_pending_care_team_invitations(patient_id: str) -> list[dict]:
                     status,
                     created_at
                 FROM care_team_invitations
-                WHERE patient_id = :patient_id
+                WHERE patient_id::text IN (
+                    CAST(:patient_id AS text),
+                    COALESCE((SELECT id::text FROM users WHERE firebase_uid = :patient_id LIMIT 1), CAST(:patient_id AS text))
+                )
                   AND status = 'pending'
                 ORDER BY created_at DESC
             """)
@@ -1038,7 +1326,10 @@ async def cancel_care_team_invitation(
                 UPDATE care_team_invitations
                 SET status = 'revoked'
                 WHERE id = :invitation_id
-                  AND patient_id = :patient_id
+                  AND patient_id::text IN (
+                      CAST(:patient_id AS text),
+                      COALESCE((SELECT id::text FROM users WHERE firebase_uid = :patient_id LIMIT 1), CAST(:patient_id AS text))
+                  )
             """)
             result = conn.execute(query, {
                 "invitation_id": invitation_id,
@@ -1073,7 +1364,10 @@ async def resend_care_team_invitation(
                     created_at = now(),
                     status = 'pending'
                 WHERE id = :invitation_id
-                  AND patient_id = :patient_id
+                  AND patient_id::text IN (
+                      CAST(:patient_id AS text),
+                      COALESCE((SELECT id::text FROM users WHERE firebase_uid = :patient_id LIMIT 1), CAST(:patient_id AS text))
+                  )
                   AND status = 'pending'
                 RETURNING token
             """)
@@ -1092,3 +1386,450 @@ async def resend_care_team_invitation(
             e,
         )
         raise
+
+
+async def get_my_patients_for_caregiver(member_user_id: str) -> list[dict]:
+    """
+    Fetch all patients that the given caregiver (member_user_id) is caring for.
+    Returns list of patient info with medication adherence, alerts, etc.
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            query = text("""
+                SELECT
+                    u.id AS patient_id,
+                    u.firebase_uid,
+                    u.full_name,
+                    u.email,
+                    COALESCE(m.role, 'Unknown') AS relationship,
+                    m.status AS membership_status,
+                    m.permission,
+                    m.created_at AS joined_at,
+                    0 AS medication_adherence,
+                    (
+                        SELECT COUNT(*)::int
+                        FROM reminders r
+                        WHERE (r.user_id::text = u.id::text OR r.user_id = u.firebase_uid)
+                          AND r.reminder_type = 'appointment'
+                          AND r.status = 'pending'
+                          AND r.scheduled_time >= timezone('utc', now())
+                          AND r.scheduled_time <= (timezone('utc', now()) + interval '14 days')
+                    ) AS upcoming_appointments,
+                    (
+                        SELECT COUNT(*)::int
+                        FROM reminders r
+                        WHERE (r.user_id::text = u.id::text OR r.user_id = u.firebase_uid)
+                          AND r.status = 'pending'
+                          AND r.scheduled_time <= (timezone('utc', now()) + interval '48 hours')
+                    ) AS reminders_due_soon,
+                    (
+                        SELECT COUNT(*)::int
+                        FROM caregiver_alerts ca
+                        WHERE ca.caregiver_id::text = m.member_user_id::text
+                          AND ca.read = false
+                          AND (
+                              ca.user_id::text = u.id::text
+                              OR ca.user_id = u.firebase_uid
+                          )
+                    ) AS unread_alerts,
+                    (
+                        SELECT MAX(v.created_at)
+                        FROM visits v
+                        WHERE v.user_id::text = u.id::text
+                           OR v.user_id = u.firebase_uid
+                    ) AS last_visit_at,
+                    (
+                        SELECT MAX(sub.t)
+                        FROM (
+                            SELECT ca.sent_at AS t
+                            FROM caregiver_alerts ca
+                            WHERE ca.caregiver_id::text = m.member_user_id::text
+                              AND (
+                                  ca.user_id::text = u.id::text
+                                  OR ca.user_id = u.firebase_uid
+                              )
+                            UNION ALL
+                            SELECT rl.created_at AS t
+                            FROM reminder_logs rl
+                            WHERE rl.user_id::text = u.id::text
+                               OR rl.user_id = u.firebase_uid
+                            UNION ALL
+                            SELECT v.created_at AS t
+                            FROM visits v
+                            WHERE v.user_id::text = u.id::text
+                               OR v.user_id = u.firebase_uid
+                        ) AS sub
+                    ) AS last_activity_at,
+                    (
+                        SELECT COALESCE(
+                            json_agg(
+                                json_build_object(
+                                    'type', evt.type,
+                                    'summary', evt.summary,
+                                    'occurred_at', evt.occurred_at
+                                )
+                                ORDER BY evt.occurred_at DESC
+                            ),
+                            '[]'::json
+                        )
+                        FROM (
+                            SELECT * FROM (
+                                SELECT
+                                    'alert'::text AS type,
+                                    left(
+                                        trim(
+                                            coalesce(
+                                                nullif(trim(ca.message), ''),
+                                                ca.alert_type,
+                                                'Alert'
+                                            )
+                                        ),
+                                        200
+                                    ) AS summary,
+                                    ca.sent_at AS occurred_at
+                                FROM caregiver_alerts ca
+                                WHERE ca.caregiver_id::text = m.member_user_id::text
+                                  AND (
+                                      ca.user_id::text = u.id::text
+                                      OR ca.user_id = u.firebase_uid
+                                  )
+                                UNION ALL
+                                SELECT
+                                    'reminder'::text AS type,
+                                    left(
+                                        ('Reminder ' || coalesce(rl.action, 'event'))::text,
+                                        200
+                                    ) AS summary,
+                                    rl.created_at AS occurred_at
+                                FROM reminder_logs rl
+                                WHERE rl.user_id::text = u.id::text
+                                   OR rl.user_id = u.firebase_uid
+                                UNION ALL
+                                SELECT
+                                    'visit'::text AS type,
+                                    left(
+                                        trim(coalesce(v.title, 'Visit recorded')),
+                                        200
+                                    ) AS summary,
+                                    v.created_at AS occurred_at
+                                FROM visits v
+                                WHERE v.user_id::text = u.id::text
+                                   OR v.user_id = u.firebase_uid
+                            ) AS combined
+                            ORDER BY combined.occurred_at DESC
+                            LIMIT 8
+                        ) AS evt
+                    ) AS recent_activities
+                FROM care_team_members m
+                JOIN users u ON u.id::text = m.patient_id::text
+                WHERE m.member_user_id::text = :member_user_id
+                  AND m.status = 'active'
+                ORDER BY last_activity_at DESC NULLS LAST, u.full_name;
+            """)
+            result = conn.execute(query, {"member_user_id": member_user_id})
+            rows = result.fetchall()
+            patients = []
+            for row in rows:
+                if hasattr(row, "_mapping"):
+                    patients.append(dict(row._mapping))
+                else:
+                    patients.append({
+                        "patient_id": str(row[0]),
+                        "firebase_uid": row[1],
+                        "full_name": row[2],
+                        "email": row[3],
+                        "relationship": row[4],
+                        "membership_status": row[5],
+                        "permission": row[6],
+                        "joined_at": row[7],
+                        "medication_adherence": row[8] or 0,
+                        "upcoming_appointments": row[9] or 0,
+                        "reminders_due_soon": row[10] or 0,
+                        "unread_alerts": row[11] or 0,
+                        "last_visit_at": row[12],
+                        "last_activity_at": row[13],
+                        "recent_activities": row[14],
+                    })
+            return patients
+    except Exception as e:
+        logger.error(f"Error fetching patients for caregiver member_user_id={member_user_id}: {e}")
+        raise
+
+
+async def get_symptom_journal_for_patient(
+    patient_ident: str,
+    date_from: Optional[datetime] = None,
+    date_to_exclusive: Optional[datetime] = None,
+    severity_substring: Optional[str] = None,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    """
+    Read-only symptom lines from visit AI structured summaries (summaries_log.structured_data_json).
+
+    patient_ident may be internal users.id (uuid string) or the patient's firebase_uid.
+    summaries_log.user_id is stored as text (uuid or firebase uid depending on pipeline).
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        user_match = """
+            (
+              s.user_id::text = :patient_ident
+              OR s.user_id::text = (SELECT id::text FROM users WHERE firebase_uid = :patient_ident LIMIT 1)
+              OR s.user_id::text = (SELECT firebase_uid FROM users WHERE id::text = :patient_ident LIMIT 1)
+            )
+            AND (
+              v.user_id::text = :patient_ident
+              OR v.user_id::text = (SELECT id::text FROM users WHERE firebase_uid = :patient_ident LIMIT 1)
+              OR v.user_id::text = (SELECT firebase_uid FROM users WHERE id::text = :patient_ident LIMIT 1)
+            )
+        """
+        extra = []
+        params: Dict[str, Any] = {
+            "patient_ident": patient_ident,
+            "limit": limit,
+        }
+        if date_from is not None:
+            extra.append("s.created_at >= :date_from")
+            params["date_from"] = date_from
+        if date_to_exclusive is not None:
+            extra.append("s.created_at < :date_to_exclusive")
+            params["date_to_exclusive"] = date_to_exclusive
+        if severity_substring and severity_substring.strip():
+            extra.append("COALESCE(sym->>'severity', '') ILIKE :severity_ilike")
+            params["severity_ilike"] = f"%{severity_substring.strip()}%"
+        extra_sql = (" AND " + " AND ".join(extra)) if extra else ""
+
+        query = text(f"""
+            SELECT
+              s.id::text AS summary_id,
+              s.visit_id::text AS visit_id,
+              s.created_at AS logged_at,
+              COALESCE(v.title::text, '') AS visit_title,
+              COALESCE(v.doctor::text, '') AS doctor_name,
+              COALESCE(sym->>'description', '') AS description,
+              COALESCE(sym->>'duration', '') AS duration,
+              COALESCE(sym->>'severity', '') AS severity,
+              LEFT(COALESCE(s.summary_text, ''), 220) AS note_preview
+            FROM summaries_log s
+            JOIN visits v ON v.id = s.visit_id
+            CROSS JOIN LATERAL jsonb_array_elements(
+              CASE
+                WHEN jsonb_typeof(COALESCE(s.structured_data_json->'symptoms', '[]'::jsonb)) = 'array'
+                THEN s.structured_data_json->'symptoms'
+                ELSE '[]'::jsonb
+              END
+            ) AS sym
+            WHERE s.structured_data_json IS NOT NULL
+              AND {user_match}
+              {extra_sql}
+            ORDER BY s.created_at DESC
+            LIMIT :limit
+        """)
+
+        with engine.connect() as conn:
+            result = conn.execute(query, params)
+            rows = result.fetchall()
+        out: List[Dict[str, Any]] = []
+        for idx, row in enumerate(rows):
+            if hasattr(row, "_mapping"):
+                m = dict(row._mapping)
+            else:
+                m = {
+                    "summary_id": row[0],
+                    "visit_id": row[1],
+                    "logged_at": row[2],
+                    "visit_title": row[3],
+                    "doctor_name": row[4],
+                    "description": row[5],
+                    "duration": row[6],
+                    "severity": row[7],
+                    "note_preview": row[8],
+                }
+            logged = m.get("logged_at")
+            sid = str(m.get("summary_id", ""))
+            out.append(
+                {
+                    "id": f"{sid}:{idx}",
+                    "summary_id": sid,
+                    "visit_id": str(m.get("visit_id", "")),
+                    "visit_title": m.get("visit_title") or "",
+                    "doctor_name": m.get("doctor_name") or "",
+                    "logged_at": logged.isoformat() if hasattr(logged, "isoformat") else str(logged),
+                    "description": m.get("description") or "",
+                    "duration": m.get("duration") or "",
+                    "severity": m.get("severity") or "",
+                    "note_preview": (m.get("note_preview") or "").strip(),
+                }
+            )
+        return out
+    except Exception as e:
+        logger.error("Error fetching symptom journal for patient_ident=%s: %s", patient_ident, e)
+        raise
+
+
+async def get_primary_caregiver_for_patient(patient_ident: str) -> Optional[Dict[str, Any]]:
+    """
+    Pick one active care-team caregiver to notify for this patient.
+    Prefers permission = 'full', then earliest membership.
+
+    patient_ident may be internal users.id (uuid string) or the patient's firebase_uid.
+
+    Returns:
+        caregiver_firebase_uid, caregiver_email, caregiver_full_name (may be None)
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT
+                        caregiver.firebase_uid AS caregiver_firebase_uid,
+                        caregiver.email AS caregiver_email,
+                        caregiver.full_name AS caregiver_full_name
+                    FROM care_team_members m
+                    JOIN users caregiver
+                      ON caregiver.id::text = m.member_user_id::text
+                      OR caregiver.firebase_uid::text = m.member_user_id::text
+                    WHERE m.status = 'active'
+                      AND m.patient_id::text IN (
+                          CAST(:pid AS text),
+                          COALESCE(
+                              (SELECT id::text FROM users WHERE firebase_uid = :pid LIMIT 1),
+                              CAST(:pid AS text)
+                          )
+                      )
+                    ORDER BY
+                        CASE WHEN m.permission = 'full' THEN 0 ELSE 1 END,
+                        m.created_at ASC NULLS LAST
+                    LIMIT 1
+                """),
+                {"pid": patient_ident},
+            )
+            row = result.fetchone()
+            if not row:
+                return None
+            if hasattr(row, "_mapping"):
+                return dict(row._mapping)
+            return {
+                "caregiver_firebase_uid": row[0],
+                "caregiver_email": row[1],
+                "caregiver_full_name": row[2],
+            }
+    except Exception as e:
+        logger.error(
+            "Error resolving primary caregiver for patient_ident=%s: %s",
+            patient_ident,
+            e,
+        )
+        raise
+
+
+async def get_caregivers_for_patient_alerts(patient_ident: str) -> List[Dict[str, Any]]:
+    """
+    All active care-team caregivers for a patient who can receive in-app/email alerts.
+    Excludes members without a Firebase UID (cannot match caregiver_alerts.caregiver_id insert path).
+
+    patient_ident may be internal users.id (uuid string) or the patient's firebase_uid.
+
+    Returns rows: caregiver_firebase_uid, caregiver_email, caregiver_full_name
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT
+                        caregiver.firebase_uid AS caregiver_firebase_uid,
+                        caregiver.email AS caregiver_email,
+                        caregiver.full_name AS caregiver_full_name
+                    FROM care_team_members m
+                    JOIN users caregiver
+                      ON caregiver.id::text = m.member_user_id::text
+                      OR caregiver.firebase_uid::text = m.member_user_id::text
+                    WHERE m.status = 'active'
+                      AND caregiver.firebase_uid IS NOT NULL
+                      AND TRIM(caregiver.firebase_uid) <> ''
+                      AND m.patient_id::text IN (
+                          CAST(:pid AS text),
+                          COALESCE(
+                              (SELECT id::text FROM users WHERE firebase_uid = :pid LIMIT 1),
+                              CAST(:pid AS text)
+                          )
+                      )
+                    ORDER BY
+                        CASE WHEN m.permission = 'full' THEN 0 ELSE 1 END,
+                        m.created_at ASC NULLS LAST
+                """),
+                {"pid": patient_ident},
+            )
+            rows = result.fetchall()
+            out: List[Dict[str, Any]] = []
+            for row in rows:
+                if hasattr(row, "_mapping"):
+                    out.append(dict(row._mapping))
+                else:
+                    out.append(
+                        {
+                            "caregiver_firebase_uid": row[0],
+                            "caregiver_email": row[1],
+                            "caregiver_full_name": row[2],
+                        }
+                    )
+            return out
+    except Exception as e:
+        logger.error(
+            "Error listing caregivers for alerts patient_ident=%s: %s",
+            patient_ident,
+            e,
+        )
+        raise
+
+
+async def get_caregiver_alert_email_enabled(firebase_uid: str) -> bool:
+    """Default True when column missing or user not found (send if infra allows)."""
+    uid = (firebase_uid or "").strip()
+    if not uid:
+        return True
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT caregiver_alert_email_enabled
+                    FROM public.users
+                    WHERE firebase_uid = :uid
+                    LIMIT 1
+                """),
+                {"uid": uid},
+            )
+            row = result.fetchone()
+            if not row:
+                return True
+            val = row[0]
+            return bool(val) if val is not None else True
+    except Exception as e:
+        logger.warning(
+            "get_caregiver_alert_email_enabled failed uid=%s (column may be missing): %s",
+            uid,
+            e,
+        )
+        return True
+
+
+async def set_caregiver_alert_email_enabled(firebase_uid: str, enabled: bool) -> None:
+    uid = (firebase_uid or "").strip()
+    if not uid:
+        raise HTTPException(status_code=400, detail="Invalid user")
+    engine = get_cloud_sql_engine()
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("""
+                UPDATE public.users
+                SET caregiver_alert_email_enabled = :enabled
+                WHERE firebase_uid = :uid
+            """),
+            {"uid": uid, "enabled": enabled},
+        )
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="User not found")

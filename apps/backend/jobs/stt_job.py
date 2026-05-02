@@ -7,7 +7,7 @@ def run_stt_job(payload: Dict[str, Any]) -> None:
     Execute the STT pipeline for a visit and save the transcript.
     """
     visit_id = payload["visit_id"]
-    firebase_uid = payload["firebase_uid"]
+    firebase_uid = payload.get("firebase_uid") or payload.get("auth_uid")
 
     async def _run() -> None:
         from services.media.audio_pipeline import run_audio_stt_pipeline

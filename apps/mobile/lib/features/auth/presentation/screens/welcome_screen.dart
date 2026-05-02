@@ -28,21 +28,22 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
 
               // Logo and branding
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // App Logo
                     Image.asset(
-                      'assets/icon.png',
+                      'assets/images/RemiMinder_logo.png',
                       width: 160,
                       height: 160,
                       fit: BoxFit.contain,
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 8),
 
                     // Welcome Title
                     Text(

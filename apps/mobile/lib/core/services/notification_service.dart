@@ -1,115 +1,510 @@
 import 'dart:io';
-
+import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:http/http.dart' as http;
+import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
+import '../config/environment.dart';
+import 'auth_service.dart';
 
-/// Local scheduled notifications (Android foreground/background).
 class NotificationService {
-  NotificationService._();
-  static final NotificationService _instance = NotificationService._();
+  static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
+  NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
-  bool _initialized = false;
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
 
-  /// Initializes plugin, timezone DB, Android channel, and requests
-  /// POST_NOTIFICATIONS on Android 13+.
+  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+
+  bool _isInitialized = false;
+  final AuthService _authService = AuthService();
+  void Function(String route)? _navigationHandler;
+
+  /// New id so Android recreates the channel with sound + max importance (channel
+  /// settings are fixed after first creation on the device).
+  static const String _channelId = 'medication_reminders_v2';
+  static const String _channelName = 'Medication Reminders';
+  static const String _channelDescription =
+      'Notifications for medication reminders';
+
+  /// Default tone for scheduled / foreground alerts (iOS).
+  static const DarwinNotificationDetails _darwinReminderDetails =
+      DarwinNotificationDetails(
+    presentAlert: true,
+    presentBanner: true,
+    presentList: true,
+    presentSound: true,
+    sound: 'default',
+    interruptionLevel: InterruptionLevel.active,
+  );
+
+  /// High-priority medication channel: heads-up, sound, vibration; stays in shade until dismissed.
+  AndroidNotificationDetails _medicationAndroidDetails({
+    required String body,
+    List<AndroidNotificationAction>? actions,
+    bool ongoing = true,
+  }) {
+    return AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: _channelDescription,
+      importance: Importance.max,
+      priority: Priority.max,
+      category: AndroidNotificationCategory.alarm,
+      ticker: 'Medication Reminder',
+      styleInformation: BigTextStyleInformation(body),
+      playSound: true,
+      enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
+      visibility: NotificationVisibility.public,
+      onlyAlertOnce: false,
+      ongoing: ongoing,
+      autoCancel: !ongoing,
+      actions: actions ??
+          const <AndroidNotificationAction>[
+            AndroidNotificationAction('take', 'Take Now'),
+            AndroidNotificationAction('snooze', 'Snooze 10 min'),
+          ],
+    );
+  }
+
+  NotificationDetails _instantMedicationDetails(String body) {
+    return NotificationDetails(
+      android: _medicationAndroidDetails(body: body, ongoing: false),
+      iOS: _darwinReminderDetails,
+    );
+  }
+
   Future<void> initialize() async {
-    if (_initialized) return;
+    if (_isInitialized) return;
 
-    tz_data.initializeTimeZones();
-    try {
-      tz.setLocalLocation(tz.getLocation(DateTime.now().timeZoneName));
-    } catch (_) {
-      // Falls back to UTC if local timezone not found
-    }
+    await _initializeTimezone();
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
-    const iosSettings = DarwinInitializationSettings();
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidSettings);
 
-    await _plugin.initialize(
+    await _notifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveNotificationResponse: _onNotificationResponse,
     );
 
-    if (!kIsWeb && Platform.isAndroid) {
-      final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (Platform.isAndroid) {
+      final android = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
       if (android != null) {
-        const channel = AndroidNotificationChannel(
-          'reminders',
-          'Medication Reminders',
-          description: 'Scheduled medication and care reminders.',
-          importance: Importance.max,
+        await android.createNotificationChannel(
+          AndroidNotificationChannel(
+            _channelId,
+            _channelName,
+            description: _channelDescription,
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+            audioAttributesUsage: AudioAttributesUsage.alarm,
+          ),
         );
-        await android.createNotificationChannel(channel);
-        await android.requestNotificationsPermission();
       }
     }
 
-    _initialized = true;
+    await _setupRemoteMessageInteractions();
+
+    // Request necessary permissions
+    await requestPermissions();
+    await requestExactAlarmPermission();
+
+    _isInitialized = true;
   }
 
-  void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('Notification tapped: ${response.payload}');
+  Future<void> _initializeTimezone() async {
+    tz.initializeTimeZones();
+    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
   }
 
-  /// Schedules a one-shot notification at [scheduledTime] in the device's
-  /// local timezone ([tz.local]).
-  Future<void> scheduleReminder({
-    required int id,
+  void setNavigationHandler(void Function(String route) handler) {
+    _navigationHandler = handler;
+  }
+
+  void _onNotificationResponse(NotificationResponse response) {
+    debugPrint(
+        'Notification response: ${response.actionId} - ${response.payload}');
+    unawaited(_handleNotificationAction(response.actionId, response.payload));
+  }
+
+  Future<void> _handleNotificationAction(
+      String? actionId, String? payload) async {
+    if (payload == null) return;
+
+    switch (actionId) {
+      case 'take':
+        await _markMedicationTaken(payload);
+        break;
+      case 'snooze':
+        await _snoozeMedication(payload);
+        break;
+      default:
+        _openMedicationDetail(payload);
+    }
+  }
+
+  Future<void> _markMedicationTaken(String reminderId) async {
+    try {
+      final token = await _authService.getAccessToken();
+      if (token == null) return;
+
+      await http.post(
+        Uri.parse(
+            '${Environment.apiBaseUrl}/api/reminders/$reminderId/complete'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+    } catch (e) {
+      debugPrint('Failed to mark medication taken: $e');
+    }
+
+    // Dismiss the persistent notification now that the action is confirmed
+    await cancelFromReminderId(reminderId);
+
+    _openMedicationDetail(reminderId);
+  }
+
+  Future<void> _snoozeMedication(String reminderId) async {
+    try {
+      final token = await _authService.getAccessToken();
+      if (token == null) return;
+
+      await http.post(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$reminderId/snooze'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+    } catch (e) {
+      debugPrint('Failed to snooze medication: $e');
+    }
+
+    // Cancel original notification and reschedule for 10 minutes later
+    await cancelFromReminderId(reminderId);
+    await snoozeFromReminderId(reminderId);
+  }
+
+  void _openMedicationDetail(String reminderId) {
+    _navigationHandler?.call('/patient/reminder/$reminderId');
+  }
+
+  void _handleRemoteOpen(RemoteMessage message) {
+    final deep = message.data['deep_link'];
+    if (deep is String && deep.isNotEmpty) {
+      _navigationHandler?.call(deep);
+      return;
+    }
+    final reminderId =
+        message.data['reminder_id'] ?? message.data['medication_id'];
+    if (reminderId is String && reminderId.isNotEmpty) {
+      _openMedicationDetail(reminderId);
+    }
+  }
+
+  Future<void> _setupRemoteMessageInteractions() async {
+    // Foreground FCM: show a local notification when app is open
+    FirebaseMessaging.onMessage.listen(_handleForegroundFcm);
+
+    // User tapped a notification while app was in background
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteOpen);
+
+    // App launched from a terminated state via notification tap
+    final initialMessage = await _fcm.getInitialMessage();
+    if (initialMessage != null) {
+      _handleRemoteOpen(initialMessage);
+    }
+  }
+
+  Future<void> _handleForegroundFcm(RemoteMessage message) async {
+    final notification = message.notification;
+    final title = notification?.title ?? message.data['title'] ?? 'RemiMinder';
+    final body = notification?.body ?? message.data['body'] ?? '';
+    if (body.isEmpty) return;
+
+    // Prefer reminder_id so FCM + local scheduled alerts collapse to one slot.
+    final rid = message.data['reminder_id'];
+    final notifId = rid is String && rid.isNotEmpty
+        ? rid.hashCode
+        : (message.messageId ?? DateTime.now().toIso8601String()).hashCode;
+
+    final details = NotificationDetails(
+      android: _medicationAndroidDetails(
+        body: body,
+        actions: const [],
+        ongoing: false,
+      ),
+      iOS: _darwinReminderDetails,
+    );
+
+    await _notifications.show(notifId, title, body, details,
+        payload: message.data['deep_link'] ?? message.data['reminder_id'] ?? '');
+  }
+
+  Future<bool> requestPermissions() async {
+    if (Platform.isAndroid) {
+      final android = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        final granted = await android.requestNotificationsPermission();
+        return granted ?? false;
+      }
+    }
+    return false;
+  }
+
+  Future<bool> requestExactAlarmPermission() async {
+    if (Platform.isAndroid) {
+      final android = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        final result = await android.requestExactAlarmsPermission();
+        return result ?? false;
+      }
+    }
+    return false;
+  }
+
+  Future<void> scheduleMedicationReminder({
+    required int notificationId,
     required String title,
     required String body,
     required DateTime scheduledTime,
+    required String medicationId,
+    String? payload,
   }) async {
-    await initialize();
-
-    // Allow "immediate" schedules (e.g. FCM foreground) where [scheduledTime]
-    // is effectively [DateTime.now()] and would otherwise read as past after init.
-    final now = DateTime.now();
-    if (scheduledTime.isBefore(now.subtract(const Duration(seconds: 1)))) {
-      debugPrint('NotificationService: skip schedule — time in the past');
-      return;
-    }
-
-    final when = tz.TZDateTime.from(scheduledTime, tz.local);
-
-    const androidDetails = AndroidNotificationDetails(
-      'reminders',
-      'Medication Reminders',
-      channelDescription: 'Scheduled medication and care reminders.',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
-    const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
+    final details = NotificationDetails(
+      android: _medicationAndroidDetails(
+        body: body,
+        actions: const <AndroidNotificationAction>[
+          AndroidNotificationAction('take', 'Take Now'),
+          AndroidNotificationAction('snooze', 'Snooze 10 min'),
+        ],
+      ),
+      iOS: _darwinReminderDetails,
     );
 
-    await _plugin.zonedSchedule(
-      id,
+    final tzScheduledTime = tz.TZDateTime.from(scheduledTime, tz.local);
+
+    await _notifications.zonedSchedule(
+      notificationId,
       title,
       body,
-      when,
+      tzScheduledTime,
       details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload ?? medicationId,
     );
   }
 
-  Future<void> cancelReminder(int id) async {
-    await initialize();
-    await _plugin.cancel(id);
+  Future<void> scheduleRecurringReminder({
+    required int notificationId,
+    required String title,
+    required String body,
+    required DateTime firstReminderTime,
+    required String medicationId,
+    required String recurrencePattern,
+  }) async {
+    DateTimeComponents? matchTime;
+
+    switch (recurrencePattern) {
+      case 'daily':
+        matchTime = DateTimeComponents.time;
+        break;
+      case 'weekly':
+        matchTime = DateTimeComponents.dayOfWeekAndTime;
+        break;
+      case 'monthly':
+        matchTime = DateTimeComponents.dayOfMonthAndTime;
+        break;
+      default:
+        matchTime = DateTimeComponents.time;
+    }
+
+    final details = NotificationDetails(
+      android: _medicationAndroidDetails(body: body),
+      iOS: _darwinReminderDetails,
+    );
+
+    final timezone = tz.TZDateTime.from(firstReminderTime, tz.local);
+
+    await _notifications.zonedSchedule(
+      notificationId,
+      title,
+      body,
+      timezone,
+      details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: matchTime,
+      payload: medicationId,
+    );
+  }
+
+  Future<void> cancelReminder(int notificationId) async {
+    await _notifications.cancel(notificationId);
   }
 
   Future<void> cancelAllReminders() async {
-    await initialize();
-    await _plugin.cancelAll();
+    await _notifications.cancelAll();
+  }
+
+  Future<void> showInstantNotification({
+    required int notificationId,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _notifications.show(
+      notificationId,
+      title,
+      body,
+      _instantMedicationDetails(body),
+      payload: payload,
+    );
+  }
+
+  String? _fcmToken;
+
+  Future<String?> getFcmToken() async {
+    if (_fcmToken != null) return _fcmToken;
+
+    try {
+      _fcmToken = await _fcm.getToken();
+      return _fcmToken;
+    } catch (e) {
+      debugPrint('Error getting FCM token: $e');
+      return null;
+    }
+  }
+
+  Future<void> onTokenRefresh(
+      FutureOr<void> Function(String token) handler) async {
+    _fcm.onTokenRefresh.listen((token) async {
+      await handler(token);
+    });
+  }
+
+  /// Remove this device's token from the backend while the user is still signed in.
+  Future<void> unregisterBackendFcmToken() async {
+    try {
+      final token = await _authService.getAccessToken();
+      if (token == null) return;
+      await http.delete(
+        Uri.parse('${Environment.apiBaseUrl}/api/fcm/token'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+    } catch (e) {
+      debugPrint('Error unregistering backend FCM token: $e');
+    }
+  }
+
+  /// Invalidate the FCM installation on this device (call after Firebase sign-out).
+  Future<void> clearLocalFcmRegistration() async {
+    try {
+      await _fcm.deleteToken();
+      _fcmToken = null;
+    } catch (e) {
+      debugPrint('Error clearing local FCM registration: $e');
+    }
+  }
+
+  Future<void> subscribeToTopic(String topic) async {
+    await _fcm.subscribeToTopic(topic);
+  }
+
+  Future<void> unsubscribeFromTopic(String topic) async {
+    await _fcm.unsubscribeFromTopic(topic);
+  }
+
+  void setForegroundNotificationHandler(
+    Future<void> Function(RemoteMessage message) handler,
+  ) {
+    FirebaseMessaging.onMessage.listen(handler);
+  }
+
+  void setBackgroundMessageHandler(
+    Future<void> Function(RemoteMessage message) handler,
+  ) {
+    FirebaseMessaging.onBackgroundMessage(handler);
+  }
+
+  // ============================================================
+  // REMINDER INTEGRATION
+  // ============================================================
+
+  Future<void> scheduleFromReminderData({
+    required String reminderId,
+    required String medicationName,
+    required String dosage,
+    required DateTime scheduledTime,
+    bool isRecurring = false,
+    String recurrencePattern = 'once',
+    String? notificationBody,
+  }) async {
+    if (!_isInitialized) await initialize();
+    final title = '💊 Time to take $medicationName';
+    final body = (notificationBody != null &&
+            notificationBody.trim().isNotEmpty)
+        ? notificationBody.trim()
+        : (dosage.isNotEmpty ? dosage : 'Take your medication as prescribed');
+    final notificationId = reminderId.hashCode;
+
+    if (isRecurring) {
+      await scheduleRecurringReminder(
+        notificationId: notificationId,
+        title: title,
+        body: body,
+        firstReminderTime: scheduledTime,
+        medicationId: reminderId,
+        recurrencePattern: recurrencePattern,
+      );
+    } else {
+      await scheduleMedicationReminder(
+        notificationId: notificationId,
+        title: title,
+        body: body,
+        scheduledTime: scheduledTime,
+        medicationId: reminderId,
+      );
+    }
+  }
+
+  Future<void> cancelFromReminderId(String reminderId) async {
+    final notificationId = reminderId.hashCode;
+    await cancelReminder(notificationId);
+  }
+
+  Future<void> snoozeFromReminderId(String reminderId,
+      {int minutes = 10}) async {
+    final notificationId = reminderId.hashCode;
+    final newScheduledTime = DateTime.now().add(Duration(minutes: minutes));
+    final title = '💊 Snoozed: Take your medication';
+    final body = 'Time extended by $minutes minutes';
+
+    await scheduleMedicationReminder(
+      notificationId: notificationId + 1000000, // Different ID for snooze
+      title: title,
+      body: body,
+      scheduledTime: newScheduledTime,
+      medicationId: reminderId,
+    );
   }
 }

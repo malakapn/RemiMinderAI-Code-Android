@@ -25,18 +25,14 @@ class _PatientAppShellState extends State<PatientAppShell> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          Padding(
-            padding: EdgeInsets.only(
-              bottom: 70 + 12 + 16 + MediaQuery.of(context).padding.bottom,
-            ),
-            child: widget.child,
-          ),
+          // Screen content
+          widget.child,
 
           // Floating navigation bar
           Positioned(
             left: 0,
             right: 0,
-            bottom: MediaQuery.of(context).padding.bottom,
+            bottom: 0,
             child: RoundedNavigationBar(
               currentItem: widget.currentItem,
               routes: widget.routes,
@@ -58,6 +54,8 @@ NavigationItem getCurrentNavigationItem(String location) {
     return NavigationItem.careTeam;
   } else if (location.startsWith('/patient/profile')) {
     return NavigationItem.profile;
+  } else if (location.startsWith('/patient/reminder')) {
+    return NavigationItem.home;
   } else if (location.startsWith('/profile')) {
     return NavigationItem.profile;
   } else if (location.startsWith('/caregiver/home')) {
@@ -68,6 +66,8 @@ NavigationItem getCurrentNavigationItem(String location) {
     return NavigationItem.overview;
   } else if (location.startsWith('/caregiver/accept-invitations')) {
     return NavigationItem.careTeam;
+  } else if (location.startsWith('/caregiver/reminders-timeline')) {
+    return NavigationItem.visits;
   } else {
     // Default to home for unknown routes
     return NavigationItem.home;

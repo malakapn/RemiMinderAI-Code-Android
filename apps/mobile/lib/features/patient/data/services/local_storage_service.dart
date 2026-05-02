@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -23,16 +21,6 @@ class LocalStorageService {
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  CollectionReference<Map<String, dynamic>>? _userCollection(String name) {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null || uid.isEmpty) {
-      return null;
-    }
-    return _firestore.collection('users').doc(uid).collection(name);
-  }
 
   Future<encrypt.Key> _getEncryptionKey() async {
     final keyString = await _secureStorage.read(key: _encryptionKeyName);
@@ -69,22 +57,6 @@ class LocalStorageService {
     return decrypted;
   }
 
-  Future<void> _cacheRemindersLocally(List<Reminder> reminders) async {
-    final prefs = await _prefs;
-    final remindersJson = reminders.map((r) => r.toJson()).toList();
-    final jsonString = json.encode(remindersJson);
-    final encryptedData = await _encryptData(jsonString);
-    await prefs.setString(_remindersKey, encryptedData);
-  }
-
-  Future<void> _cacheVisitsLocally(List<Visit> visits) async {
-    final prefs = await _prefs;
-    final visitsJson = visits.map((v) => v.toJson()).toList();
-    final jsonString = json.encode(visitsJson);
-    final encryptedData = await _encryptData(jsonString);
-    await prefs.setString(_visitsKey, encryptedData);
-  }
-
   // Medications
   Future<void> saveMedications(List<Medication> medications) async {
     final prefs = await _prefs;
@@ -106,35 +78,14 @@ class LocalStorageService {
 
   // Reminders
   Future<void> saveReminders(List<Reminder> reminders) async {
-    await _cacheRemindersLocally(reminders);
-
-    final remindersCollection = _userCollection('reminders');
-    if (remindersCollection != null) {
-      final batch = _firestore.batch();
-      final snapshot = await remindersCollection.get();
-      for (final doc in snapshot.docs) {
-        batch.delete(doc.reference);
-      }
-      for (final reminder in reminders) {
-        batch.set(remindersCollection.doc(reminder.id), reminder.toMap());
-      }
-      await batch.commit();
-    }
+    final prefs = await _prefs;
+    final remindersJson = reminders.map((r) => r.toJson()).toList();
+    final jsonString = json.encode(remindersJson);
+    final encryptedData = await _encryptData(jsonString);
+    await prefs.setString(_remindersKey, encryptedData);
   }
 
   Future<List<Reminder>> getReminders() async {
-    final remindersCollection = _userCollection('reminders');
-    if (remindersCollection != null) {
-      final snapshot = await remindersCollection.get();
-      if (snapshot.docs.isNotEmpty) {
-        final reminders = snapshot.docs
-            .map((doc) => Reminder.fromJson(doc.data()))
-            .toList(growable: false);
-        await _cacheRemindersLocally(reminders);
-        return reminders;
-      }
-    }
-
     final prefs = await _prefs;
     final encryptedData = prefs.getString(_remindersKey);
     if (encryptedData == null) return [];
@@ -165,35 +116,14 @@ class LocalStorageService {
 
   // Visits
   Future<void> saveVisits(List<Visit> visits) async {
-    await _cacheVisitsLocally(visits);
-
-    final visitsCollection = _userCollection('visits');
-    if (visitsCollection != null) {
-      final batch = _firestore.batch();
-      final snapshot = await visitsCollection.get();
-      for (final doc in snapshot.docs) {
-        batch.delete(doc.reference);
-      }
-      for (final visit in visits) {
-        batch.set(visitsCollection.doc(visit.id), visit.toJson());
-      }
-      await batch.commit();
-    }
+    final prefs = await _prefs;
+    final visitsJson = visits.map((v) => v.toJson()).toList();
+    final jsonString = json.encode(visitsJson);
+    final encryptedData = await _encryptData(jsonString);
+    await prefs.setString(_visitsKey, encryptedData);
   }
 
   Future<List<Visit>> getVisits() async {
-    final visitsCollection = _userCollection('visits');
-    if (visitsCollection != null) {
-      final snapshot = await visitsCollection.get();
-      if (snapshot.docs.isNotEmpty) {
-        final visits = snapshot.docs
-            .map((doc) => Visit.fromJson(doc.data()))
-            .toList(growable: false);
-        await _cacheVisitsLocally(visits);
-        return visits;
-      }
-    }
-
     final prefs = await _prefs;
     final encryptedData = prefs.getString(_visitsKey);
     if (encryptedData == null) return [];

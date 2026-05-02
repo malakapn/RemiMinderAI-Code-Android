@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
 import '../../../../core/services/secure_storage.dart';
-import '../../data/models/auth_state.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -22,40 +21,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberMe = false; // Remember me checkbox state
   String? _userRole;
 
-  /// Shows the exact exception text on screen for debugging failed sign-in.
-  void _showFullAuthErrorDialog(Object error) {
-    final text = error.toString();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign-in error'),
-        content: SingleChildScrollView(
-          child: Container(
-            width: double.maxFinite,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade700, width: 1.5),
-            ),
-            child: SelectableText(
-              text,
-              style: TextStyle(
-                color: Colors.red.shade900,
-                fontSize: 13,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  /// Convert technical errors to user-friendly messages
+  String _getUserFriendlyErrorMessage(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    // Role mismatch: chose Caregiver sign-in but account is a patient (or the reverse).
+    if (errorString.contains('not registered as a caregiver')) {
+      return 'You are not a caregiver. Use Patient sign-in for this account.';
+    }
+    if (errorString.contains('not registered as a patient')) {
+      return 'You are not a patient. Use Caregiver sign-in for this account.';
+    }
+
+    // Authentication errors
+    if (errorString.contains('invalid email or password') ||
+        errorString.contains('invalid_credentials') ||
+        errorString.contains('invalid-credential') ||
+        errorString.contains('invalid-login-credentials') ||
+        errorString.contains('incorrect password')) {
+      return 'Invalid email or password. Please check your credentials and try again.';
+    }
+
+    if (errorString.contains('email not confirmed') ||
+        errorString.contains('email_not_confirmed')) {
+      return 'Please check your email and confirm your account before signing in.';
+    }
+
+    if (errorString.contains('user not found') ||
+        errorString.contains('user_not_found')) {
+      return 'No account found with this email address.';
+    }
+
+    // Network/API errors
+    if (errorString.contains('connection refused') ||
+        errorString.contains('network') ||
+        errorString.contains('failed to get user profile')) {
+      return 'Connection error. Please check your internet connection and try again.';
+    }
+
+    if (errorString.contains('timeout')) {
+      return 'Request timed out. Please try again.';
+    }
+
+    // Generic fallback
+    return 'Sign in failed. Please try again or contact support if the problem persists.';
   }
 
   @override
@@ -111,8 +120,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (authState.hasError) {
         if (mounted) {
-          _showFullAuthErrorDialog(
-            authState.errorMessage ?? 'Authentication failed',
+          final errorMessage = _getUserFriendlyErrorMessage(
+              authState.errorMessage ?? 'Authentication failed');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
           );
         }
         return;
@@ -135,14 +146,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } else {
         if (mounted) {
-          _showFullAuthErrorDialog(
-            Exception('Authentication failed. Please try again.'),
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Authentication failed. Please try again.')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        _showFullAuthErrorDialog(e);
+        final errorMessage = _getUserFriendlyErrorMessage(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
       }
     }
   }
@@ -230,12 +245,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-      if (next.hasError) {
-        _showFullAuthErrorDialog(next.errorMessage ?? '');
-      }
-    });
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -495,7 +504,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // Create Account Link
               Center(
                 child: TextButton(
-                  onPressed: () => context.go('/register'),
+                  onPressed: () {
+                    final r = _userRole;
+                    final q = (r != null && r.isNotEmpty) ? '?role=$r' : '';
+                    context.go('/register$q');
+                  },
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     minimumSize: Size.zero,
@@ -566,8 +579,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (authState.hasError) {
         if (mounted) {
-          _showFullAuthErrorDialog(
-            authState.errorMessage ?? 'Google Sign-In failed',
+          final errorMessage = _getUserFriendlyErrorMessage(
+              authState.errorMessage ?? 'Authentication failed');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
           );
         }
         return;
@@ -592,12 +607,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } else {
         if (mounted) {
-          _showFullAuthErrorDialog(Exception('Google Sign-In failed'));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Google Sign In failed')),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        _showFullAuthErrorDialog(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_getUserFriendlyErrorMessage(e)),
+          ),
+        );
       }
     }
   }

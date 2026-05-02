@@ -9,6 +9,7 @@ Coordinates the AI summary generation process:
 This orchestrator contains no LLM code, no SQL strings, and no business logic.
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -17,6 +18,10 @@ from services.ai.summary_normalizer_v2 import normalize_v2_summary
 from services.cache_service import get, set
 from services.db_service import get_transcript_text, insert_ai_summary_log, update_visit_with_structured_data, get_user_language_preferences
 from services.tasks_service import generate_reminders_from_actions, generate_tasks_from_summary
+from services.alert_service import (
+    notify_caregiver_new_visit_symptoms,
+    notify_caregivers_new_visit_recorded,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +114,17 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
                 user_id=user_id,
                 visit_id=visit_id,
                 actions=structured_result.get("actions", []),
+            )
+            asyncio.create_task(
+                notify_caregiver_new_visit_symptoms(
+                    user_id, visit_id, summary_id, structured_result
+                )
+            )
+            asyncio.create_task(
+                notify_caregivers_new_visit_recorded(
+                    user_id=user_id,
+                    visit_id=visit_id,
+                )
             )
 
         # Step D: Update visit with structured data (always after summary generation)

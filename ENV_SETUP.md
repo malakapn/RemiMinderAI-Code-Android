@@ -1,45 +1,21 @@
-RemiMinder Environment Setup Guide
+# MediMinder Environment Setup Guide
 
-## Where to create `.env` files
+## 📁 Where to Create .env Files
 
-### Backend and monorepo-wide variables
-
-Recommended: create **one** `.env` at the **repository root** for Supabase, API URL, and server settings (see below). Use the path you use on your machine, for example:
-
-- macOS / Linux: `/path/to/RemiMinderAI-Code-Review/.env`
-- Windows: `C:\path\to\RemiMinderAI-Code-Review\.env`
-
-The Python backend reads this file from its own working directory; follow `apps/backend` README for exact expectations.
-
-### Flutter mobile (required for Google Sign-In)
-
-The Flutter app loads **`apps/mobile/.env`** only. That file must exist and is bundled at build time (`flutter: assets:` in `apps/mobile/pubspec.yaml`).
-
-**If you use a root `.env` for the monorepo**, copy or sync the variables the mobile app needs into `apps/mobile/.env` (or symlink if your setup allows). The mobile build does **not** automatically read the repository root `.env`.
-
-## Required environment variables
-
-### Mobile app (`apps/mobile/.env`)
-
-Use the **Firebase Web client** OAuth client ID (Firebase Console → Project settings → Your apps → Web app, or Authentication → Sign-in method → Google). It looks like `xxxx.apps.googleusercontent.com`.
-
-Either variable name is supported (same value):
-
-```bash
-API_BASE_URL=http://localhost:8000
-MOBILE_API_BASE_URL=http://localhost:8000
-FLUTTER_ENV=development
-# Use one of the following (not both required):
-GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
-# GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+### Option 1: Centralized (Recommended for Monorepo)
+Create **one .env file** at the project root:
+```
+/Users/jibinkunjumon/developments/MediMinder/.env
 ```
 
-On Android the app also reads **`default_web_client_id`** from the merged `google-services.json` (no `.env` required) so the Web client ID always matches your Firebase project.
+### Option 2: App-Specific (Alternative)
+Create separate .env files in each app:
+- `apps/backend/.env` - for Python backend
+- `apps/mobile/.env` - for Flutter mobile app
 
-`GOOGLE_CLIENT_ID` matches the name used in the shared examples below; the app checks `GOOGLE_WEB_CLIENT_ID` first, then `GOOGLE_CLIENT_ID`. If neither is present in the loaded `.env` file, the app still uses the Firebase **Web client ID** documented for this repository (same as below) so Google Sign-In works in CI and fresh builds; override anytime via `.env` or `--dart-define=GOOGLE_WEB_CLIENT_ID=...`.
+## 🔑 Required Environment Variables
 
-### Both backend and mobile (example root `.env`)
-
+### For Both Backend & Mobile App:
 ```bash
 # =============================================================================
 # SUPABASE CONFIGURATION (Get from Supabase Dashboard)
@@ -49,11 +25,12 @@ SUPABASE_ANON_KEY=your-anon-key-here
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 
 # =============================================================================
-# GOOGLE OAUTH CONFIGURATION (for mobile: Web client ID — copy into apps/mobile/.env)
+# GOOGLE OAUTH CONFIGURATION (For Mobile App)
 # =============================================================================
+# Google Sign-In Client ID (from Google Cloud Console)
 # For iOS: com.googleusercontent.apps.xxxxxxxxxx-xxxxxxxxxxxxxxxxxx
-# For Android / serverClientId: xxxxxxxxxx-xxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
-GOOGLE_CLIENT_ID=575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com
+# For Android: xxxxxxxxxx-xxxxxxxxxxxxxxxxxx.googleusercontent.com
+GOOGLE_CLIENT_ID=your-google-client-id-here
 
 # =============================================================================
 # API CONFIGURATION
@@ -62,46 +39,50 @@ API_BASE_URL=http://localhost:8000
 FLUTTER_ENV=development
 ```
 
-### Backend only (often in root ` .env` or `apps/backend/.env`)
-
+### Backend Only:
 ```bash
+# =============================================================================
+# BACKEND SERVER CONFIGURATION
+# =============================================================================
 HOST=0.0.0.0
 PORT=8000
 DEBUG=True
 ```
 
-## How to get Supabase keys
+## 🚀 How to Get Supabase Keys
 
-1. Go to Supabase Dashboard and open your project.
-2. Go to **Settings → API**.
-3. Copy **Project URL** → `SUPABASE_URL`.
-4. Copy **anon/public** key → `SUPABASE_ANON_KEY`.
-5. Copy **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`.
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project
+3. Go to Settings → API
+4. Copy the values:
+   - **Project URL** → `SUPABASE_URL`
+   - **anon/public key** → `SUPABASE_ANON_KEY`
+   - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY`
 
-## Next steps
+## 📝 Create Your .env File
 
-1. Create `.env` files with real keys (never commit them).
-2. Ensure **`apps/mobile/.env`** includes `GOOGLE_CLIENT_ID` or `GOOGLE_WEB_CLIENT_ID` and run `flutter pub get` before `flutter run` / `flutter build`.
-3. Test backend: `cd apps/backend` and start per that app’s README.
+**At project root**, create `.env`:
 
-Firebase Android is already configured for this project (Google + Email/Password, **`google-services.json`** under `apps/mobile/android/app/` — often gitignored, supplied locally or via CI secrets). If Google Sign-In still returns `sign_in_failed` on a **new machine**, compare your debug keystore fingerprints to the Firebase Android app and confirm `apps/mobile/.env` is loaded after rebuild.
+```bash
+# MediMinder Environment Configuration
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+API_BASE_URL=http://localhost:8000
+FLUTTER_ENV=development
+HOST=0.0.0.0
+PORT=8000
+DEBUG=True
+```
 
-### SHA-1 vs SHA-256 in Firebase
+## ✅ Next Steps
 
-Your **signing certificate** has **both** a SHA-1 and a SHA-256 fingerprint. They are different hashes of the **same** public key—not alternatives.
+1. Create the .env file with your actual Supabase keys
+2. Test backend: `cd apps/backend && python main.py`
+3. Test mobile app authentication integration
 
-- In **Firebase Console → Project settings → Your apps → Android**, use **Add fingerprint** and paste the **SHA-1** value when the UI asks for it (same place accepts standard certificate fingerprints per [Google’s Firebase help](https://support.google.com/firebase/answer/9137403)).
-- If your build log or tool only printed **SHA-256**, get **SHA-1** from the same keystore or APK, for example:
-  - From the **debug keystore** (Windows path shown):
+## 🔒 Security Notes
 
-    `keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androiddebugkey -storepass android -keypass android`
-
-  - Or from `apps/mobile/android`: `.\gradlew signingReport` and copy both **SHA1** and **SHA256** lines for the variant you install (debug vs release).
-
-Add every fingerprint for keys that sign builds you run (debug, release, Play App Signing), then download an updated **`google-services.json`** if Firebase prompts you to.
-
-## Security notes
-
-- Never commit `.env` files to git.
-- The service role key has admin privileges; keep it secret.
-- Use different keys for development, staging, and production.
+- Never commit .env files to git
+- Service role key has admin privileges - keep it secret
+- Use different keys for development/staging/production

@@ -339,6 +339,7 @@ async def get_latest_visit_status(user_id: str = Depends(get_user_id)):
                     WHERE job_type = 'STT_JOB'
                       AND status IN ('pending', 'running')
                       AND payload->>'firebase_uid' = :firebase_uid
+                      AND created_at > NOW() - INTERVAL '30 minutes'
                     ORDER BY created_at DESC
                     LIMIT 1
                 """),
@@ -585,3 +586,224 @@ async def delete_user_summary_endpoint(
     except Exception as e:
         logger.error(f"Failed to delete summary {summary_id} for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete summary: {str(e)}")
+
+
+@router.get("/scanned-docs")
+async def get_user_scanned_docs(user_id: str = Depends(get_user_id)):
+    """
+    List scanned documents (uploaded image reports) for the current user.
+    """
+    try:
+        from services.db_service import get_user_uuid
+        from services.cloud_sql_engine import get_cloud_sql_engine
+        from sqlalchemy import text
+
+        user_uuid = await get_user_uuid(user_id)
+        await assert_patient_access(user_uuid, user_uuid, "view")
+
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text("""
+                    SELECT
+                        vt.visit_id::text AS visit_id,
+                        v.title AS visit_title,
+                        v.created_at AS visit_date,
+                        vt.image_url,
+                        vt.ocr_status,
+                        vt.ocr_text,
+                        vt.image_metadata
+                    FROM visit_transcripts vt
+                    JOIN visits v ON v.id = vt.visit_id
+                    WHERE vt.user_id::text = :user_id
+                      AND vt.image_url IS NOT NULL
+                    ORDER BY v.created_at DESC
+                """),
+                {"user_id": user_uuid},
+            ).fetchall()
+
+        docs = []
+        for row in rows:
+            m = row._mapping if hasattr(row, "_mapping") else row
+            ocr_text = (m["ocr_text"] or "").strip()
+            metadata = m["image_metadata"]
+            uploaded_at = None
+            if isinstance(metadata, dict):
+                uploaded_at = metadata.get("uploaded_at")
+            docs.append(
+                {
+                    "visit_id": str(m["visit_id"]),
+                    "visit_title": m["visit_title"] or "Scanned report",
+                    "visit_date": m["visit_date"].isoformat() if m["visit_date"] else None,
+                    "image_url": m["image_url"],
+                    "ocr_status": m["ocr_status"] or "pending",
+                    "ocr_preview": ocr_text[:220] if ocr_text else "",
+                    "uploaded_at": uploaded_at,
+                }
+            )
+        return docs
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to fetch scanned docs for user %s: %s", user_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch scanned docs: {str(e)}")
+
+
+@router.get("/caregiver/patients/{patient_id}/scanned-docs")
+async def get_caregiver_patient_scanned_docs(
+    patient_id: str,
+    user_id: str = Depends(get_user_id),
+):
+    """
+    Caregiver view: list scanned documents for a specific patient.
+    Requires care-team membership (view/full).
+    """
+    try:
+        from services.db_service import get_user_uuid
+        from services.cloud_sql_engine import get_cloud_sql_engine
+        from sqlalchemy import text
+
+        caregiver_uuid = await get_user_uuid(user_id)
+
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            patient_row = conn.execute(
+                text(
+                    """
+                    SELECT id::text AS patient_uuid
+                    FROM users
+                    WHERE id::text = :patient_id OR firebase_uid = :patient_id
+                    LIMIT 1
+                    """
+                ),
+                {"patient_id": patient_id},
+            ).fetchone()
+
+        if not patient_row:
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        patient_uuid = str(
+            patient_row._mapping["patient_uuid"]
+            if hasattr(patient_row, "_mapping")
+            else patient_row[0]
+        )
+        await assert_patient_access(caregiver_uuid, patient_uuid, "view")
+
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    """
+                    SELECT
+                        vt.visit_id::text AS visit_id,
+                        v.title AS visit_title,
+                        v.created_at AS visit_date,
+                        vt.image_url,
+                        vt.ocr_status,
+                        vt.ocr_text,
+                        vt.image_metadata
+                    FROM visit_transcripts vt
+                    JOIN visits v ON v.id = vt.visit_id
+                    WHERE vt.user_id::text = :patient_uuid
+                      AND vt.image_url IS NOT NULL
+                    ORDER BY v.created_at DESC
+                    """
+                ),
+                {"patient_uuid": patient_uuid},
+            ).fetchall()
+
+        docs = []
+        for row in rows:
+            m = row._mapping if hasattr(row, "_mapping") else row
+            ocr_text = (m["ocr_text"] or "").strip()
+            metadata = m["image_metadata"]
+            uploaded_at = None
+            if isinstance(metadata, dict):
+                uploaded_at = metadata.get("uploaded_at")
+            docs.append(
+                {
+                    "visit_id": str(m["visit_id"]),
+                    "visit_title": m["visit_title"] or "Scanned report",
+                    "visit_date": m["visit_date"].isoformat() if m["visit_date"] else None,
+                    "image_url": m["image_url"],
+                    "ocr_status": m["ocr_status"] or "pending",
+                    "ocr_preview": ocr_text[:220] if ocr_text else "",
+                    "uploaded_at": uploaded_at,
+                }
+            )
+        return docs
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed caregiver scanned-docs fetch caregiver=%s patient=%s: %s",
+            user_id,
+            patient_id,
+            e,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch patient scanned docs: {str(e)}",
+        )
+
+
+@router.get("/lab-results")
+async def get_user_lab_results(user_id: str = Depends(get_user_id)):
+    """
+    List OCR documents that look like lab reports using simple keyword matching.
+    """
+    try:
+        from services.db_service import get_user_uuid
+        from services.cloud_sql_engine import get_cloud_sql_engine
+        from sqlalchemy import text
+
+        user_uuid = await get_user_uuid(user_id)
+        await assert_patient_access(user_uuid, user_uuid, "view")
+
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text("""
+                    SELECT
+                        vt.visit_id::text AS visit_id,
+                        v.title AS visit_title,
+                        v.created_at AS visit_date,
+                        vt.image_url,
+                        vt.ocr_status,
+                        vt.ocr_text
+                    FROM visit_transcripts vt
+                    JOIN visits v ON v.id = vt.visit_id
+                    WHERE vt.user_id::text = :user_id
+                      AND vt.image_url IS NOT NULL
+                      AND (
+                        COALESCE(vt.ocr_text, '') ILIKE '%lab%'
+                        OR COALESCE(vt.ocr_text, '') ILIKE '%hemoglobin%'
+                        OR COALESCE(vt.ocr_text, '') ILIKE '%cholesterol%'
+                        OR COALESCE(vt.ocr_text, '') ILIKE '%glucose%'
+                        OR COALESCE(vt.ocr_text, '') ILIKE '%cbc%'
+                        OR COALESCE(v.title, '') ILIKE '%lab%'
+                      )
+                    ORDER BY v.created_at DESC
+                """),
+                {"user_id": user_uuid},
+            ).fetchall()
+
+        results = []
+        for row in rows:
+            m = row._mapping if hasattr(row, "_mapping") else row
+            ocr_text = (m["ocr_text"] or "").strip()
+            results.append(
+                {
+                    "visit_id": str(m["visit_id"]),
+                    "visit_title": m["visit_title"] or "Lab report",
+                    "visit_date": m["visit_date"].isoformat() if m["visit_date"] else None,
+                    "image_url": m["image_url"],
+                    "ocr_status": m["ocr_status"] or "pending",
+                    "result_preview": ocr_text[:220] if ocr_text else "",
+                }
+            )
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to fetch lab results for user %s: %s", user_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch lab results: {str(e)}")

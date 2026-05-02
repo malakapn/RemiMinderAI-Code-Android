@@ -1,6 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../care_team/data/models/care_team_member.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
 
 class PatientListScreen extends StatefulWidget {
@@ -19,6 +20,13 @@ class _PatientListScreenState extends State<PatientListScreen> {
   String? _error;
   List<Map<String, dynamic>> _allPatients = [];
 
+  DateTime? _lastActivityOf(Map<String, dynamic> patient) {
+    final raw = patient['lastActivityAt'];
+    if (raw == null) return null;
+    if (raw is DateTime) return raw;
+    return DateTime.tryParse(raw.toString());
+  }
+
   List<Map<String, dynamic>> get _filteredPatients {
     var patients = _allPatients;
 
@@ -26,10 +34,12 @@ class _PatientListScreenState extends State<PatientListScreen> {
     if (_searchQuery.isNotEmpty) {
       patients = patients.where((patient) {
         final name = patient['name'].toLowerCase();
+        final email = (patient['email'] as String).toLowerCase();
         final relationship = patient['relationship'].toLowerCase();
         final condition = patient['condition'].toLowerCase();
         final query = _searchQuery.toLowerCase();
         return name.contains(query) ||
+            email.contains(query) ||
             relationship.contains(query) ||
             condition.contains(query);
       }).toList();
@@ -42,6 +52,15 @@ class _PatientListScreenState extends State<PatientListScreen> {
               (patient) => patient['status'] == _selectedFilter.toLowerCase())
           .toList();
     }
+
+    patients.sort((a, b) {
+      final da = _lastActivityOf(a);
+      final db = _lastActivityOf(b);
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return db.compareTo(da);
+    });
 
     return patients;
   }
@@ -64,10 +83,17 @@ class _PatientListScreenState extends State<PatientListScreen> {
         _isLoading = true;
         _error = null;
       });
-      final members = await CareTeamApiService().getCareTeam();
+
+      final rawPatients = await CareTeamApiService().getMyPatients();
       if (!mounted) return;
+
+      final activeOnly = rawPatients.where((p) {
+        final st = (p['membership_status'] ?? 'active').toString().toLowerCase();
+        return st == 'active';
+      });
+
       setState(() {
-        _allPatients = members.map(_mapMemberToPatient).toList();
+        _allPatients = activeOnly.map(_mapRawPatient).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -93,13 +119,38 @@ class _PatientListScreenState extends State<PatientListScreen> {
           ),
           onPressed: () => context.go('/caregiver/home'),
         ),
-        title: const Text(
-          'My Patients',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'My Patients',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              'Assigned patients',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withOpacity(0.65),
+              ),
+            ),
+          ],
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.calendar_view_week,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            tooltip: 'Reminder timeline',
+            onPressed: () => context.go('/caregiver/reminders-timeline'),
+          ),
           IconButton(
             icon: Icon(
               Icons.filter_list,
@@ -118,7 +169,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText:
-                    'Search patients by name, relationship, or condition...',
+                    'Search by name, email, relationship, or condition...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -141,20 +192,30 @@ class _PatientListScreenState extends State<PatientListScreen> {
             ),
           ),
 
-          // Results Count
+          // Results Count (avoid "0 Patients" flash while the list is still loading)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(
               children: [
-                Text(
-                  '${_filteredPatients.length} ${_filteredPatients.length == 1 ? 'Patient' : 'Patients'}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
+                if (_isLoading)
+                  Text(
+                    'Loading…',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  )
+                else
+                  Text(
+                    '${_filteredPatients.length} ${_filteredPatients.length == 1 ? 'Patient' : 'Patients'}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
-                ),
-                if (_selectedFilter != 'All') ...[
+                if (!_isLoading && _selectedFilter != 'All') ...[
                   const SizedBox(width: 8),
                   Container(
                     padding:
@@ -174,7 +235,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                   ),
                 ],
                 const Spacer(),
-                if (_selectedFilter != 'All')
+                if (!_isLoading && _selectedFilter != 'All')
                   TextButton(
                     onPressed: () {
                       setState(() {
@@ -193,33 +254,50 @@ class _PatientListScreenState extends State<PatientListScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                     ? _buildErrorState()
-                    : _filteredPatients.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _filteredPatients.length,
-                            itemBuilder: (context, index) {
-                              final patient = _filteredPatients[index];
-                              return _buildPatientCard(patient);
-                            },
-                          ),
+                    : _allPatients.isEmpty && _searchQuery.isEmpty
+                        ? RefreshIndicator(
+                            onRefresh: _loadPatients,
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.2,
+                                ),
+                                _buildRosterEmptyState(),
+                              ],
+                            ),
+                          )
+                        : _filteredPatients.isEmpty
+                            ? _buildNoMatchesEmptyState()
+                            : RefreshIndicator(
+                                onRefresh: _loadPatients,
+                                child: ListView.builder(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: _filteredPatients.length,
+                                  itemBuilder: (context, index) {
+                                    final patient = _filteredPatients[index];
+                                    return _buildPatientCard(patient);
+                                  },
+                                ),
+                              ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Add New Patient - Coming Soon!')),
-          );
-        },
+        onPressed: () => context.go('/caregiver/accept-invitations'),
+        tooltip: 'View invitations',
         backgroundColor: Theme.of(context).colorScheme.primary,
-        child: const Icon(Icons.person_add),
+        child: const Icon(Icons.mail_outline),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
+  Widget _buildRosterEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -230,9 +308,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'No patients match your search'
-                : 'No patients found',
+            'No patients yet',
             style: TextStyle(
               fontSize: 20,
               color: Theme.of(context).colorScheme.secondary,
@@ -242,32 +318,56 @@ class _PatientListScreenState extends State<PatientListScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isNotEmpty
-                ? 'Try adjusting your search terms'
-                : 'Add patients to start managing their care',
+            'When a patient invites you, accept the invite to see them here.',
             style: TextStyle(
               fontSize: 16,
               color: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
             ),
             textAlign: TextAlign.center,
           ),
-          if (_searchQuery.isEmpty) ...[
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Add First Patient - Coming Soon!')),
-                );
-              },
-              icon: const Icon(Icons.person_add),
-              label: const Text('Add Patient'),
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
+          const SizedBox(height: 32),
+          FilledButton.icon(
+            onPressed: () => context.go('/caregiver/accept-invitations'),
+            icon: const Icon(Icons.inbox),
+            label: const Text('View Invitations'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoMatchesEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 64,
+            color: Theme.of(context).colorScheme.secondary.withOpacity(0.5),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No patients match your search or filter',
+            style: TextStyle(
+              fontSize: 18,
+              color: Theme.of(context).colorScheme.secondary,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try adjusting your search or clear the filter',
+            style: TextStyle(
+              fontSize: 15,
+              color: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -307,9 +407,10 @@ class _PatientListScreenState extends State<PatientListScreen> {
 
   Widget _buildPatientCard(Map<String, dynamic> patient) {
     final status = patient['status'] as String;
-    final medicationAdherence = patient['medicationAdherence'] as int;
     final upcomingAppointments = patient['upcomingAppointments'] as int;
+    final remindersDue = patient['remindersDueSoon'] as int;
     final unreadAlerts = patient['unreadAlerts'] as int;
+    final lastVisitAt = patient['lastVisitAt'] as DateTime?;
     final patientId = patient['id'] as String;
 
     return Card(
@@ -377,12 +478,14 @@ class _PatientListScreenState extends State<PatientListScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              patient['name'],
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.primary,
+                            Expanded(
+                              child: Text(
+                                patient['name'],
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -404,6 +507,16 @@ class _PatientListScreenState extends State<PatientListScreen> {
                             ),
                           ],
                         ),
+                        if ((patient['email'] as String).isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            patient['email'] as String,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(context).colorScheme.secondary,
+                            ),
+                          ),
+                        ],
                         Text(
                           '${patient['relationship']} • Age ${patient['age']}',
                           style: TextStyle(
@@ -424,75 +537,103 @@ class _PatientListScreenState extends State<PatientListScreen> {
                       ],
                     ),
                   ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .secondary
-                        .withOpacity(0.5),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Symptom log',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        icon: Icon(
+                          Icons.healing_outlined,
+                          size: 22,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        onPressed: () => context.go(
+                          '/caregiver/patient-overview?patientId=$patientId&tab=symptoms',
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .secondary
+                            .withOpacity(0.5),
+                      ),
+                    ],
                   ),
                 ],
               ),
 
               const SizedBox(height: 16),
 
-              // Stats Row
+              // Stats row (acceptance: last visit, reminders due, alert count)
               Row(
                 children: [
                   _buildStatItem(
-                    'Adherence',
-                    '$medicationAdherence%',
-                    medicationAdherence >= 80
-                        ? Colors.green
-                        : medicationAdherence >= 60
-                            ? Colors.orange
-                            : Colors.red,
+                    'Last visit',
+                    _formatLastVisitNullable(lastVisitAt),
+                    Theme.of(context).colorScheme.primary,
                   ),
                   _buildStatItem(
-                    'Appointments',
-                    upcomingAppointments.toString(),
-                    upcomingAppointments > 0 ? Colors.blue : Colors.grey,
+                    'Reminders due',
+                    remindersDue.toString(),
+                    remindersDue > 0 ? Colors.orange : Colors.grey,
                   ),
                   _buildStatItem(
-                    'Last Visit',
-                    _formatLastVisit(patient['lastVisit']),
-                    Colors.purple,
+                    'Alerts',
+                    unreadAlerts.toString(),
+                    unreadAlerts > 0 ? Colors.red : Colors.grey,
                   ),
                 ],
               ),
 
+              _buildRecentActivitiesSection(patient),
+
               // Quick Actions
-              if (unreadAlerts > 0 || upcomingAppointments > 0) ...[
+              if (unreadAlerts > 0 ||
+                  upcomingAppointments > 0 ||
+                  remindersDue > 0) ...[
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     if (unreadAlerts > 0)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _viewAlerts(patient),
-                          icon: const Icon(Icons.notifications, size: 16),
-                          label: Text(
-                              'View $unreadAlerts Alert${unreadAlerts > 1 ? 's' : ''}'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
+                      OutlinedButton.icon(
+                        onPressed: () => _viewAlerts(patient),
+                        icon: const Icon(Icons.notifications, size: 16),
+                        label: Text(
+                          'View $unreadAlerts alert${unreadAlerts == 1 ? '' : 's'}',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                         ),
                       ),
-                    if (unreadAlerts > 0 && upcomingAppointments > 0)
-                      const SizedBox(width: 8),
+                    if (remindersDue > 0)
+                      OutlinedButton.icon(
+                        onPressed: () => _viewRemindersDue(patient),
+                        icon: const Icon(Icons.alarm, size: 16),
+                        label: Text('$remindersDue reminders due'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                      ),
                     if (upcomingAppointments > 0)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _viewAppointments(patient),
-                          icon: const Icon(Icons.calendar_today, size: 16),
-                          label: Text(
-                              '$upcomingAppointments Appointment${upcomingAppointments > 1 ? 's' : ''}'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
+                      OutlinedButton.icon(
+                        onPressed: () => _viewAppointments(patient),
+                        icon: const Icon(Icons.calendar_today, size: 16),
+                        label: Text(
+                          '$upcomingAppointments appointment${upcomingAppointments == 1 ? '' : 's'}',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                         ),
                       ),
                   ],
@@ -503,6 +644,119 @@ class _PatientListScreenState extends State<PatientListScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildRecentActivitiesSection(Map<String, dynamic> patient) {
+    final items = patient['recentActivities'] as List<dynamic>? ?? [];
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Text(
+          'No recent activity logged yet.',
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.secondary.withOpacity(0.75),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 14),
+        Text(
+          'Recent activity',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...items.map((raw) {
+          if (raw is! Map) return const SizedBox.shrink();
+          final e = Map<String, dynamic>.from(raw);
+          return _buildActivityRow(e);
+        }),
+      ],
+    );
+  }
+
+  Widget _buildActivityRow(Map<String, dynamic> e) {
+    final type = e['type']?.toString() ?? 'event';
+    final summary = e['summary']?.toString() ?? '';
+    final at = DateTime.tryParse(e['occurred_at']?.toString() ?? '');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            _activityIcon(type),
+            size: 18,
+            color: Theme.of(context).colorScheme.secondary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  summary,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.25,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                if (at != null)
+                  Text(
+                    _formatActivityTimestamp(at),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .secondary
+                          .withOpacity(0.85),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _activityIcon(String type) {
+    switch (type) {
+      case 'alert':
+        return Icons.notifications_active_outlined;
+      case 'reminder':
+        return Icons.alarm_on_outlined;
+      case 'visit':
+        return Icons.local_hospital_outlined;
+      default:
+        return Icons.circle_outlined;
+    }
+  }
+
+  String _formatActivityTimestamp(DateTime at) {
+    final local = at.toLocal();
+    final now = DateTime.now();
+    final sameDay = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    if (sameDay) {
+      final t =
+          '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+      return 'Today · $t';
+    }
+    return _formatLastVisit(local);
   }
 
   Widget _buildStatItem(String label, String value, Color color) {
@@ -578,17 +832,21 @@ class _PatientListScreenState extends State<PatientListScreen> {
   }
 
   void _viewAlerts(Map<String, dynamic> patient) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text('View alerts for ${patient['name']} - Coming Soon!')),
-    );
+    final id = patient['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    final name = Uri.encodeComponent(patient['name']?.toString() ?? 'Patient');
+    context.go('/caregiver/alerts?patientId=$id&patientName=$name');
   }
 
   void _viewAppointments(Map<String, dynamic> patient) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content:
-              Text('View appointments for ${patient['name']} - Coming Soon!')),
+    final id = patient['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    context.go('/caregiver/reminders-timeline?patientId=$id&type=appointment');
+  }
+
+  void _viewRemindersDue(Map<String, dynamic> patient) {
+    context.go(
+      '/caregiver/reminders-timeline?patientId=${patient['id']}',
     );
   }
 
@@ -618,6 +876,13 @@ class _PatientListScreenState extends State<PatientListScreen> {
     }
   }
 
+  String _formatLastVisitNullable(DateTime? lastVisit) {
+    if (lastVisit == null) {
+      return '—';
+    }
+    return _formatLastVisit(lastVisit);
+  }
+
   String _formatLastVisit(DateTime lastVisit) {
     final now = DateTime.now();
     final difference = now.difference(lastVisit).inDays;
@@ -637,20 +902,66 @@ class _PatientListScreenState extends State<PatientListScreen> {
     }
   }
 
-  Map<String, dynamic> _mapMemberToPatient(CareTeamMember member) {
+  Map<String, dynamic> _mapRawPatient(Map<String, dynamic> p) {
+    final unread = (p['unread_alerts'] as num?)?.toInt() ?? 0;
+    final dueSoon = (p['reminders_due_soon'] as num?)?.toInt() ?? 0;
+    final status =
+        (unread > 0 || dueSoon > 0) ? 'attention' : 'active';
+    DateTime? lastAct;
+    final la = p['last_activity_at'];
+    if (la != null) {
+      lastAct = DateTime.tryParse(la.toString());
+    }
+    DateTime? lastVisitAt;
+    final lv = p['last_visit_at'];
+    if (lv != null) {
+      lastVisitAt = DateTime.tryParse(lv.toString());
+    }
+    final email = (p['email'] ?? '')?.toString() ?? '';
     return {
-      'id': member.patientId,
-      'name': member.fullName ?? member.email ?? member.memberUserId,
+      'id': (p['id'] ?? p['patient_id'])?.toString() ?? '',
+      'name':
+          (p['full_name'] ?? p['name'] ?? p['email'] ?? 'Unknown')?.toString(),
+      'email': email,
       'age': 0,
-      'relationship': member.role,
+      'relationship': (p['relationship'] ?? 'Patient')?.toString(),
       'condition': 'Care team member',
-      'status': 'active',
-      'lastVisit': DateTime.now(),
-      'medicationAdherence': 0,
-      'upcomingAppointments': 0,
-      'unreadAlerts': 0,
+      'status': status,
+      'lastVisitAt': lastVisitAt,
+      'lastActivityAt': lastAct,
+      'medicationAdherence': (p['medication_adherence'] as num?)?.toInt() ?? 0,
+      'upcomingAppointments':
+          (p['upcoming_appointments'] as num?)?.toInt() ?? 0,
+      'remindersDueSoon': dueSoon,
+      'unreadAlerts': unread,
+      'recentActivities': _parseRecentActivitiesJson(p['recent_activities']),
       'phone': '',
       'emergencyContact': '',
     };
+  }
+
+  /// Backend returns JSON array (or string) of `{type, summary, occurred_at}`.
+  List<Map<String, dynamic>> _parseRecentActivitiesJson(dynamic raw) {
+    if (raw == null) return [];
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((m) => Map<String, dynamic>.from(m))
+          .toList();
+    }
+    if (raw is String && raw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          return decoded
+              .whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList();
+        }
+      } catch (_) {
+        return [];
+      }
+    }
+    return [];
   }
 }

@@ -1,14 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
+import '../../../../core/config/environment.dart';
+import '../../../../core/services/auth_service.dart';
 import '../models/care_team_invitation.dart';
 import '../models/care_team_member.dart';
 
-/// Care team + invitations backed by Firestore (replacing legacy REST API).
 class CareTeamApiService {
-  CareTeamApiService();
+  final AuthService _authService;
+  static const Duration _requestTimeout = Duration(seconds: 8);
 
-  static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  CareTeamApiService({AuthService? authService})
+      : _authService = authService ?? AuthService();
 
   // In-memory cache (per app process)
   static CacheEntry<List<CareTeamMember>>? _membersCache;
@@ -30,310 +33,468 @@ class CareTeamApiService {
     _pendingInvitesCache = CacheEntry(invites, DateTime.now());
   }
 
-  String _requireUid() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      throw Exception('Not authenticated');
+  Future<String> _getAccessToken() async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) {
+      throw Exception('Authentication required. Please log in again.');
     }
-    return uid;
+    return accessToken;
   }
 
-  String _normalizeEmail(String email) => email.trim().toLowerCase();
-
-  String? _timestampToIsoString(dynamic value) {
-    if (value is Timestamp) {
-      return value.toDate().toUtc().toIso8601String();
-    }
-    if (value is DateTime) {
-      return value.toUtc().toIso8601String();
-    }
-    if (value is String) {
-      return value;
-    }
-    return null;
-  }
-
-  String _permissionToString(dynamic permission, dynamic permissions) {
-    if (permission is String && permission.isNotEmpty) {
-      return permission;
-    }
-    if (permissions is List && permissions.isNotEmpty) {
-      return permissions.first.toString();
-    }
-    return 'view';
-  }
-
-  /// Maps a `users/{patientId}/careTeam/{docId}` document to [CareTeamMember.fromJson] shape.
-  CareTeamMember _careTeamDocToMember(
-    String docId,
-    Map<String, dynamic> data,
-    String patientId,
-  ) {
-    final json = <String, dynamic>{
-      'id': data['id'] as String? ?? docId,
-      'patient_id': patientId,
-      'member_user_id': data['memberUserId'] ??
-          data['caregiverUid'] ??
-          data['caregiver_uid'] ??
-          '',
-      'full_name': data['name'] as String?,
-      'email': (data['email'] ?? data['caregiverEmail']) as String?,
-      'role': (data['relationship'] ?? data['role'] ?? '') as String,
-      'permission': _permissionToString(data['permission'], data['permissions']),
-      'status': (data['status'] ?? 'accepted') as String,
-    };
-    return CareTeamMember.fromJson(json);
-  }
-
-  /// Maps invitation or pending careTeam doc to [CareTeamInvitation.fromJson] shape.
-  CareTeamInvitation _toInvitation(String docId, Map<String, dynamic> data) {
-    final json = <String, dynamic>{
-      'id': data['id'] as String? ?? docId,
-      'patient_id': data['patientId'] as String?,
-      'patient_name': data['patientName'] as String?,
-      'invitee_email': (data['caregiverEmail'] ?? data['email'] ?? '') as String,
-      'role': (data['relationship'] ?? data['role'] ?? '') as String,
-      'permission': _permissionToString(data['permission'], data['permissions']),
-      'status': (data['status'] ?? 'pending') as String,
-      'token': data['inviteId'] as String? ?? docId,
-      'created_at': _timestampToIsoString(data['createdAt']),
-    };
-    return CareTeamInvitation.fromJson(json);
-  }
-
-  CareTeamMember _invitationAcceptedToMember(
-    String inviteId,
-    Map<String, dynamic> data,
-    String caregiverUid,
-  ) {
-    final patientId = data['patientId'] as String? ?? '';
-    final json = <String, dynamic>{
-      'id': inviteId,
-      'patient_id': patientId,
-      'member_user_id': caregiverUid,
-      'full_name': data['patientName'] as String?,
-      'email': data['patientEmail'] as String?,
-      'role': (data['relationship'] ?? 'Caregiver') as String,
-      'permission': _permissionToString(data['permission'], data['permissions']),
-      'status': 'accepted',
-    };
-    return CareTeamMember.fromJson(json);
-  }
-
-  /// Accepted caregivers on `users/{userId}/careTeam`, plus patients this user
-  /// cares for (`invitations` where `caregiverUid` matches and `status` is accepted).
   Future<List<CareTeamMember>> getCareTeam() async {
-    final uid = _requireUid();
-    final out = <CareTeamMember>[];
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    ).timeout(_requestTimeout);
 
-    final patientSnap = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('careTeam')
-        .where('status', isEqualTo: 'accepted')
-        .get();
-    for (final d in patientSnap.docs) {
-      out.add(_careTeamDocToMember(d.id, d.data(), uid));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data
+          .map((item) => CareTeamMember.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
 
-    final invSnap = await _db
-        .collection('invitations')
-        .where('caregiverUid', isEqualTo: uid)
-        .where('status', isEqualTo: 'accepted')
-        .get();
-    for (final d in invSnap.docs) {
-      out.add(_invitationAcceptedToMember(d.id, d.data(), uid));
-    }
-
-    return out;
+    throw Exception(
+        'Failed to load care team: ${response.statusCode} - ${response.body}');
   }
 
-  /// Creates `invitations/{inviteId}` and mirrors to `users/{userId}/careTeam/{inviteId}`.
+  Future<List<Map<String, dynamic>>> getMyPatients() async {
+    final accessToken = await _getAccessToken();
+    final uri =
+        Uri.parse('${Environment.apiBaseUrl}/api/care-team/my-patients');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    ).timeout(_requestTimeout);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.whereType<Map<String, dynamic>>().toList();
+    }
+
+    throw Exception(
+        'Failed to load patients: ${response.statusCode} - ${response.body}');
+  }
+
+  /// Caregiver read-only symptom lines from visit AI summaries (newest first).
+  Future<Map<String, dynamic>> getPatientSymptomJournal(
+    String patientId, {
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? severityContains,
+    int limit = 200,
+  }) async {
+    final accessToken = await _getAccessToken();
+    String ymd(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final q = <String, String>{'limit': '$limit'};
+    if (dateFrom != null) {
+      q['date_from'] = ymd(dateFrom);
+    }
+    if (dateTo != null) {
+      q['date_to'] = ymd(dateTo);
+    }
+    if (severityContains != null && severityContains.trim().isNotEmpty) {
+      q['severity'] = severityContains.trim();
+    }
+    final uri = Uri.parse(
+            '${Environment.apiBaseUrl}/api/care-team/patients/$patientId/symptoms')
+        .replace(queryParameters: q);
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    ).timeout(_requestTimeout);
+    if (response.statusCode == 200) {
+      final map = json.decode(response.body) as Map<String, dynamic>;
+      final returned = map['patient_id']?.toString();
+      if (returned != null &&
+          returned.isNotEmpty &&
+          returned != patientId &&
+          returned.toLowerCase() != patientId.toLowerCase()) {
+        throw Exception(
+          'Symptom journal response patient_id does not match request '
+          '(integrity check).',
+        );
+      }
+      return map;
+    }
+    if (response.statusCode == 403) {
+      throw Exception(
+        'Not authorized to view this patient’s symptom log. '
+        'They must be on your care team.',
+      );
+    }
+    if (response.statusCode == 401) {
+      throw Exception('Authentication required to load symptom journal.');
+    }
+    throw Exception(
+        'Failed to load symptom journal: ${response.statusCode} - ${response.body}');
+  }
+
+  Future<List<Map<String, dynamic>>> getPatientScannedDocs(
+    String patientId,
+  ) async {
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+      '${Environment.apiBaseUrl}/api/caregiver/patients/$patientId/scanned-docs',
+    );
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    ).timeout(_requestTimeout);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.whereType<Map<String, dynamic>>().toList();
+    }
+
+    throw Exception(
+      'Failed to load patient scanned docs: ${response.statusCode} - ${response.body}',
+    );
+  }
+
+  /// Caregiver: patient reminders grouped like the patient app (`today`, `upcoming`, `past`).
+  Future<Map<String, dynamic>> getPatientReminderList(String patientId) async {
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/reminders/patient/$patientId');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception(
+        'Failed to load reminders: ${response.statusCode} - ${response.body}');
+  }
+
+  /// Caregiver: single reminder for a patient (roster-scoped).
+  Future<Map<String, dynamic>> getPatientReminder(
+    String patientId,
+    String reminderId,
+  ) async {
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+      '${Environment.apiBaseUrl}/api/reminders/patient/$patientId/$reminderId',
+    );
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception(
+      'Failed to load reminder: ${response.statusCode} - ${response.body}',
+    );
+  }
+
+  /// Caregiver: update fields on a patient's reminder (see backend ReminderUpdate).
+  Future<Map<String, dynamic>> updatePatientReminder(
+    String patientId,
+    String reminderId,
+    Map<String, dynamic> body,
+  ) async {
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+      '${Environment.apiBaseUrl}/api/reminders/patient/$patientId/$reminderId',
+    );
+    final response = await http.put(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(body),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception(
+      'Failed to update reminder: ${response.statusCode} - ${response.body}',
+    );
+  }
+
+  /// Caregiver: create a reminder for a patient (same body as POST /reminders for patient).
+  Future<Map<String, dynamic>> createPatientReminder(
+    String patientId,
+    Map<String, dynamic> body,
+  ) async {
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+      '${Environment.apiBaseUrl}/api/reminders/patient/$patientId',
+    );
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(body),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception(
+      'Failed to create reminder: ${response.statusCode} - ${response.body}',
+    );
+  }
+
+  /// Caregiver: delete a patient's reminder.
+  Future<void> deletePatientReminder(String patientId, String reminderId) async {
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+      '${Environment.apiBaseUrl}/api/reminders/patient/$patientId/$reminderId',
+    );
+    final response = await http.delete(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode == 204) return;
+    throw Exception(
+      'Failed to delete reminder: ${response.statusCode} - ${response.body}',
+    );
+  }
+
   Future<void> inviteCaregiver({
     required String email,
     required String role,
     required String permission,
   }) async {
-    final uid = _requireUid();
-    final inviteRef = _db.collection('invitations').doc();
-    final inviteId = inviteRef.id;
-    final emailNorm = _normalizeEmail(email);
-    final patient = FirebaseAuth.instance.currentUser;
-    final patientName =
-        patient?.displayName ?? patient?.email ?? 'Patient';
-    final patientEmail = patient?.email;
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/invite');
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'email': email,
+        'role': role,
+        'permission': permission,
+      }),
+    );
 
-    final batch = _db.batch();
-    final now = FieldValue.serverTimestamp();
-
-    batch.set(inviteRef, {
-      'inviteId': inviteId,
-      'patientId': uid,
-      'patientName': patientName,
-      if (patientEmail != null) 'patientEmail': patientEmail,
-      'caregiverEmail': emailNorm,
-      'relationship': role,
-      'permission': permission,
-      'permissions': [permission],
-      'status': 'pending',
-      'createdAt': now,
-    });
-
-    final careTeamRef =
-        _db.collection('users').doc(uid).collection('careTeam').doc(inviteId);
-
-    batch.set(careTeamRef, {
-      'id': inviteId,
-      'inviteId': inviteId,
-      'patientId': uid,
-      'patientName': patientName,
-      'name': emailNorm,
-      'email': emailNorm,
-      'caregiverEmail': emailNorm,
-      'relationship': role,
-      'permission': permission,
-      'permissions': [permission],
-      'status': 'pending',
-      'activityCount': 0,
-      'createdAt': now,
-    });
-
-    await batch.commit();
-  }
-
-  /// Accept invite: `invitations/{token}` + patient's `careTeam/{token}`.
-  Future<void> acceptInvitation({required String token}) async {
-    final uid = _requireUid();
-    final user = FirebaseAuth.instance.currentUser;
-    final email = user?.email;
-    if (email == null || email.isEmpty) {
-      throw Exception('Account email required to accept invitation');
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+          'Failed to invite caregiver: ${response.statusCode} - ${response.body}');
     }
-    final emailNorm = _normalizeEmail(email);
-
-    final invRef = _db.collection('invitations').doc(token);
-
-    await _db.runTransaction((txn) async {
-      final invSnap = await txn.get(invRef);
-      if (!invSnap.exists) {
-        throw Exception('Invitation not found');
-      }
-      final inv = invSnap.data()!;
-      final inviteEmail =
-          _normalizeEmail((inv['caregiverEmail'] as String?) ?? '');
-      if (inviteEmail != emailNorm) {
-        throw Exception('This invitation is for a different email address');
-      }
-
-      final patientId = inv['patientId'] as String?;
-      if (patientId == null || patientId.isEmpty) {
-        throw Exception('Invitation missing patientId');
-      }
-
-      final now = FieldValue.serverTimestamp();
-      txn.update(invRef, {
-        'status': 'accepted',
-        'acceptedAt': now,
-        'caregiverUid': uid,
-      });
-
-      final ctRef = _db
-          .collection('users')
-          .doc(patientId)
-          .collection('careTeam')
-          .doc(token);
-
-      txn.set(
-        ctRef,
-        {
-          'status': 'accepted',
-          'acceptedAt': now,
-          'caregiverUid': uid,
-          'memberUserId': uid,
-        },
-        SetOptions(merge: true),
-      );
-    });
   }
 
-  /// Invitations where `caregiverEmail` matches the signed-in user's email.
+  /// Unauthenticated: caregiver signup gate (pending invite for email).
+  Future<Map<String, dynamic>> validateCaregiverSignup({
+    required String email,
+    String? token,
+  }) async {
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/care-team/public/validate-caregiver-signup');
+    final body = <String, dynamic>{'email': email};
+    if (token != null && token.trim().isNotEmpty) {
+      body['token'] = token.trim();
+    }
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      return {
+        'ok': data['ok'] == true,
+        'reason': data['reason']?.toString() ?? 'unknown',
+      };
+    }
+    return {'ok': false, 'reason': 'http_${response.statusCode}'};
+  }
+
+  Future<void> acceptInvitation({
+    required String token,
+    String consentVersion = 'phase1-v1',
+  }) async {
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/accept');
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'token': token,
+        'consent_version': consentVersion,
+      }),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+          'Failed to accept invitation: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  /// Caregiver declines an invitation they received (not patient cancel).
+  Future<void> declineMyInvitation(String invitationId) async {
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+      '${Environment.apiBaseUrl}/api/care-team/my-invitations/$invitationId/decline',
+    );
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception(
+          'Failed to decline invitation: ${response.statusCode} - ${response.body}');
+    }
+  }
+
   Future<List<CareTeamInvitation>> getMyInvitations() async {
-    _requireUid();
-    final user = FirebaseAuth.instance.currentUser;
-    final email = user?.email;
-    if (email == null || email.isEmpty) {
-      return [];
+    final accessToken = await _getAccessToken();
+    final uri =
+        Uri.parse('${Environment.apiBaseUrl}/api/care-team/my-invitations');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data
+          .map((item) =>
+              CareTeamInvitation.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
-    final emailNorm = _normalizeEmail(email);
 
-    final snap = await _db
-        .collection('invitations')
-        .where('caregiverEmail', isEqualTo: emailNorm)
-        .get();
-
-    return snap.docs.map((d) => _toInvitation(d.id, d.data())).toList();
+    throw Exception(
+        'Failed to load invitations: ${response.statusCode} - ${response.body}');
   }
 
-  /// Pending rows on `users/{userId}/careTeam`.
   Future<List<CareTeamInvitation>> getPendingInvitations() async {
-    final uid = _requireUid();
-    final snap = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('careTeam')
-        .where('status', isEqualTo: 'pending')
-        .get();
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/pending');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
 
-    return snap.docs.map((d) => _toInvitation(d.id, d.data())).toList();
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data
+          .map((item) =>
+              CareTeamInvitation.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
+    throw Exception(
+        'Failed to load pending invitations: ${response.statusCode} - ${response.body}');
   }
 
   Future<void> cancelPendingInvitation({required String invitationId}) async {
-    final uid = _requireUid();
-    final batch = _db.batch();
-
-    batch.delete(
-      _db.collection('users').doc(uid).collection('careTeam').doc(invitationId),
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/care-team/pending/$invitationId');
+    final response = await http.delete(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
     );
 
-    batch.update(_db.collection('invitations').doc(invitationId), {
-      'status': 'cancelled',
-      'cancelledAt': FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+          'Failed to cancel invitation: ${response.statusCode} - ${response.body}');
+    }
   }
 
   Future<void> resendPendingInvitation(String invitationId) async {
-    _requireUid();
-    await _db.collection('invitations').doc(invitationId).update({
-      'resendRequestedAt': FieldValue.serverTimestamp(),
-    });
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/care-team/pending/$invitationId/resend');
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+          'Failed to resend invitation: ${response.statusCode} - ${response.body}');
+    }
   }
 
   Future<void> updatePermission({
     required String memberId,
     required String permission,
   }) async {
-    final uid = _requireUid();
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('careTeam')
-        .doc(memberId)
-        .update({
-      'permission': permission,
-      'permissions': [permission],
-    });
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/$memberId');
+    final response = await http.patch(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'permission': permission}),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+          'Failed to update permission: ${response.statusCode} - ${response.body}');
+    }
   }
 
   Future<void> removeMember({required String memberId}) async {
-    final uid = _requireUid();
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('careTeam')
-        .doc(memberId)
-        .delete();
+    final accessToken = await _getAccessToken();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/$memberId');
+    final response = await http.delete(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+          'Failed to remove member: ${response.statusCode} - ${response.body}');
+    }
   }
 }
 

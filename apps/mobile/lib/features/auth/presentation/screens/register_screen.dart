@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
+import '../../../care_team/data/services/care_team_api_service.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.inviteToken});
+
+  /// Optional invite token from email deep link (stronger signup validation).
+  final String? inviteToken;
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -25,40 +29,88 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
 
-  /// Shows the exact exception text on screen when registration fails.
-  void _showFullRegistrationErrorDialog(Object error) {
-    final text = error.toString();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Registration error'),
-        content: SingleChildScrollView(
-          child: Container(
-            width: double.maxFinite,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade700, width: 1.5),
-            ),
-            child: SelectableText(
-              text,
-              style: TextStyle(
-                color: Colors.red.shade900,
-                fontSize: 13,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  /// Provider may still be null until post-frame; URL `?role=` is the source of truth for signup.
+  UserRole? _effectiveRoleForSignup() {
+    final fromProvider = ref.read(selectedRoleProvider);
+    if (fromProvider != null) return fromProvider;
+    final q = GoRouterState.of(context).uri.queryParameters;
+    final role = q['role']?.toLowerCase();
+    if (role == 'caregiver') return UserRole.caregiver;
+    if (role == 'patient') return UserRole.patient;
+    return null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final q = GoRouterState.of(context).uri.queryParameters;
+    final role = q['role']?.toLowerCase();
+    // Cannot call selectRole (Riverpod) synchronously here — still inside build.
+    if (role == 'caregiver' || role == 'patient') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (role == 'caregiver') {
+          ref.read(selectedRoleProvider.notifier).selectRole(UserRole.caregiver);
+        } else {
+          ref.read(selectedRoleProvider.notifier).selectRole(UserRole.patient);
+        }
+      });
+    }
+    final em = q['email'];
+    if (em != null && em.isNotEmpty && _emailController.text.isEmpty) {
+      _emailController.text = Uri.decodeComponent(em);
+    }
+  }
+
+  String _caregiverInviteMessage(String reason) {
+    switch (reason) {
+      case 'no_pending_invite':
+        return 'Caregiver accounts need a pending invitation from a patient '
+            'for this email. Ask your patient to invite you, then try again.';
+      case 'invalid_token':
+        return 'This invitation link is invalid. Ask your patient for a new invite.';
+      case 'email_mismatch':
+        return 'This invite is for a different email address. Use the invited email.';
+      case 'expired':
+        return 'This invitation has expired. Ask your patient to send a new one.';
+      case 'not_pending':
+        return 'This invitation is no longer active.';
+      default:
+        return 'Could not verify caregiver invitation. Please try again.';
+    }
+  }
+
+  /// Convert technical errors to user-friendly messages
+  String _getUserFriendlyErrorMessage(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    // Authentication errors
+    if (errorString.contains('user already registered') ||
+        errorString.contains('account with this email already exists')) {
+      return 'An account with this email already exists. Please sign in instead.';
+    }
+
+    if (errorString.contains('weak password') ||
+        errorString.contains('password')) {
+      return 'Password is too weak. Please use at least 8 characters with letters and numbers.';
+    }
+
+    if (errorString.contains('invalid email')) {
+      return 'Please enter a valid email address.';
+    }
+
+    // Network/API errors
+    if (errorString.contains('connection refused') ||
+        errorString.contains('network')) {
+      return 'Connection error. Please check your internet connection and try again.';
+    }
+
+    if (errorString.contains('timeout')) {
+      return 'Request timed out. Please try again.';
+    }
+
+    // Generic fallback
+    return 'Registration failed. Please try again or contact support if the problem persists.';
   }
 
   @override
@@ -109,7 +161,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // Subtitle
                 Text(
-                  'Join RemiMinder to get started',
+                  ref.watch(selectedRoleProvider) == UserRole.caregiver
+                      ? 'Caregivers need a pending patient invitation for this email before you can register.'
+                      : 'Join RemiMinder to get started',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(context).colorScheme.secondary,
                         fontSize: 18,
@@ -279,7 +333,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             fontSize: 14,
                           ),
                           children: [
-                            const TextSpan(text: 'By creating an account, you agree to our '),
+                            const TextSpan(
+                                text:
+                                    'By creating an account, you agree to our '),
                             TextSpan(
                               text: 'Terms of Service',
                               style: TextStyle(
@@ -314,23 +370,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _acceptTerms ? _registerWithEmail : null,
+                    onPressed: _acceptTerms && !ref.watch(isAuthLoadingProvider)
+                        ? _registerWithEmail
+                        : null,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      backgroundColor: _acceptTerms
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).disabledColor,
+                      backgroundColor:
+                          _acceptTerms && !ref.watch(isAuthLoadingProvider)
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).disabledColor,
                     ),
-                    child: const Text(
-                      'Create Account',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: ref.watch(isAuthLoadingProvider)
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Create Account',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
 
@@ -383,7 +451,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
     );
   }
-
 
   void _showTermsOfService() {
     showDialog(
@@ -467,13 +534,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final lastName = _lastNameController.text.trim();
       final fullName = '$firstName $lastName'.trim();
 
-      // Get selected role from provider
-      final selectedRole = ref.read(selectedRoleProvider);
+      final selectedRole = _effectiveRoleForSignup();
       if (selectedRole == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select a role first')),
         );
         return;
+      }
+
+      if (selectedRole == UserRole.caregiver) {
+        final v = await CareTeamApiService().validateCaregiverSignup(
+          email: email,
+          token: widget.inviteToken,
+        );
+        if (v['ok'] != true) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    _caregiverInviteMessage(v['reason']?.toString() ?? '')),
+              ),
+            );
+          }
+          return;
+        }
       }
 
       try {
@@ -515,7 +599,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         }
       } catch (e) {
         if (mounted) {
-          _showFullRegistrationErrorDialog(e);
+          final errorMessage = _getUserFriendlyErrorMessage(e);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
         }
       }
     }

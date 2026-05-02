@@ -8,8 +8,7 @@
 // - Inline styles → Flutter theme-based styling
 
 import 'package:flutter/material.dart';
-
-import '../../features/reminders/data/reminder_repository.dart';
+import 'package:mediminder_shared/models/reminder.dart';
 
 class ReminderCard extends StatelessWidget {
   final Reminder reminder;
@@ -27,6 +26,7 @@ class ReminderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Adapted from Phase 1 card structure (lines 450-500)
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -34,6 +34,7 @@ class ReminderCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Title and status row (adapted from Phase 1 header)
             Row(
               children: [
                 Expanded(
@@ -48,14 +49,20 @@ class ReminderCard extends StatelessWidget {
                 _buildStatusChip(),
               ],
             ),
+
             const SizedBox(height: 8),
+
+            // Message (adapted from Phase 1 description)
             Text(
-              reminder.description,
+              reminder.message,
               style: TextStyle(
                 color: Colors.grey[600],
               ),
             ),
+
             const SizedBox(height: 12),
+
+            // Time and type row (adapted from Phase 1 metadata)
             Row(
               children: [
                 Icon(
@@ -73,7 +80,7 @@ class ReminderCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
                 Text(
-                  reminder.type.toUpperCase(),
+                  reminder.type.name.toUpperCase(),
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.grey[500],
@@ -82,6 +89,8 @@ class ReminderCard extends StatelessWidget {
                 ),
               ],
             ),
+
+            // Actions row (adapted from Phase 1 action buttons)
             if (showActions && (onComplete != null || onSnooze != null)) ...[
               const SizedBox(height: 12),
               Row(
@@ -107,19 +116,20 @@ class ReminderCard extends StatelessWidget {
   }
 
   Widget _buildStatusChip() {
+    // Adapted from Phase 1 status indicators (lines 480-490)
     Color color;
     String text;
 
     switch (reminder.status) {
-      case 'completed':
+      case ReminderStatus.completed:
         color = Colors.green;
         text = 'Done';
         break;
-      case 'snoozed':
+      case ReminderStatus.snoozed:
         color = Colors.orange;
         text = 'Snoozed';
         break;
-      case 'pending':
+      case ReminderStatus.pending:
         if (reminder.isOverdue) {
           color = Colors.red;
           text = 'Overdue';
@@ -130,7 +140,7 @@ class ReminderCard extends StatelessWidget {
         break;
       default:
         color = Colors.grey;
-        text = reminder.status;
+        text = reminder.status.name;
     }
 
     return Container(
@@ -152,19 +162,21 @@ class ReminderCard extends StatelessWidget {
   }
 
   IconData _getReminderIcon() {
+    // Adapted from Phase 1 icon logic (lines 460-470)
     switch (reminder.type) {
-      case 'medication':
+      case ReminderType.medication:
         return Icons.medication;
-      case 'appointment':
+      case ReminderType.appointment:
         return Icons.calendar_today;
-      case 'measurement':
-        return Icons.monitor_heart;
+      case ReminderType.task:
+        return Icons.task;
       default:
         return Icons.notifications;
     }
   }
 
   String _formatTime() {
+    // Adapted from Phase 1 time formatting (lines 490-510)
     final now = DateTime.now();
     final difference = reminder.scheduledTime.difference(now);
 

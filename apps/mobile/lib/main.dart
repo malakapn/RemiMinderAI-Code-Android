@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'app.dart';
 import 'core/config/environment.dart';
-import 'core/services/fcm_service.dart';
 import 'core/services/notification_service.dart';
 
 /// App entry point with Riverpod state management
@@ -14,18 +14,29 @@ Future<void> main() async {
 
   // Load environment variables
   await Environment.load();
-  Environment.validate(); // Ensure required vars are set
+  Environment.validate();
 
-  // Initialize Firebase with error handling
+  // Initialize Firebase
   try {
-    await Firebase.initializeApp();
-    if (Firebase.apps.isEmpty) {
-      debugPrint(
-        'Firebase: initializeApp returned but no default apps — email/Google auth will fail.',
-      );
+    await Firebase.initializeApp().timeout(const Duration(seconds: 10));
+    // Preloads reCAPTCHA Enterprise config so email/password on Android is less
+    // likely to fail on first attempt (RecaptchaCallWrapper / network).
+    try {
+      await FirebaseAuth.instance.initializeRecaptchaConfig();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('FirebaseAuth.initializeRecaptchaConfig (non-fatal): $e');
+      }
     }
-  } catch (e, st) {
-    debugPrint('Firebase initialization failed: $e\n$st');
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
+  // Initialize notifications
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('Notification service initialization failed: $e');
   }
 
   runApp(
@@ -33,22 +44,4 @@ Future<void> main() async {
       child: RemiMinderApp(),
     ),
   );
-
-  // Defer heavy native setup so the first frame (auth splash) paints sooner.
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    try {
-      await NotificationService().initialize();
-    } catch (e) {
-      debugPrint('NotificationService initialization failed: $e');
-    }
-
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      try {
-        await FCMService().initialize(uid);
-      } catch (e) {
-        debugPrint('FCMService initialization failed: $e');
-      }
-    }
-  });
 }

@@ -94,12 +94,13 @@ class ReminderLogResponse(BaseModel):
 # ============================================================================
 
 class CaregiverAlertResponse(BaseModel):
-    id: str
-    caregiver_id: str
+    id: UUID
+    caregiver_id: UUID
     user_id: str
-    reminder_id: str
+    reminder_id: Optional[UUID] = None
     alert_type: str
     message: str
+    priority: Optional[str] = None
     sent_at: datetime
     read: bool
 
@@ -132,4 +133,13 @@ class CaregiverDashboardResponse(BaseModel):
     next_reminders: List[NextReminderSummary]
     recent_activity: List[RecentActivitySummary]
     alerts_summary: AlertsSummary  # {missed_today: 2, snoozed_multiple: 1, unread_alerts: 3}
+
+
+# ============================================================================
+# FCM SCHEMAS
+# ============================================================================
+
+class FCMTokenUpdate(BaseModel):
+    fcm_token: str = Field(..., description="Firebase Cloud Messaging token")
+    device_type: Literal["android", "ios"] = "android"
 

@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import '../../data/services/visit_summary_gemini_prompt.dart';
 import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/consent_service.dart';
@@ -32,6 +29,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   int _secondsElapsed = 0;
   String _formattedTime = '00:00';
   String? _audioFilePath;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -471,6 +469,8 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   }
 
   void _saveRecording() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
     print("🧪 SAVE BUTTON PRESSED");
 
     if (_audioFilePath == null) {
@@ -525,6 +525,8 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to upload audio: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -576,20 +578,9 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     final uri = Uri.parse(
         '${Environment.apiBaseUrl}/api/visits/$visitId/process-audio');
 
-    final preferredLanguage = await readPreferredLanguageCodeForVisitSummary();
-    final geminiLanguageInstruction =
-        geminiLanguageInstructionForCode(preferredLanguage);
-
     final response = await http.post(
       uri,
-      headers: {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'preferred_language': preferredLanguage,
-        'gemini_language_instruction': geminiLanguageInstruction,
-      }),
+      headers: {'Authorization': 'Bearer $accessToken'},
     );
 
     print("🧪 process-audio status: ${response.statusCode}");

@@ -1,18 +1,36 @@
-version: '3.8'
-
 services:
   # Phase 2 Backend (FastAPI)
   backend:
     build: ./apps/backend
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
     ports:
-      - "8000:8000"
+      - "8001:8001"
+    env_file:
+      - ./apps/backend/.env
     environment:
       - ENV=development
       - DEBUG=True
     volumes:
       - ./apps/backend:/app
+    depends_on:
+      - postgres
     networks:
       - mediminder-network
+
+  # STT + AI Summary worker (required for audio processing)
+  worker:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile.worker
+    env_file:
+      - ./apps/backend/.env
+    volumes:
+      - ./apps/backend:/app
+    depends_on:
+      - backend
+    networks:
+      - mediminder-network
+    restart: unless-stopped
 
   # PostgreSQL Database
   postgres:

@@ -122,7 +122,7 @@ async def insert_ai_reminders(
     return inserted_reminders
 
 async def get_reminder(reminder_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch a single reminder by ID."""
+    """Fetch a single reminder by ID. Handles both internal UUID and Firebase UID."""
     engine = get_cloud_sql_engine()
     with engine.connect() as conn:
         result = conn.execute(
@@ -130,7 +130,13 @@ async def get_reminder(reminder_id: str, user_id: str) -> Optional[Dict[str, Any
                 SELECT *
                 FROM reminders
                 WHERE id = :reminder_id
-                  AND user_id = :user_id
+                  AND (
+                    user_id = :user_id
+                    OR user_id = COALESCE(
+                        (SELECT firebase_uid FROM users WHERE id::text = :user_id LIMIT 1),
+                        (SELECT id::text FROM users WHERE firebase_uid = :user_id LIMIT 1)
+                    )
+                  )
                 LIMIT 1
             """),
             {"reminder_id": reminder_id, "user_id": user_id},
@@ -138,7 +144,11 @@ async def get_reminder(reminder_id: str, user_id: str) -> Optional[Dict[str, Any
         return _row_to_dict(result.fetchone())
 
 async def get_all_reminders(user_id: str) -> List[Dict[str, Any]]:
-    """Fetch all reminders for a patient."""
+    """Fetch all reminders for a patient.
+
+    user_id may be the internal users.id UUID or Firebase UID — handles both
+    so reminders created before/after the UUID migration are always found.
+    """
     engine = get_cloud_sql_engine()
     with engine.connect() as conn:
         result = conn.execute(
@@ -146,6 +156,10 @@ async def get_all_reminders(user_id: str) -> List[Dict[str, Any]]:
                 SELECT *
                 FROM reminders
                 WHERE user_id = :user_id
+                   OR user_id = COALESCE(
+                       (SELECT firebase_uid FROM users WHERE id::text = :user_id LIMIT 1),
+                       (SELECT id::text FROM users WHERE firebase_uid = :user_id LIMIT 1)
+                   )
                 ORDER BY scheduled_time ASC
             """),
             {"user_id": user_id},
@@ -260,28 +274,27 @@ async def snooze_reminder(reminder_id: str, user_id: str, snooze_minutes: int = 
 
 
 async def skip_reminder(reminder_id: str, user_id: str, reason: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Skip a reminder."""
-    # Update reminder status
+    """Skip a reminder: set status, increment consecutive_skips in one write, then log."""
+    prev = await get_reminder(reminder_id, user_id)
+    if not prev:
+        return None
+
+    current_skips = prev.get("consecutive_skips", 0) or 0
     reminder = await update_reminder(
         reminder_id,
         user_id,
-        {"status": "skipped"}
+        {
+            "status": "skipped",
+            "consecutive_skips": current_skips + 1,
+        },
     )
 
-    current_skips = reminder.get("consecutive_skips", 0)
-    await update_reminder(
-        reminder_id, user_id,
-        {"consecutive_skips": current_skips + 1}
-    )
-
-    # If recurring, create next instance
-    if reminder.get("recurrence") and reminder["recurrence"] != "once":
-        await create_recurring_reminder(reminder)    
+    if prev.get("recurrence") and prev["recurrence"] != "once":
+        await create_recurring_reminder(prev)
 
     if reminder:
-        # Log the action with reason
         await log_reminder_action(reminder_id, user_id, "skipped", reason)
-    
+
     return reminder
 
 
@@ -388,6 +401,138 @@ async def get_missed_reminders_for_auto_skip() -> List[Dict[str, Any]]:
         )
         return _rows_to_dicts(result.fetchall())
 
+
+async def get_pending_reminders_past_grace(
+    grace_minutes: int = 60,
+    max_age_days: int = 30,
+    limit: int = 500,
+) -> List[Dict[str, Any]]:
+    """
+    Pending reminders whose scheduled_time is past grace_minutes ago
+    (candidates for caregiver missed notifications).
+    """
+    engine = get_cloud_sql_engine()
+    now = datetime.now(timezone.utc)
+    grace_cutoff = (now - timedelta(minutes=grace_minutes)).isoformat()
+    age_cutoff = (now - timedelta(days=max_age_days)).isoformat()
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("""
+                SELECT *
+                FROM reminders
+                WHERE status = 'pending'
+                  AND scheduled_time <= :grace_cutoff
+                  AND scheduled_time >= :age_cutoff
+                ORDER BY scheduled_time ASC
+                LIMIT :limit
+            """),
+            {"grace_cutoff": grace_cutoff, "age_cutoff": age_cutoff, "limit": limit},
+        )
+        return _rows_to_dicts(result.fetchall())
+
+
+async def get_reminders_due_in_window(
+    past_minutes: float = 2.0,
+    future_minutes: float = 2.0,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    """
+    Pending/snoozed reminders whose scheduled_time is within [now - past, now + future].
+    Used by cron to send due-time FCM to patient and caregivers.
+    """
+    engine = get_cloud_sql_engine()
+    now = datetime.now(timezone.utc)
+    t0 = now - timedelta(minutes=past_minutes)
+    t1 = now + timedelta(minutes=future_minutes)
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("""
+                SELECT id, user_id, title, message, scheduled_time, reminder_type, status
+                FROM reminders
+                WHERE status IN ('pending', 'snoozed')
+                  AND scheduled_time >= :t0
+                  AND scheduled_time <= :t1
+                ORDER BY scheduled_time ASC
+                LIMIT :limit
+            """),
+            {"t0": t0, "t1": t1, "limit": limit},
+        )
+        return _rows_to_dicts(result.fetchall())
+
+
+async def try_claim_reminder_due_push(reminder_id: str, scheduled_time: Any) -> bool:
+    """
+    Idempotent insert for (reminder_id, scheduled_time). Returns True if this call won the race.
+    """
+    engine = get_cloud_sql_engine()
+    if isinstance(scheduled_time, datetime):
+        st = scheduled_time
+        if st.tzinfo is None:
+            st = st.replace(tzinfo=timezone.utc)
+    else:
+        st = parser.parse(str(scheduled_time))
+        if st.tzinfo is None:
+            st = st.replace(tzinfo=timezone.utc)
+
+    rid = str(reminder_id).strip()
+    if not rid:
+        return False
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("""
+                INSERT INTO reminder_due_push_log (reminder_id, scheduled_time, sent_at)
+                VALUES (CAST(:rid AS uuid), :st, NOW())
+                ON CONFLICT (reminder_id, scheduled_time) DO NOTHING
+                RETURNING reminder_id
+            """),
+            {"rid": rid, "st": st},
+        )
+        return result.fetchone() is not None
+
+
+async def caregiver_alert_exists_for_context(
+    patient_user_id: str,
+    alert_type: str,
+    context_id: str,
+    caregiver_firebase_uid: Optional[str] = None,
+) -> bool:
+    """Idempotency: patient + type + context_id; optional per-caregiver scope for fan-out."""
+    if not context_id:
+        return False
+    engine = get_cloud_sql_engine()
+    cg = (caregiver_firebase_uid or "").strip()
+    extra_cg = ""
+    params: Dict[str, Any] = {
+        "user_id": patient_user_id,
+        "alert_type": alert_type,
+        "context_id": context_id,
+    }
+    if cg:
+        extra_cg = """
+                  AND caregiver_id IN (
+                    SELECT id FROM public.users
+                    WHERE firebase_uid = :cfb OR id::text = :cfb
+                    LIMIT 1
+                  )
+        """
+        params["cfb"] = cg
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(f"""
+                SELECT 1
+                FROM caregiver_alerts
+                WHERE user_id::text = CAST(:user_id AS text)
+                  AND alert_type = :alert_type
+                  AND context_id = :context_id
+                  {extra_cg}
+                LIMIT 1
+            """),
+            params,
+        )
+        return result.fetchone() is not None
+
+
 async def create_recurring_reminder(original_reminder: dict) -> Optional[Dict[str, Any]]:
     """Create a new reminder for recurring schedule (used by scheduler)."""
     # Parse original scheduled time
@@ -433,7 +578,7 @@ async def create_recurring_reminder(original_reminder: dict) -> Optional[Dict[st
 # ============================================================================
 
 async def get_patient_info(user_id: str) -> Optional[Dict[str, Any]]:
-    """Get patient name and email."""
+    """Get patient name and email. user_id may be firebase_uid or internal users.id string."""
     engine = get_cloud_sql_engine()
     with engine.connect() as conn:
         result = conn.execute(
@@ -441,6 +586,7 @@ async def get_patient_info(user_id: str) -> Optional[Dict[str, Any]]:
                 SELECT id, full_name, email
                 FROM users
                 WHERE firebase_uid = :user_id
+                   OR id::text = CAST(:user_id AS text)
                 LIMIT 1
             """),
             {"user_id": user_id},
@@ -500,31 +646,76 @@ async def get_recent_activity_for_patient(user_id: str, hours: int = 24) -> List
 async def create_caregiver_alert(
     caregiver_id: str,
     user_id: str,
-    reminder_id: str,
+    reminder_id: Optional[str],
     alert_type: str,
-    message: str
+    message: str,
+    context_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Create a caregiver alert."""
-    # Convert UUIDs to strings if needed (exclude user_id, which is Firebase UID)
+    """Create a caregiver alert. reminder_id may be NULL for non-reminder events."""
     caregiver_id = str(caregiver_id) if isinstance(caregiver_id, uuid.UUID) else caregiver_id
-    user_id = user_id
-    reminder_id = str(reminder_id) if isinstance(reminder_id, uuid.UUID) else reminder_id
+    rid = None
+    if reminder_id is not None and str(reminder_id).strip():
+        rid = str(reminder_id) if isinstance(reminder_id, uuid.UUID) else str(reminder_id)
 
     engine = get_cloud_sql_engine()
     with engine.begin() as conn:
+        # Ensure a caregivers row exists for this Firebase auth user.
+        # Some environments have users rows but missing caregivers profile rows,
+        # which otherwise causes FK errors / empty INSERT..SELECT results.
+        conn.execute(
+            text("""
+                WITH matched_user AS (
+                    SELECT
+                        u.id AS user_uuid,
+                        u.email AS email,
+                        COALESCE(NULLIF(TRIM(u.full_name), ''), 'Caregiver') AS full_name
+                    FROM users u
+                    WHERE u.firebase_uid = :caregiver_id
+                    LIMIT 1
+                )
+                INSERT INTO caregivers (auth_uid, email, full_name, phone)
+                SELECT
+                    mu.user_uuid,
+                    mu.email,
+                    mu.full_name,
+                    ''
+                FROM matched_user mu
+                ON CONFLICT (email) DO UPDATE
+                SET
+                    auth_uid = COALESCE(caregivers.auth_uid, EXCLUDED.auth_uid),
+                    full_name = COALESCE(NULLIF(TRIM(caregivers.full_name), ''), EXCLUDED.full_name)
+            """),
+            {"caregiver_id": caregiver_id},
+        )
+
         result = conn.execute(
             text("""
                 INSERT INTO caregiver_alerts
-                (caregiver_id, user_id, reminder_id, alert_type, message)
-                VALUES (:caregiver_id, :user_id, :reminder_id, :alert_type, :message)
+                (caregiver_id, user_id, reminder_id, alert_type, message, context_id)
+                SELECT
+                    caregiver.id,
+                    :user_id,
+                    CASE WHEN :reminder_id IS NULL THEN NULL ELSE CAST(:reminder_id AS uuid) END,
+                    :alert_type,
+                    :message,
+                    :context_id
+                FROM caregivers caregiver
+                WHERE caregiver.id::text = CAST(:caregiver_id AS text)
+                   OR caregiver.auth_uid::text = CAST(:caregiver_id AS text)
+                   OR caregiver.auth_uid IN (
+                        SELECT id FROM users
+                        WHERE firebase_uid = :caregiver_id
+                        LIMIT 1
+                   )
                 RETURNING *
             """),
             {
                 "caregiver_id": caregiver_id,
                 "user_id": user_id,
-                "reminder_id": reminder_id,
+                "reminder_id": rid,
                 "alert_type": alert_type,
                 "message": message,
+                "context_id": context_id,
             },
         )
         response_row = _row_to_dict(result.fetchone())
@@ -543,7 +734,21 @@ async def get_caregiver_alerts(caregiver_id: str, unread_only: bool = False) -> 
                 text("""
                     SELECT *
                     FROM caregiver_alerts
-                    WHERE caregiver_id = :caregiver_id
+                    WHERE caregiver_id::text IN (
+                      CAST(:caregiver_id AS text),
+                      COALESCE((
+                        SELECT c.id::text
+                        FROM caregivers c
+                        WHERE c.id::text = CAST(:caregiver_id AS text)
+                           OR c.auth_uid::text = CAST(:caregiver_id AS text)
+                           OR c.auth_uid IN (
+                                SELECT id FROM users
+                                WHERE firebase_uid = :caregiver_id
+                                LIMIT 1
+                           )
+                        LIMIT 1
+                      ), CAST(:caregiver_id AS text))
+                    )
                       AND read = false
                     ORDER BY sent_at DESC
                 """),
@@ -554,7 +759,21 @@ async def get_caregiver_alerts(caregiver_id: str, unread_only: bool = False) -> 
                 text("""
                     SELECT *
                     FROM caregiver_alerts
-                    WHERE caregiver_id = :caregiver_id
+                    WHERE caregiver_id::text IN (
+                      CAST(:caregiver_id AS text),
+                      COALESCE((
+                        SELECT c.id::text
+                        FROM caregivers c
+                        WHERE c.id::text = CAST(:caregiver_id AS text)
+                           OR c.auth_uid::text = CAST(:caregiver_id AS text)
+                           OR c.auth_uid IN (
+                                SELECT id FROM users
+                                WHERE firebase_uid = :caregiver_id
+                                LIMIT 1
+                           )
+                        LIMIT 1
+                      ), CAST(:caregiver_id AS text))
+                    )
                     ORDER BY sent_at DESC
                 """),
                 {"caregiver_id": caregiver_id},
@@ -571,12 +790,56 @@ async def mark_alert_as_read(alert_id: str, caregiver_id: str) -> Optional[Dict[
                 UPDATE caregiver_alerts
                 SET read = true
                 WHERE id = :alert_id
-                  AND caregiver_id = :caregiver_id
+                  AND caregiver_id::text IN (
+                    CAST(:caregiver_id AS text),
+                    COALESCE((
+                      SELECT c.id::text
+                      FROM caregivers c
+                      WHERE c.id::text = CAST(:caregiver_id AS text)
+                         OR c.auth_uid::text = CAST(:caregiver_id AS text)
+                         OR c.auth_uid IN (
+                              SELECT id FROM users
+                              WHERE firebase_uid = :caregiver_id
+                              LIMIT 1
+                         )
+                      LIMIT 1
+                    ), CAST(:caregiver_id AS text))
+                  )
                 RETURNING *
             """),
             {"alert_id": alert_id, "caregiver_id": caregiver_id},
         )
         return _row_to_dict(result.fetchone())
+
+
+async def delete_caregiver_alert(alert_id: str, caregiver_id: str) -> bool:
+    """Delete a caregiver alert owned by this caregiver."""
+    engine = get_cloud_sql_engine()
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("""
+                DELETE FROM caregiver_alerts
+                WHERE id = :alert_id
+                  AND caregiver_id::text IN (
+                    CAST(:caregiver_id AS text),
+                    COALESCE((
+                      SELECT c.id::text
+                      FROM caregivers c
+                      WHERE c.id::text = CAST(:caregiver_id AS text)
+                         OR c.auth_uid::text = CAST(:caregiver_id AS text)
+                         OR c.auth_uid IN (
+                              SELECT id FROM users
+                              WHERE firebase_uid = :caregiver_id
+                              LIMIT 1
+                         )
+                      LIMIT 1
+                    ), CAST(:caregiver_id AS text))
+                  )
+                RETURNING id
+            """),
+            {"alert_id": alert_id, "caregiver_id": caregiver_id},
+        )
+        return result.fetchone() is not None
 
 
 async def get_alerts_summary(caregiver_id: str, user_id: str) -> Dict[str, int]:
@@ -586,7 +849,21 @@ async def get_alerts_summary(caregiver_id: str, user_id: str) -> Dict[str, int]:
         unread_count = conn.execute(
             text("""
                 SELECT COUNT(*) FROM caregiver_alerts
-                WHERE caregiver_id = :caregiver_id
+                WHERE caregiver_id::text IN (
+                  CAST(:caregiver_id AS text),
+                  COALESCE((
+                    SELECT c.id::text
+                    FROM caregivers c
+                    WHERE c.id::text = CAST(:caregiver_id AS text)
+                       OR c.auth_uid::text = CAST(:caregiver_id AS text)
+                       OR c.auth_uid IN (
+                            SELECT id FROM users
+                            WHERE firebase_uid = :caregiver_id
+                            LIMIT 1
+                       )
+                    LIMIT 1
+                  ), CAST(:caregiver_id AS text))
+                )
                   AND user_id = :user_id
                   AND read = false
             """),
@@ -607,7 +884,21 @@ async def get_alerts_summary(caregiver_id: str, user_id: str) -> Dict[str, int]:
         snoozed_count = conn.execute(
             text("""
                 SELECT COUNT(*) FROM caregiver_alerts
-                WHERE caregiver_id = :caregiver_id
+                WHERE caregiver_id::text IN (
+                  CAST(:caregiver_id AS text),
+                  COALESCE((
+                    SELECT c.id::text
+                    FROM caregivers c
+                    WHERE c.id::text = CAST(:caregiver_id AS text)
+                       OR c.auth_uid::text = CAST(:caregiver_id AS text)
+                       OR c.auth_uid IN (
+                            SELECT id FROM users
+                            WHERE firebase_uid = :caregiver_id
+                            LIMIT 1
+                       )
+                    LIMIT 1
+                  ), CAST(:caregiver_id AS text))
+                )
                   AND user_id = :user_id
                   AND alert_type = 'multiple_snoozes'
                   AND read = false
@@ -655,4 +946,104 @@ async def get_templates_by_type(reminder_type: str) -> List[Dict[str, Any]]:
             {"reminder_type": reminder_type},
         )
         return _rows_to_dicts(result.fetchall())
+
+
+# ============================================================================
+# FCM Token Management
+# ============================================================================
+
+async def save_fcm_token(user_id: str, fcm_token: str, device_type: str = "android") -> bool:
+    """
+    Save or update FCM token for a user in the database.
+    Creates fcm_tokens table if it doesn't exist.
+    """
+    engine = get_cloud_sql_engine()
+    
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    CREATE TABLE IF NOT EXISTS fcm_tokens (
+                        user_id TEXT PRIMARY KEY,
+                        fcm_token TEXT NOT NULL,
+                        device_type TEXT DEFAULT 'android',
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+            )
+
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO fcm_tokens (user_id, fcm_token, device_type, updated_at)
+                    VALUES (:user_id, :fcm_token, :device_type, NOW())
+                    ON CONFLICT (user_id)
+                    DO UPDATE SET fcm_token = :fcm_token, device_type = :device_type, updated_at = NOW()
+                """),
+                {"user_id": user_id, "fcm_token": fcm_token, "device_type": device_type}
+            )
+        try:
+            from services.firestore_fcm_sync import sync_patient_fcm_token
+
+            sync_patient_fcm_token(user_id, fcm_token, device_type)
+        except Exception as sync_err:
+            logger.warning("Post-save FCM Firestore sync hook failed: %s", sync_err)
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error saving FCM token: {str(e)}")
+        return False
+
+
+async def delete_fcm_token(user_id: str) -> bool:
+    """Delete FCM token for a user on logout. user_id may be internal UUID or Firebase UID."""
+    engine = get_cloud_sql_engine()
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""
+                    DELETE FROM fcm_tokens
+                    WHERE user_id = :user_id
+                       OR user_id = COALESCE(
+                           (SELECT id::text FROM users WHERE firebase_uid = :user_id LIMIT 1),
+                           (SELECT firebase_uid FROM users WHERE id::text = :user_id LIMIT 1)
+                       )
+                """),
+                {"user_id": user_id},
+            )
+            return result.rowcount > 0
+    except Exception as e:
+        logger.error(f"Error deleting FCM token for user_id={user_id}: {e}")
+        return False
+
+
+async def get_patient_fcm_token(user_id: str) -> Optional[str]:
+    """
+    Get FCM token for a user.
+    user_id may be internal UUID or Firebase UID — handles both.
+    """
+    engine = get_cloud_sql_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT fcm_token FROM fcm_tokens
+                    WHERE user_id = :user_id
+                       OR user_id = COALESCE(
+                           (SELECT id::text FROM users WHERE firebase_uid = :user_id LIMIT 1),
+                           (SELECT firebase_uid FROM users WHERE id::text = :user_id LIMIT 1)
+                       )
+                    LIMIT 1
+                """),
+                {"user_id": user_id}
+            )
+            row = result.fetchone()
+            if row:
+                return row[0]
+            return None
+
+    except Exception as e:
+        logger.error(f"Error getting FCM token: {str(e)}")
+        return None
 

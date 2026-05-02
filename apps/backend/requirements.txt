@@ -1,9 +1,10 @@
+# Install with: pip install -r requirements.txt  (do not use .env with -r)
 annotated-doc==0.0.3
 annotated-types==0.7.0
 anyio==4.11.0
 certifi==2025.10.5
 cffi==2.0.0
-click==8.3.0
+click>=8.1.7,<9
 colorama==0.4.6
 cryptography==46.0.3
 deprecation==2.1.0
@@ -37,7 +38,7 @@ python-dotenv==1.2.1
 email-validator==2.3.0
 resend==2.17.0
 requests==2.32.5
-aiosmtplib==5.0.0
+aiosmtplib>=4.0.2,<5
 openai>=1.14.0,<2.0
 requests>=2.25.0
 boto3==1.34.0
@@ -51,3 +52,4 @@ pytz
 python-multipart
 sqlalchemy>=1.4.0,<3.0.0
 psycopg2-binary>=2.9.0,<3.0.0
+firebase-admin>=6.5.0

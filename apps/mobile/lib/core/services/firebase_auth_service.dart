@@ -1,17 +1,17 @@
-import 'dart:async';
-
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:async';
 import '../models/user.dart';
-import 'google_sign_in_config.dart';
 import 'token_manager.dart';
 import 'secure_storage.dart';
 
 /// Firebase Authentication service for Email/Password and Google authentication
 class FirebaseAuthService {
+  static const Duration _firebaseAuthTimeout = Duration(seconds: 15);
+
   final firebase_auth.FirebaseAuth _firebaseAuth;
-  final GoogleSignIn? _injectedGoogleSignIn;
+  final GoogleSignIn _googleSignIn;
   final TokenManager _tokenManager;
   final SecureStorage _secureStorage;
 
@@ -21,19 +21,9 @@ class FirebaseAuthService {
     TokenManager? tokenManager,
     SecureStorage? secureStorage,
   })  : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-        _injectedGoogleSignIn = googleSignIn,
+        _googleSignIn = googleSignIn ?? GoogleSignIn.standard(),
         _tokenManager = tokenManager ?? TokenManager(SecureStorage()),
         _secureStorage = secureStorage ?? SecureStorage();
-
-  Future<GoogleSignIn> _googleSignIn() async {
-    if (_injectedGoogleSignIn != null) return _injectedGoogleSignIn!;
-    final serverClientId = await resolveGoogleWebClientId();
-    print('FirebaseAuthService GoogleSignIn serverClientId: $serverClientId');
-    return GoogleSignIn(
-      scopes: const <String>['email', 'profile', 'openid'],
-      serverClientId: serverClientId,
-    );
-  }
 
   /// Sign up a new user with Firebase Email/Password
   Future<User> signUp({
@@ -46,13 +36,11 @@ class FirebaseAuthService {
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-      );
+      ).timeout(_firebaseAuthTimeout);
 
       if (userCredential.user == null) {
         throw Exception('Firebase sign up failed - no user returned');
       }
-
-      await userCredential.user!.reload();
 
       // Get Firebase ID token
       final idToken = await userCredential.user!.getIdToken();
@@ -66,16 +54,14 @@ class FirebaseAuthService {
       await _secureStorage.write('firebase_uid', userCredential.user!.uid);
       await _secureStorage.write('auth_provider', 'firebase');
 
-      final dn = fullName?.trim();
-      final display = (dn != null && dn.isNotEmpty) ? dn : 'User';
-
       // Create User object
       final user = User(
         id: userCredential.user!.uid, // Firebase UID
         email: email,
         role: role,
-        fullName: fullName?.trim().isEmpty == true ? null : fullName?.trim(),
-        displayName: display, // Temporary, will be replaced by backend
+        fullName: fullName,
+        displayName:
+            fullName ?? "User", // Temporary, will be replaced by backend
         authUid: userCredential.user!.uid,
       );
 
@@ -83,10 +69,10 @@ class FirebaseAuthService {
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
     } catch (e, st) {
-      Error.throwWithStackTrace(
-        Exception('Firebase sign up failed: ${e.toString()}'),
-        st,
-      );
+      if (kDebugMode) {
+        debugPrint('Firebase signUp: $e\n$st');
+      }
+      throw _wrapNonFirebaseSignInError(e, 'sign up');
     }
   }
 
@@ -98,17 +84,14 @@ class FirebaseAuthService {
       final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
-      );
+      ).timeout(_firebaseAuthTimeout);
 
       if (userCredential.user == null) {
         throw Exception('Firebase sign in failed - no user returned');
       }
 
-      final signedInUser = userCredential.user!;
-      await signedInUser.reload();
-
       // Get Firebase ID token
-      final idToken = await signedInUser.getIdToken();
+      final idToken = await userCredential.user!.getIdToken();
       if (idToken == null) {
         throw Exception('Failed to get Firebase ID token');
       }
@@ -116,43 +99,43 @@ class FirebaseAuthService {
       // Store Firebase token securely
       await _tokenManager.saveTokens(
           idToken, ''); // Firebase doesn't provide refresh tokens
-      await _secureStorage.write('firebase_uid', signedInUser.uid);
+      await _secureStorage.write('firebase_uid', userCredential.user!.uid);
       await _secureStorage.write('auth_provider', 'firebase');
 
       // Create User object
       final user = User(
-        id: signedInUser.uid, // Firebase UID
+        id: userCredential.user!.uid, // Firebase UID
         email: email,
         role: selectedRole ?? UserRole.patient, // Default role
-        fullName: signedInUser.displayName,
-        displayName: signedInUser.displayName ??
+        fullName: userCredential.user!.displayName,
+        displayName: userCredential.user!.displayName ??
             "User", // Temporary, will be replaced by backend
-        authUid: signedInUser.uid,
+        authUid: userCredential.user!.uid,
       );
 
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            'Firebase signIn: FirebaseAuthException code=${e.code} message=${e.message}');
+      }
       throw _handleFirebaseAuthError(e);
     } catch (e, st) {
-      Error.throwWithStackTrace(
-        Exception('Firebase sign in failed: ${e.toString()}'),
-        st,
-      );
+      if (kDebugMode) {
+        debugPrint('Firebase signIn: $e\n$st');
+      }
+      throw _wrapNonFirebaseSignInError(e, 'sign in');
     }
   }
 
   /// Sign in with Google OAuth
   Future<User> signInWithGoogle({UserRole? selectedRole}) async {
     try {
-      final googleSignIn = await _googleSignIn();
-
       // Start Google Sign-In process
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        throw Exception(
-          'Google Sign-In was cancelled or returned null — possible SHA-1 mismatch or account picker dismissed',
-        );
+        throw Exception('Google sign-in cancelled');
       }
 
       // Get authentication tokens
@@ -160,22 +143,20 @@ class FirebaseAuthService {
           await googleUser.authentication;
 
       if (googleAuth.idToken == null) {
-        throw Exception(
-          'Missing Google ID token. Ensure Web client ID matches this Firebase project '
-          '(Android: default_web_client_id from google-services.json; see ENV_SETUP.md).',
-        );
+        throw Exception('Missing Google ID token');
       }
 
       // Create Firebase credential
       final firebase_auth.AuthCredential credential =
           firebase_auth.GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
-        accessToken: googleAuth.accessToken,
       );
 
       // Sign in to Firebase with Google credential
       final firebase_auth.UserCredential userCredential =
-          await _firebaseAuth.signInWithCredential(credential);
+          await _firebaseAuth
+              .signInWithCredential(credential)
+              .timeout(_firebaseAuthTimeout);
 
       if (userCredential.user == null) {
         throw Exception('Firebase sign-in with Google failed');
@@ -206,21 +187,10 @@ class FirebaseAuthService {
       );
 
       return user;
-    } on PlatformException catch (e, st) {
-      Error.throwWithStackTrace(
-        Exception(
-          'Google Sign-In PlatformException: ${e.toString()} '
-          '(code=${e.code}, message=${e.message ?? ""}, details=${e.details})',
-        ),
-        st,
-      );
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleFirebaseAuthError(e);
-    } catch (e, st) {
-      Error.throwWithStackTrace(
-        Exception('Google sign-in failed: ${e.toString()}'),
-        st,
-      );
+    } catch (e) {
+      throw Exception('Google sign-in failed: $e');
     }
   }
 
@@ -228,15 +198,7 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     try {
       await _firebaseAuth.signOut();
-      if (_injectedGoogleSignIn != null) {
-        await _injectedGoogleSignIn!.signOut();
-      } else {
-        final g = GoogleSignIn(
-          scopes: const <String>['email', 'profile', 'openid'],
-          serverClientId: await resolveGoogleWebClientId(),
-        );
-        await g.signOut();
-      }
+      await _googleSignIn.signOut(); // Also sign out from Google
       await _tokenManager.clearTokens();
       await _secureStorage.delete('firebase_uid');
       await _secureStorage.delete('auth_provider');
@@ -288,35 +250,21 @@ class FirebaseAuthService {
       print(
           '🔥 FirebaseAuthService: Firebase user found: ${firebaseUser.email ?? firebaseUser.uid}');
 
-      // Sync stored JWT with Firebase — if missing/expired, refresh so
-      // getCurrentUser() does not return null while a session still exists.
-      var hasToken = await _tokenManager.isTokenValid();
-      if (!hasToken) {
-        try {
-          final idToken = await firebaseUser.getIdToken(true);
-          if (idToken != null) {
-            await _tokenManager.saveTokens(idToken, '');
-            await _secureStorage.write('firebase_uid', firebaseUser.uid);
-            await _secureStorage.write('auth_provider', 'firebase');
-            hasToken = true;
-          }
-        } catch (e) {
-          print('🔥 FirebaseAuthService: Token refresh failed: $e');
-        }
-      }
-      if (!hasToken) {
-        print('🔥 FirebaseAuthService: Token is not valid after refresh');
+      // Refresh the token from Firebase (auto-refreshes if expired)
+      final freshToken = await firebaseUser.getIdToken();
+      if (freshToken == null) {
+        print('🔥 FirebaseAuthService: Could not refresh token');
         return null;
       }
-      print('🔥 FirebaseAuthService: Token is valid, creating User object');
+      await _tokenManager.saveTokens(freshToken, '');
+      print('🔥 FirebaseAuthService: Token refreshed, creating User object');
 
       return User(
         id: firebaseUser.uid,
         email: firebaseUser.email ?? '',
-        role: UserRole.patient, // Default role
+        role: UserRole.patient,
         fullName: firebaseUser.displayName,
-        displayName: firebaseUser.displayName ??
-            "User", // Temporary, will be replaced by backend
+        displayName: firebaseUser.displayName ?? "User",
         authUid: firebaseUser.uid,
       );
     } catch (e) {
@@ -341,7 +289,9 @@ class FirebaseAuthService {
       final firebaseUser = _firebaseAuth.currentUser;
       if (firebaseUser == null) return null;
 
-      final token = await firebaseUser.getIdToken();
+      final token = await firebaseUser.getIdToken().timeout(
+            const Duration(seconds: 6),
+          );
       return token;
     } catch (e) {
       return null;
@@ -361,23 +311,56 @@ class FirebaseAuthService {
   Future<void> updatePassword(String newPassword) async {
     try {
       await _firebaseAuth.currentUser?.updatePassword(newPassword);
-    } catch (e, st) {
-      Error.throwWithStackTrace(
-        Exception(
-          'Failed to update password. You may need to re-authenticate. '
-          'Underlying error: ${e.toString()}',
-        ),
-        st,
-      );
+    } catch (e) {
+      throw Exception(
+          'Failed to update password. You may need to re-authenticate.');
     }
   }
 
   Exception _handleFirebaseAuthError(firebase_auth.FirebaseAuthException e) {
-    final buf = StringBuffer('FirebaseAuthException: ')
-      ..write(e.toString())
-      ..write(', code=${e.code}')
-      ..write(', message=${e.message ?? ''}');
-    if (e.email != null) buf.write(', email=${e.email}');
-    return Exception(buf.toString());
+    switch (e.code) {
+      case 'email-already-in-use':
+        return Exception('An account with this email already exists');
+      case 'weak-password':
+        return Exception('Password is too weak');
+      case 'invalid-email':
+        return Exception('Invalid email address');
+      case 'user-not-found':
+        return Exception('No account found with this email');
+      case 'wrong-password':
+        return Exception('Incorrect password');
+      case 'invalid-credential':
+      case 'invalid-login-credentials':
+        return Exception('Invalid email or password');
+      case 'user-disabled':
+        return Exception('This account has been disabled');
+      case 'too-many-requests':
+        return Exception('Too many failed attempts. Please try again later');
+      case 'network-request-failed':
+        return Exception(
+            'No connection to Firebase (reCAPTCHA / Google services). Check internet, turn off VPN or system HTTP proxy, and try another network.');
+      default:
+        return Exception('Authentication failed: ${e.message}');
+    }
+  }
+
+  /// Maps platform-level failures (e.g. RecaptchaCallWrapper) to a clear error.
+  Exception _wrapNonFirebaseSignInError(Object e, String action) {
+    final msg = e.toString().toLowerCase();
+    final isLikelyNetworkOrRecaptcha = msg.contains('network error') ||
+        msg.contains('unreachable') ||
+        msg.contains('failed to connect') ||
+        msg.contains('timeout') ||
+        msg.contains('recaptcha') ||
+        msg.contains('internal error has occurred');
+    if (isLikelyNetworkOrRecaptcha) {
+      return Exception(
+          'Firebase could not complete $action (reCAPTCHA / device network to Google). '
+          'On emulator: use an image with Google Play, clear Settings → network proxy, '
+          'or run: adb shell settings delete global http_proxy. '
+          'Then retry on Wi-Fi without VPN, or a physical device with updated Play services. '
+          'Original: $e');
+    }
+    return Exception('Firebase $action failed: $e');
   }
 }

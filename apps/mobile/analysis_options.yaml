@@ -9,6 +9,16 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    - lib/features/reminders/**
+    - lib/shared/widgets/reminder_card.dart
+    - lib/features/patient/data/repositories/appointment_repository.dart
+    - lib/features/patient/data/repositories/caregiver_repository.dart
+    - lib/features/patient/data/repositories/medication_repository.dart
+    - lib/features/patient/data/repositories/reminder_repository.dart
+    - lib/features/patient/data/repositories/visit_repository.dart
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

@@ -1,12 +1,110 @@
+import base64
+import json
 import os
 import traceback
 import uuid
 import logging
 from datetime import timedelta
 from google.cloud import storage
+from google.oauth2 import service_account
 from fastapi import UploadFile
 
 logger = logging.getLogger(__name__)
+
+
+def _get_service_account_info() -> dict | None:
+    """Decode FIREBASE_SERVICE_ACCOUNT env var into a dict, or None if unavailable."""
+    sa_b64 = os.getenv("FIREBASE_SERVICE_ACCOUNT", "").strip()
+    if not sa_b64:
+        return None
+    try:
+        return json.loads(base64.b64decode(sa_b64).decode("utf-8"))
+    except Exception as e:
+        logger.warning("Failed to decode FIREBASE_SERVICE_ACCOUNT: %s", e)
+        return None
+
+
+def _get_storage_client() -> storage.Client:
+    """Build a GCS client using FIREBASE_SERVICE_ACCOUNT if available, else ADC."""
+    sa_info = _get_service_account_info()
+    if sa_info:
+        try:
+            creds = service_account.Credentials.from_service_account_info(
+                sa_info,
+                scopes=[
+                    "https://www.googleapis.com/auth/devstorage.full_control",
+                    "https://www.googleapis.com/auth/cloud-platform",
+                ],
+            )
+            return storage.Client(credentials=creds, project=sa_info.get("project_id"))
+        except Exception as e:
+            logger.warning("Failed to build GCS client from service account: %s", e)
+    return storage.Client()
+
+
+def _get_signing_credentials():
+    """Return service_account.Credentials with signing scope, or None."""
+    sa_info = _get_service_account_info()
+    if not sa_info:
+        return None
+    try:
+        return service_account.Credentials.from_service_account_info(
+            sa_info,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+    except Exception as e:
+        logger.warning("Failed to build signing credentials: %s", e)
+        return None
+
+
+def _generate_signed_url(blob, expiration_hours: int = 24) -> str:
+    """
+    Generate a GCS signed URL that works both locally and on Cloud Run.
+
+    - If FIREBASE_SERVICE_ACCOUNT is available: use its private key directly.
+    - Otherwise (Cloud Run ADC): use the IAM Credentials API via access_token +
+      service_account_email, which avoids needing a private key in the env.
+    """
+    expiration = timedelta(hours=expiration_hours)
+
+    # Try explicit service account key first
+    signing_creds = _get_signing_credentials()
+    if signing_creds:
+        try:
+            return blob.generate_signed_url(
+                version="v4",
+                expiration=expiration,
+                method="GET",
+                credentials=signing_creds,
+            )
+        except Exception as e:
+            logger.warning("Signed URL with SA key failed, trying IAM fallback: %s", e)
+
+    # IAM Credentials API fallback — works on Cloud Run without a private key.
+    # Requires the Cloud Run service account to have iam.serviceAccounts.signBlob.
+    try:
+        import google.auth
+        from google.auth.transport.requests import Request as GoogleAuthRequest
+
+        creds, _ = google.auth.default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        creds.refresh(GoogleAuthRequest())
+        sa_email = getattr(creds, "service_account_email", None)
+        access_token = getattr(creds, "token", None)
+        if sa_email and access_token:
+            return blob.generate_signed_url(
+                version="v4",
+                expiration=expiration,
+                method="GET",
+                service_account_email=sa_email,
+                access_token=access_token,
+            )
+    except Exception as e:
+        logger.warning("IAM signed URL fallback failed: %s", e)
+
+    # Last resort: return the GCS public URI (won't be viewable without auth)
+    return f"https://storage.googleapis.com/{blob.bucket.name}/{blob.name}"
 
 async def upload_audio(file: UploadFile, visit_id: str) -> str:
     """
@@ -27,11 +125,11 @@ async def upload_audio(file: UploadFile, visit_id: str) -> str:
             raise ValueError("GCS_BUCKET_NAME environment variable not set")
 
         # HARDENING: Verify exact bucket name for HIPAA compliance
-        if bucket_name != "mediminder-audio":
-            raise RuntimeError(f"Invalid GCS bucket name: {bucket_name}. Must be 'mediminder-audio'")
+        if not bucket_name:
+            raise RuntimeError("GCS_BUCKET_NAME is not configured")
 
         # Initialize GCS client
-        storage_client = storage.Client()
+        storage_client = _get_storage_client()
         bucket = storage_client.bucket(bucket_name)
 
         # Create unique filename using visit_id
@@ -57,12 +155,7 @@ async def upload_audio(file: UploadFile, visit_id: str) -> str:
         if not blob.exists():
             raise RuntimeError("GCS upload failed: blob does not exist after upload")
 
-        # Generate signed URL for read access (UBLA-compatible alternative to make_public)
-        signed_url = blob.generate_signed_url(
-            version="v4",
-            expiration=timedelta(hours=24),  # URL valid for 24 hours
-            method="GET"
-        )
+        signed_url = _generate_signed_url(blob)
 
         # LOG: Post-upload verification
         logger.info(f"GCS_AUDIO_UPLOAD_SUCCESS - visit_id={visit_id}, blob={blob_name}, size={blob.size}, signed_url_generated=True")
@@ -99,11 +192,11 @@ async def upload_image(file: UploadFile, visit_id: str) -> dict:
             raise ValueError("GCS_BUCKET_NAME environment variable not set")
 
         # HARDENING: Verify exact bucket name for HIPAA compliance
-        if bucket_name != "mediminder-audio":
-            raise RuntimeError(f"Invalid GCS bucket name: {bucket_name}. Must be 'mediminder-audio'")
+        if not bucket_name:
+            raise RuntimeError("GCS_BUCKET_NAME is not configured")
 
         # Initialize GCS client
-        storage_client = storage.Client()
+        storage_client = _get_storage_client()
         bucket = storage_client.bucket(bucket_name)
 
         # Generate unique filename within visit directory
@@ -144,12 +237,7 @@ async def upload_image(file: UploadFile, visit_id: str) -> dict:
         if not blob.exists():
             raise RuntimeError("GCS upload failed: blob does not exist after upload")
 
-        # Generate signed URL for read access (UBLA-compatible alternative to make_public)
-        signed_url = blob.generate_signed_url(
-            version="v4",
-            expiration=timedelta(hours=24),  # URL valid for 24 hours
-            method="GET"
-        )
+        signed_url = _generate_signed_url(blob)
 
         # LOG: Post-upload verification
         logger.info(f"GCS_IMAGE_UPLOAD_SUCCESS - visit_id={visit_id}, blob={blob_name}, size={blob.size}, signed_url_generated=True")

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../shared/utilities/greeting_utils.dart';
 import '../../data/models/patient_task.dart';
 import '../../data/services/patient_tasks_api_service.dart';
@@ -19,7 +20,8 @@ class PatientHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
-class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
+class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
+    with WidgetsBindingObserver {
   final AuthService _authService = AuthService();
   final PatientTasksApiService _tasksApiService = PatientTasksApiService();
   List<PatientTask> _tasks = [];
@@ -27,13 +29,59 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
   bool _isLoadingUpNext = true;
   Map<String, dynamic>? _upNextReminder;
   List<Map<String, dynamic>> _todayReminders = [];
+  List<Map<String, dynamic>> _upcomingReminders = [];
   bool _remindersError = false;
+  bool _showAllTodoItems = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fetchTasks();
     _fetchUpNextReminder();
+    _requestNotificationPermissions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchTasks();
+      _fetchUpNextReminder();
+    }
+  }
+
+  Future<void> _requestNotificationPermissions() async {
+    final svc = NotificationService();
+    await svc.requestPermissions();
+    await svc.requestExactAlarmPermission();
+  }
+
+  Future<void> _rescheduleAllNotifications(List<dynamic> reminders) async {
+    final svc = NotificationService();
+    final now = DateTime.now();
+    for (final raw in reminders) {
+      if (raw is! Map) continue;
+      final scheduledStr = raw['scheduled_time']?.toString() ?? '';
+      final scheduledTime = DateTime.tryParse(scheduledStr)?.toLocal();
+      if (scheduledTime == null || scheduledTime.isBefore(now)) continue;
+      final id = raw['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      try {
+        await svc.scheduleFromReminderData(
+          reminderId: id,
+          medicationName: raw['title']?.toString() ?? 'Reminder',
+          dosage: '',
+          scheduledTime: scheduledTime,
+          notificationBody: raw['message']?.toString(),
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> _fetchTasks() async {
@@ -75,20 +123,24 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         final today = data['today'] as List<dynamic>? ?? [];
         if (!mounted) return;
         setState(() {
-          _upNextReminder =
-              upcoming.isNotEmpty ? upcoming.first as Map<String, dynamic> : null;
-          _todayReminders = today
-              .whereType<Map<String, dynamic>>()
-              .toList();
+          _upNextReminder = upcoming.isNotEmpty
+              ? upcoming.first as Map<String, dynamic>
+              : null;
+          _todayReminders = today.whereType<Map<String, dynamic>>().toList();
+          _upcomingReminders =
+              upcoming.whereType<Map<String, dynamic>>().toList();
           _isLoadingUpNext = false;
           _remindersError = false;
         });
+        // Reschedule notifications immediately on login so nothing is missed
+        _rescheduleAllNotifications([...upcoming, ...today]);
         return;
       }
       if (!mounted) return;
       setState(() {
         _upNextReminder = null;
         _todayReminders = [];
+        _upcomingReminders = [];
         _isLoadingUpNext = false;
         _remindersError = true;
       });
@@ -97,6 +149,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       setState(() {
         _upNextReminder = null;
         _todayReminders = [];
+        _upcomingReminders = [];
         _isLoadingUpNext = false;
         _remindersError = true;
       });
@@ -210,9 +263,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Coming soon')),
-                  );
+                  context.go('/patient/notifications');
                 },
               ),
             ],
@@ -265,14 +316,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final reminder = _upNextReminder;
     final title = reminder?['title'] as String?;
     final message = reminder?['message'] as String?;
-    final previewText = title?.trim().isNotEmpty == true ? title! : (message ?? '');
     final scheduledTime = reminder?['scheduled_time'] as String?;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final maxPreviewHeight = screenHeight < 700
-        ? 120.0
-        : screenHeight < 850
-            ? 160.0
-            : 220.0;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -327,26 +371,19 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
           else if (reminder == null)
             Text(
               'No upcoming reminders',
-            style: TextStyle(
+              style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             )
           else ...[
-            // Long AI-generated preview text can exceed card height.
-            // Keep it readable by allowing vertical scrolling inside the card.
-            ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: maxPreviewHeight),
-              child: SingleChildScrollView(
-                child: Text(
-                  previewText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+            Text(
+              title?.trim().isNotEmpty == true ? title! : (message ?? ''),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 4),
@@ -359,60 +396,80 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             ),
           ],
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: reminder == null
-                      ? null
-                      : () {
-                    // TODO: Mark as taken
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Marked as taken!')),
-                    );
+          if (reminder == null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/patient/reminders?add=1'),
+                icon: const Icon(Icons.add),
+                label: const Text(
+                  'Add Reminder',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                ),
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _handleReminderAction(
+                          reminder['id']?.toString(), 'complete');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: const Text(
+                      'Take Now',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: () {
+                    _handleReminderAction(
+                        reminder['id']?.toString(), 'snooze');
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Theme.of(context).colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: const Text(
-                    'Take Now',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  icon: const Icon(Icons.snooze, color: Colors.white),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    padding: const EdgeInsets.all(12),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              IconButton(
-                onPressed: reminder == null
-                    ? null
-                    : () {
-                  // TODO: Snooze reminder
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Reminder snoozed for 1 hour')),
-                  );
-                },
-                icon: const Icon(Icons.snooze, color: Colors.white),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  padding: const EdgeInsets.all(12),
-                ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );
   }
 
   Widget _buildTodaysSchedule() {
+    final scheduleReminders = _todayReminders.where((reminder) {
+      final rawType = (reminder['reminder_type'] ?? reminder['type'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      return rawType == 'medication' || rawType == 'appointment';
+    }).toList();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -431,24 +488,24 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
           if (_isLoadingUpNext)
             const Center(child: CircularProgressIndicator())
           else if (_remindersError)
-              Text(
+            Text(
               'Nothing scheduled for today',
-                style: TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 color: Theme.of(context).colorScheme.secondary,
               ),
             )
-          else if (_todayReminders.isEmpty)
+          else if (scheduleReminders.isEmpty)
             Text(
               'Nothing scheduled for today',
-                  style: TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 color: Theme.of(context).colorScheme.secondary,
               ),
             )
           else
             Column(
-              children: _todayReminders.map((reminder) {
+              children: scheduleReminders.map((reminder) {
                 final title = reminder['title'] as String?;
                 final message = reminder['message'] as String?;
                 final scheduledTime = reminder['scheduled_time'] as String?;
@@ -476,16 +533,15 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
+                            children: [
+                              Text(
                                 title?.trim().isNotEmpty == true
                                     ? title!
                                     : (message ?? ''),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                                  color:
-                                      Theme.of(context).colorScheme.primary,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                               Text(
@@ -496,10 +552,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                                       .colorScheme
                                       .secondary
                                       .withOpacity(0.7),
-                ),
-              ),
-            ],
-          ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -509,15 +565,26 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
               }).toList(),
             ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                context.go('/patient/reminders');
-              },
-              icon: const Icon(Icons.add_alert_outlined),
-              label: const Text('Add Reminder'),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    context.go('/patient/reminders');
+                  },
+                  child: const Text('View All'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    context.go('/patient/reminders?add=1');
+                  },
+                  child: const Text('Add Item'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -525,6 +592,40 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
   }
 
   Widget _buildTodoList() {
+    final allReminderTasks = [..._todayReminders, ..._upcomingReminders];
+    final reminderTasks = allReminderTasks
+        .where((r) {
+          final rawType = (r['reminder_type'] ?? r['type'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          return rawType == 'task';
+        })
+        .toList();
+    final hasAnyTodos = _tasks.isNotEmpty || reminderTasks.isNotEmpty;
+    final todoRows = <Map<String, String>>[
+      ..._tasks.map((task) => {
+            'title': task.title,
+            'due': _formatTaskCreatedAt(task.createdAt),
+          }),
+      ...reminderTasks.map((taskReminder) {
+        final title = (taskReminder['title'] as String?)?.trim().isNotEmpty ==
+                true
+            ? taskReminder['title'] as String
+            : 'Task reminder';
+        final due = _formatDueText(
+          taskReminder['scheduled_time']?.toString(),
+        );
+        return {
+          'title': title,
+          'due': due,
+        };
+      }),
+    ];
+    final visibleTodoRows =
+        _showAllTodoItems ? todoRows : todoRows.take(3).toList();
+    final hasHiddenRows = todoRows.length > 3;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -540,7 +641,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       ),
       child: _isLoadingTasks
           ? const Center(child: CircularProgressIndicator())
-          : _tasks.isEmpty
+          : !hasAnyTodos
               ? const Center(
                   child: Text(
                     'No tasks yet',
@@ -549,32 +650,37 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                 )
               : Column(
                   children: [
-                    ..._tasks.map((task) {
+                    ...visibleTodoRows.map((row) {
                       return Column(
                         children: [
                           _buildTodoItem(
-                            task.title,
-                            _formatTaskCreatedAt(task.createdAt),
+                            row['title'] ?? 'Task',
+                            row['due'] ?? 'Upcoming',
                             false,
                           ),
                           const Divider(height: 12),
                         ],
                       );
                     }),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          // TODO: Navigate to full todo list
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Task'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                    if (hasHiddenRows)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showAllTodoItems = !_showAllTodoItems;
+                            });
+                          },
+                          icon: Icon(
+                            _showAllTodoItems
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                          ),
+                          label: Text(
+                            _showAllTodoItems ? 'Show less' : 'Show more',
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
     );
@@ -638,7 +744,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     if (scheduledTime == null || scheduledTime.trim().isEmpty) {
       return 'Upcoming';
     }
-    final scheduled = DateTime.tryParse(scheduledTime);
+    final scheduled = DateTime.tryParse(scheduledTime)?.toLocal();
     if (scheduled == null) {
       return 'Upcoming';
     }
@@ -663,7 +769,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     if (scheduledTime == null || scheduledTime.trim().isEmpty) {
       return '';
     }
-    final scheduled = DateTime.tryParse(scheduledTime);
+    final scheduled = DateTime.tryParse(scheduledTime)?.toLocal();
     if (scheduled == null) {
       return scheduledTime;
     }
@@ -672,6 +778,34 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final period = hour >= 12 ? 'PM' : 'AM';
     final hour12 = hour % 12 == 0 ? 12 : hour % 12;
     return '$hour12:$minute $period';
+  }
+
+  Future<void> _handleReminderAction(String? reminderId, String action) async {
+    if (reminderId == null || reminderId.isEmpty) return;
+    try {
+      final accessToken = await _authService.getAccessToken();
+      if (accessToken == null) throw Exception('Authentication required');
+      final response = await http.post(
+        Uri.parse(
+            '${Environment.apiBaseUrl}/api/reminders/$reminderId/$action'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode != 200) throw Exception('Action failed');
+      await _fetchUpNextReminder();
+      if (!mounted) return;
+      final actionText = action == 'complete' ? 'taken' : 'snoozed';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reminder $actionText')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to update reminder')),
+      );
+    }
   }
 
 }

@@ -124,12 +124,31 @@ async def send_caregiver_alert_email(
     to_email: str,
     patient_name: str,
     alert_message: str,
-    alert_id: Optional[str] = None
+    alert_id: Optional[str] = None,
+    caregiver_firebase_uid: Optional[str] = None,
 ) -> bool:
     """
     Send a caregiver alert email.
+    Respects users.caregiver_alert_email_enabled when caregiver_firebase_uid is set.
     """
-    
+    if os.getenv("CAREGIVER_ALERT_EMAIL", "").strip().lower() not in ("1", "true", "yes"):
+        logger.info("Caregiver alert email disabled (set CAREGIVER_ALERT_EMAIL=true to enable)")
+        return False
+
+    if not (to_email or "").strip():
+        logger.info("No caregiver email on file; skipping caregiver alert email")
+        return False
+
+    if (caregiver_firebase_uid or "").strip():
+        from services.db_service import get_caregiver_alert_email_enabled
+
+        if not await get_caregiver_alert_email_enabled(caregiver_firebase_uid.strip()):
+            logger.info(
+                "Caregiver alert email skipped (user opted out) uid=%s",
+                caregiver_firebase_uid,
+            )
+            return False
+
     subject = f"Alert: {patient_name} - Reminder Update"
     
     # You don't need a custom HTML body here because send_reminder_email 

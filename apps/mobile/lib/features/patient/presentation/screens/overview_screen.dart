@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/config/environment.dart';
 import '../../data/services/patient_api_service.dart';
@@ -35,6 +36,14 @@ class _OverviewScreenState extends State<OverviewScreen>
   String? _caregiverError;
   bool _isUpdatingShare = false;
 
+  // Lab / scan state
+  List<Map<String, dynamic>> _labResults = [];
+  List<Map<String, dynamic>> _scannedDocs = [];
+  bool _isLoadingLabResults = true;
+  bool _isLoadingScannedDocs = true;
+  String? _labResultsError;
+  String? _scannedDocsError;
+
   // Selection state
   bool _isSelectionMode = false;
   final Set<String> _selectedSummaryIds = {};
@@ -46,6 +55,8 @@ class _OverviewScreenState extends State<OverviewScreen>
     _searchController.addListener(_onSearchChanged);
     _loadSeenSummaryIds().then((_) => _fetchSummaries());
     _loadCaregiver();
+    _fetchLabResults();
+    _fetchScannedDocs();
   }
 
   @override
@@ -103,9 +114,15 @@ class _OverviewScreenState extends State<OverviewScreen>
         authToken: authToken,
       );
 
-      final status = await apiService.getLatestVisitStatus();
+      Map<String, dynamic> status = {'processing': false};
+      try {
+        status = await apiService.getLatestVisitStatus();
+        PatientApiService.setCachedLatestVisitStatus(status);
+      } catch (_) {
+        // Keep summaries usable even if status endpoint is down.
+      }
+
       final summaries = await apiService.getSummaries();
-      PatientApiService.setCachedLatestVisitStatus(status);
       PatientApiService.setCachedSummaries(summaries);
       final newSummaryIds = summaries
           .map((summary) => summary.summaryId)
@@ -211,6 +228,58 @@ class _OverviewScreenState extends State<OverviewScreen>
       setState(() {
         _caregiverError = e.toString();
         _isLoadingCaregiver = false;
+      });
+    }
+  }
+
+  Future<void> _fetchLabResults() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingLabResults = true;
+      _labResultsError = null;
+    });
+    try {
+      final token = await AuthService().getAccessToken();
+      if (token == null) throw Exception('Authentication required');
+      final apiService =
+          PatientApiService(baseUrl: Environment.apiBaseUrl, authToken: token);
+      final rows = await apiService.getLabResults();
+      if (!mounted) return;
+      setState(() {
+        _labResults = rows;
+        _isLoadingLabResults = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _labResultsError = e.toString();
+        _isLoadingLabResults = false;
+      });
+    }
+  }
+
+  Future<void> _fetchScannedDocs() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingScannedDocs = true;
+      _scannedDocsError = null;
+    });
+    try {
+      final token = await AuthService().getAccessToken();
+      if (token == null) throw Exception('Authentication required');
+      final apiService =
+          PatientApiService(baseUrl: Environment.apiBaseUrl, authToken: token);
+      final rows = await apiService.getScannedDocs();
+      if (!mounted) return;
+      setState(() {
+        _scannedDocs = rows;
+        _isLoadingScannedDocs = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _scannedDocsError = e.toString();
+        _isLoadingScannedDocs = false;
       });
     }
   }
@@ -915,15 +984,175 @@ class _OverviewScreenState extends State<OverviewScreen>
     return '$hour12:$minute $period';
   }
 
+  Future<void> _openDocumentUrl(String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid document URL')),
+      );
+      return;
+    }
+
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open document')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to open document')),
+      );
+    }
+  }
+
   Widget _buildLabResultsTab() {
-    return const Center(
-      child: Text('Lab Results - Coming Soon'),
+    if (_isLoadingLabResults) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_labResultsError != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Failed to load lab results',
+                style: TextStyle(color: Colors.grey[700])),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _fetchLabResults,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_labResults.isEmpty) {
+      return Center(
+        child: Text('No lab results found',
+            style: TextStyle(color: Colors.grey[600])),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _fetchLabResults,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: _labResults.length,
+        itemBuilder: (context, index) {
+          final item = _labResults[index];
+          final title = (item['visit_title'] ?? 'Lab report').toString();
+          final preview = (item['result_preview'] ?? '').toString();
+          final imageUrl = (item['image_url'] ?? '').toString();
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: const Icon(Icons.science),
+              title: Text(title),
+              subtitle: Text(
+                preview.isEmpty ? 'OCR pending' : preview,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: imageUrl.isNotEmpty
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Open',
+                          icon: const Icon(Icons.open_in_new, size: 20),
+                          onPressed: () => _openDocumentUrl(imageUrl),
+                        ),
+                        IconButton(
+                          tooltip: 'Download',
+                          icon: const Icon(Icons.download_rounded, size: 20),
+                          onPressed: () => _openDocumentUrl(imageUrl),
+                        ),
+                      ],
+                    )
+                  : null,
+              onTap: imageUrl.isNotEmpty ? () => _openDocumentUrl(imageUrl) : null,
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildScannedDocsTab() {
-    return const Center(
-      child: Text('Scanned Documents - Coming Soon'),
+    if (_isLoadingScannedDocs) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_scannedDocsError != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Failed to load scanned documents',
+                style: TextStyle(color: Colors.grey[700])),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _fetchScannedDocs,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_scannedDocs.isEmpty) {
+      return Center(
+        child: Text('No scanned documents yet',
+            style: TextStyle(color: Colors.grey[600])),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _fetchScannedDocs,
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: _scannedDocs.length,
+        itemBuilder: (context, index) {
+          final item = _scannedDocs[index];
+          final title = (item['visit_title'] ?? 'Scanned report').toString();
+          final preview = (item['ocr_preview'] ?? '').toString();
+          final imageUrl = (item['image_url'] ?? '').toString();
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: Text(title),
+              subtitle: Text(
+                preview.isEmpty ? 'Saved image report' : preview,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: imageUrl.isNotEmpty
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Open',
+                          icon: const Icon(Icons.open_in_new, size: 20),
+                          onPressed: () => _openDocumentUrl(imageUrl),
+                        ),
+                        IconButton(
+                          tooltip: 'Download',
+                          icon: const Icon(Icons.download_rounded, size: 20),
+                          onPressed: () => _openDocumentUrl(imageUrl),
+                        ),
+                      ],
+                    )
+                  : null,
+              onTap: imageUrl.isNotEmpty ? () => _openDocumentUrl(imageUrl) : null,
+            ),
+          );
+        },
+      ),
     );
   }
 }
