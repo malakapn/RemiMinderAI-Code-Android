@@ -3,15 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../shared/utilities/greeting_utils.dart';
-import '../../data/models/summary_item.dart';
-import '../../data/services/patient_api_service.dart';
 import '../widgets/widgets.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
@@ -23,10 +20,6 @@ class PatientHomeScreen extends ConsumerStatefulWidget {
 
 class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
     with WidgetsBindingObserver {
-  static const Color _visitTodoMedColor = Color(0xFF00897B);
-  static const Color _visitTodoFollowColor = Color(0xFFC9A227);
-  static const Color _visitTodoLifestyleColor = Color(0xFF1976D2);
-
   final AuthService _authService = AuthService();
   bool _isLoadingUpNext = true;
   Map<String, dynamic>? _upNextReminder;
@@ -34,19 +27,14 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   List<Map<String, dynamic>> _upcomingReminders = [];
   bool _remindersError = false;
 
-  bool _loadingVisitSummaryTodos = true;
-  List<String> _visitSummaryMedications = [];
-  List<String> _visitSummaryFollowUps = [];
-  List<String> _visitSummaryLifestyle = [];
-  final Set<String> _checkedVisitSummaryKeys = {};
-  String? _visitSummarySourceLabel;
+  /// Task rows currently sending "complete" to the API.
+  final Set<String> _completingTaskIds = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _fetchUpNextReminder();
-    _fetchVisitSummaryTodos();
     _requestNotificationPermissions();
   }
 
@@ -60,7 +48,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _fetchUpNextReminder();
-      _fetchVisitSummaryTodos();
     }
   }
 
@@ -147,121 +134,159 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
     }
   }
 
-  Future<void> _fetchVisitSummaryTodos() async {
+  List<Map<String, dynamic>> _collectMyTasks() {
+    bool isOpen(Map<String, dynamic> r) {
+      final s = (r['display_status'] ?? r['status'] ?? 'pending')
+          .toString()
+          .toLowerCase();
+      return s != 'completed' &&
+          s != 'complete' &&
+          s != 'skipped' &&
+          s != 'missed';
+    }
+
+    bool isTask(Map<String, dynamic> r) {
+      final t =
+          (r['reminder_type'] ?? r['type'] ?? '').toString().toLowerCase();
+      return t == 'task';
+    }
+
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final r in [..._todayReminders, ..._upcomingReminders]) {
+      if (!isTask(r) || !isOpen(r)) continue;
+      final id = r['id']?.toString() ?? '';
+      if (id.isEmpty || seen.contains(id)) continue;
+      seen.add(id);
+      out.add(r);
+    }
+    return out;
+  }
+
+  Widget _buildMyTasks() {
+    final tasks = _collectMyTasks();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: _isLoadingUpNext
+          ? const Center(child: CircularProgressIndicator())
+          : tasks.isEmpty
+              ? Text(
+                  'No tasks yet. Add reminders as "Task" from Reminders.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...tasks.map((r) {
+                      final id = r['id']?.toString() ?? '';
+                      final title = (r['title']?.toString() ?? '').trim();
+                      final body = (r['message']?.toString() ?? '').trim();
+                      final busy = _completingTaskIds.contains(id);
+                      final headline = title.isNotEmpty
+                          ? title
+                          : (body.isNotEmpty ? body : 'Task');
+                      return Padding(
+                        key: ValueKey<String>('my-task-$id'),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          secondary: busy
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(4.0),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                )
+                              : null,
+                          value: false,
+                          activeColor:
+                              Theme.of(context).colorScheme.primary,
+                          title: Text(
+                            headline,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          subtitle: body.isNotEmpty && title.isNotEmpty
+                              ? Text(
+                                  body,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .secondary,
+                                  ),
+                                )
+                              : null,
+                          onChanged: busy
+                              ? null
+                              : (v) {
+                                  if (v == true) {
+                                    _completeMyTask(id);
+                                  }
+                                },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+    );
+  }
+
+  Future<void> _completeMyTask(String id) async {
+    if (id.isEmpty) return;
+    setState(() => _completingTaskIds.add(id));
     try {
       final accessToken = await _authService.getAccessToken();
-      if (accessToken == null || accessToken.isEmpty) {
-        if (!mounted) return;
-        setState(() {
-          _loadingVisitSummaryTodos = false;
-          _visitSummaryMedications = [];
-          _visitSummaryFollowUps = [];
-          _visitSummaryLifestyle = [];
-          _visitSummarySourceLabel = null;
-        });
-        return;
-      }
-
-      final api = PatientApiService(
-        baseUrl: Environment.apiBaseUrl,
-        authToken: accessToken,
+      if (accessToken == null) throw Exception('Authentication required');
+      final response = await http.post(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id/complete'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
       );
-      final summaries = await api.getSummaries();
-      if (summaries.isEmpty) {
-        if (!mounted) return;
-        setState(() {
-          _visitSummaryMedications = [];
-          _visitSummaryFollowUps = [];
-          _visitSummaryLifestyle = [];
-          _loadingVisitSummaryTodos = false;
-          _visitSummarySourceLabel = null;
-        });
-        return;
-      }
-
-      final visitId = summaries.first.visitId;
-      final sourceSummary = summaries.first;
-      final structured = await api.getVisitSummaryStructured(visitId);
+      if (response.statusCode != 200) throw Exception('Action failed');
+      try {
+        await NotificationService().cancelFromReminderId(id);
+      } catch (_) {}
+      await _fetchUpNextReminder();
       if (!mounted) return;
-
-      if (structured['status'] == 'processing') {
-        setState(() {
-          _visitSummaryMedications = [];
-          _visitSummaryFollowUps = [];
-          _visitSummaryLifestyle = [];
-          _loadingVisitSummaryTodos = false;
-          _visitSummarySourceLabel =
-              _formatVisitSourceLine(sourceSummary);
-        });
-        return;
-      }
-
-      setState(() {
-        _visitSummaryMedications =
-            _toSummaryStringList(structured['medications']);
-        _visitSummaryFollowUps =
-            _toSummaryStringList(structured['decisions']);
-        _visitSummaryLifestyle = _toSummaryStringList(structured['actions']);
-        _loadingVisitSummaryTodos = false;
-        _visitSummarySourceLabel = _formatVisitSourceLine(sourceSummary);
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task completed')),
+      );
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _loadingVisitSummaryTodos = false;
-        _visitSummaryMedications = [];
-        _visitSummaryFollowUps = [];
-        _visitSummaryLifestyle = [];
-        _visitSummarySourceLabel = null;
-      });
-    }
-  }
-
-  List<String> _toSummaryStringList(dynamic value) {
-    if (value is List) {
-      return value
-          .map((e) => e.toString().trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    }
-    if (value is String && value.trim().isNotEmpty) {
-      return [value.trim()];
-    }
-    return [];
-  }
-
-  /// e.g. "From: Medical Visit · May 2, 2026"
-  String _formatVisitSourceLine(SummaryItem s) {
-    final title = (s.title?.trim().isNotEmpty == true)
-        ? s.title!.trim()
-        : '${s.specialty} Visit';
-    DateTime? dt;
-    final vd = s.visitDate;
-    if (vd != null && vd.trim().isNotEmpty) {
-      dt = DateTime.tryParse(vd.trim());
-    }
-    dt ??= DateTime.tryParse(s.summaryCreatedAt);
-    final datePart =
-        dt != null ? DateFormat('MMM d, y').format(dt.toLocal()) : '';
-    if (datePart.isEmpty) {
-      return 'From: $title';
-    }
-    return 'From: $title · $datePart';
-  }
-
-  void _toggleVisitSummaryCheck(String key) {
-    setState(() {
-      if (_checkedVisitSummaryKeys.contains(key)) {
-        _checkedVisitSummaryKeys.remove(key);
-      } else {
-        _checkedVisitSummaryKeys.add(key);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to update task')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _completingTaskIds.remove(id));
       }
-    });
-  }
-
-  void _openSetReminderFromSummary(String medicationLine) {
-    final encoded = Uri.encodeComponent(medicationLine);
-    context.go('/patient/reminders?add=1&prefill_title=$encoded');
+    }
   }
 
   @override
@@ -402,13 +427,12 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
 
                 const SizedBox(height: 32),
 
-                // Visit summary checklist (latest AI summary)
                 const SectionHeader(
-                  title: 'After-visit to-dos',
-                  icon: Icons.health_and_safety_outlined,
+                  title: 'My Tasks',
+                  icon: Icons.checklist_outlined,
                 ),
                 const SizedBox(height: 16),
-                _buildVisitSummaryTodos(),
+                _buildMyTasks(),
 
                 // Extra space for bottom navigation - this will be handled by the app shell
                 const SizedBox(height: 120),
@@ -696,204 +720,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildVisitSummaryTodos() {
-    final hasItems = _visitSummaryMedications.isNotEmpty ||
-        _visitSummaryFollowUps.isNotEmpty ||
-        _visitSummaryLifestyle.isNotEmpty;
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: _loadingVisitSummaryTodos
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: CircularProgressIndicator(),
-              ),
-            )
-          : !hasItems
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_visitSummarySourceLabel != null) ...[
-                      Text(
-                        _visitSummarySourceLabel!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    Text(
-                      'When your latest visit summary is ready, medications, follow-ups, and lifestyle actions will show here.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).colorScheme.secondary,
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_visitSummarySourceLabel != null) ...[
-                      Text(
-                        _visitSummarySourceLabel!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (_visitSummaryMedications.isNotEmpty) ...[
-                      Text(
-                        'Medications',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _visitTodoMedColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ..._visitSummaryMedications.asMap().entries.map((e) {
-                        final key = 'med:${e.key}';
-                        final done = _checkedVisitSummaryKeys.contains(key);
-                        return _visitSummaryTodoTile(
-                          keyId: key,
-                          label: e.value,
-                          isDone: done,
-                          accentColor: _visitTodoMedColor,
-                          trailing: TextButton.icon(
-                            onPressed: () =>
-                                _openSetReminderFromSummary(e.value),
-                            icon: const Icon(Icons.add_alarm, size: 18),
-                            label: const Text('+ Set reminder'),
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 16),
-                    ],
-                    if (_visitSummaryFollowUps.isNotEmpty) ...[
-                      Text(
-                        'Follow-up appointments & decisions',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _visitTodoFollowColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ..._visitSummaryFollowUps.asMap().entries.map((e) {
-                        final key = 'follow:${e.key}';
-                        final done = _checkedVisitSummaryKeys.contains(key);
-                        return _visitSummaryTodoTile(
-                          keyId: key,
-                          label: e.value,
-                          isDone: done,
-                          accentColor: _visitTodoFollowColor,
-                          trailing: null,
-                        );
-                      }),
-                      const SizedBox(height: 16),
-                    ],
-                    if (_visitSummaryLifestyle.isNotEmpty) ...[
-                      Text(
-                        'Lifestyle actions',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _visitTodoLifestyleColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ..._visitSummaryLifestyle.asMap().entries.map((e) {
-                        final key = 'life:${e.key}';
-                        final done = _checkedVisitSummaryKeys.contains(key);
-                        return _visitSummaryTodoTile(
-                          keyId: key,
-                          label: e.value,
-                          isDone: done,
-                          accentColor: _visitTodoLifestyleColor,
-                          trailing: null,
-                        );
-                      }),
-                    ],
-                  ],
-                ),
-    );
-  }
-
-  Widget _visitSummaryTodoTile({
-    required String keyId,
-    required String label,
-    required bool isDone,
-    required Color accentColor,
-    Widget? trailing,
-  }) {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: accentColor.withOpacity(0.07),
-            border: Border(
-              left: BorderSide(width: 4, color: accentColor),
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Checkbox(
-                value: isDone,
-                activeColor: accentColor,
-                onChanged: (_) => _toggleVisitSummaryCheck(keyId),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      decoration:
-                          isDone ? TextDecoration.lineThrough : null,
-                      color: isDone
-                          ? Theme.of(context)
-                              .colorScheme
-                              .secondary
-                              .withOpacity(0.6)
-                          : Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-              if (trailing != null) trailing,
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
     );
   }
 
