@@ -196,26 +196,32 @@ class AuthNotifier extends Notifier<AuthState> {
 
   /// Caregivers without patients or a pending invite may still sign in; the
   /// caregiver home screen shows an empty state until they connect.
+  ///
+  /// Never throws — invite/team checks must not block sign-in.
   Future<void> _ensureCaregiverHasInviteOrTeam(UserProfile profile) async {
     if (profile.role != 'caregiver') return;
 
-    final authService = ref.read(_authServiceProvider);
-    final careTeam = CareTeamApiService(authService: authService);
-
-    var hasPatient = false;
     try {
-      final patients = await careTeam.getMyPatients();
-      hasPatient = patients.isNotEmpty;
-    } catch (e) {
-      print('🔐 AuthNotifier: getMyPatients skipped: $e');
-    }
-    if (hasPatient) return;
+      final authService = ref.read(_authServiceProvider);
+      final careTeam = CareTeamApiService(authService: authService);
 
-    final v = await careTeam.validateCaregiverSignup(
-      email: profile.email.trim(),
-    );
-    if (v['ok'] != true) {
-      return;
+      var hasPatient = false;
+      try {
+        final patients = await careTeam.getMyPatients();
+        hasPatient = patients.isNotEmpty;
+      } catch (e) {
+        print('🔐 AuthNotifier: getMyPatients skipped: $e');
+      }
+      if (hasPatient) return;
+
+      final v = await careTeam.validateCaregiverSignup(
+        email: profile.email.trim(),
+      );
+      if (v['ok'] != true) {
+        return;
+      }
+    } catch (e) {
+      print('🔐 AuthNotifier: _ensureCaregiverHasInviteOrTeam skipped: $e');
     }
   }
 
@@ -280,7 +286,8 @@ class AuthNotifier extends Notifier<AuthState> {
           return;
         }
         print('🔐 AuthNotifier: backend bootstrap/profile skipped on signIn: $e');
-        if (selectedRole != null) {
+        // Caregivers: allow sign-in even if bootstrap/profile fails (offline / flaky API).
+        if (selectedRole != null && selectedRole != UserRole.caregiver) {
           await _authRepository.signOut();
           state = AuthState.error(
             'Could not verify your account with the server. Check your connection and try again.',
@@ -341,7 +348,7 @@ class AuthNotifier extends Notifier<AuthState> {
         }
         print(
             '🔐 AuthNotifier: backend bootstrap/profile skipped on signInWithGoogle: $e');
-        if (selectedRole != null) {
+        if (selectedRole != null && selectedRole != UserRole.caregiver) {
           await _authRepository.signOut();
           state = AuthState.error(
             'Could not verify your account with the server. Check your connection and try again.',

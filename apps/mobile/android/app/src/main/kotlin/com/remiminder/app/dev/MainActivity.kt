@@ -1,4 +1,4 @@
-package com.remiminder.app
+package com.remiminder.app.dev
 
 import android.app.NotificationManager
 import android.content.Context
@@ -12,18 +12,26 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "com.remiminder.app/full_screen_intent",
+            "com.remiminder.app.dev/full_screen_intent",
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "canUseFullScreenIntent" -> {
                     if (Build.VERSION.SDK_INT < 34) {
-                        // Pre–Android 14: manifest + category are sufficient for FSI eligibility.
                         result.success(true)
                         return@setMethodCallHandler
                     }
                     val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     result.success(nm.canUseFullScreenIntent())
                 }
+                else -> result.notImplemented()
+            }
+        }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.remiminder.app.dev/google_auth",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getWebClientId" -> result.notImplemented()
                 else -> result.notImplemented()
             }
         }
