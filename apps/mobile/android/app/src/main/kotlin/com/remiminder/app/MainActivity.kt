@@ -1,4 +1,4 @@
-package com.remiminder.app.dev
+package com.remiminder.app
 
 import android.app.NotificationManager
 import android.content.Context
@@ -12,7 +12,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "com.remiminder.app.dev/full_screen_intent",
+            "com.remiminder.app/full_screen_intent",
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "canUseFullScreenIntent" -> {
@@ -29,4 +29,3 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
-

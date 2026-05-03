@@ -32,7 +32,7 @@ class NotificationService {
   NotificationService._internal();
 
   static const MethodChannel _androidFullScreenIntentChannel =
-      MethodChannel('com.remiminder.app.dev/full_screen_intent');
+      MethodChannel('com.remiminder.app/full_screen_intent');
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
