@@ -47,7 +47,7 @@ class NotificationService {
   /// Shown locally and in alerts — privacy-safe (no PHI).
   static const String medicationReminderPrivacyTitle = '💊 Med Time!';
   static const String medicationReminderPrivacyBody =
-      'Time to take your medication. Unlock app for details.';
+      'Time to take your medication. Unlock app for details. 🔒';
 
   static const String _iosReminderCategoryId = 'reminder_med_category';
 
@@ -129,7 +129,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       category: AndroidNotificationCategory.alarm,
-      ticker: 'Medication Reminder',
+      ticker: medicationReminderPrivacyTitle,
       styleInformation: BigTextStyleInformation(body),
       playSound: true,
       enableVibration: true,
@@ -253,6 +253,10 @@ class NotificationService {
     tz.initializeTimeZones();
     final String timeZoneName = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(timeZoneName));
+    print(
+      '[NotificationService] timezone initialized: local=$timeZoneName '
+      '(${tz.local.name})',
+    );
   }
 
   /// Required on iOS (and helps some Android setups) before [FirebaseMessaging.getToken].
@@ -463,8 +467,14 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload ?? medicationId,
       );
+      print(
+        '[NotificationService] scheduleMedicationReminder SUCCESS '
+        'notificationId=$notificationId at=$tzScheduledTime '
+        'androidMode=exactAllowWhileIdle',
+      );
       return true;
     } catch (e, st) {
+      print('[NotificationService] scheduleMedicationReminder FAILED: $e');
       debugPrint('scheduleMedicationReminder failed: $e\n$st');
       return false;
     }
@@ -509,8 +519,14 @@ class NotificationService {
         matchDateTimeComponents: matchTime,
         payload: medicationId,
       );
+      print(
+        '[NotificationService] scheduleRecurringReminder SUCCESS '
+        'notificationId=$notificationId first=$timezone '
+        'androidMode=exactAllowWhileIdle',
+      );
       return true;
     } catch (e, st) {
+      print('[NotificationService] scheduleRecurringReminder FAILED: $e');
       debugPrint('scheduleRecurringReminder failed: $e\n$st');
       return false;
     }
@@ -530,20 +546,34 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    // [title] and [body] kept for API compatibility; on-screen text is always privacy-safe.
+    assert(() {
+      notificationId;
+      title;
+      body;
+      return true;
+    }());
     debugPrint('[NotificationService] showInstantNotification start id=$notificationId '
         'initialized=$_isInitialized');
     if (!_isInitialized) await initialize();
     await _debugLogAndroidChannelState('showInstantNotification');
     try {
+      // Privacy: never show custom title/body that might contain PHI.
       await _notifications.show(
         notificationId,
-        title,
-        body,
-        _instantMedicationDetails(body),
+        medicationReminderPrivacyTitle,
+        medicationReminderPrivacyBody,
+        _instantMedicationDetails(medicationReminderPrivacyBody),
         payload: payload,
+      );
+      print(
+        '[NotificationService] showInstantNotification SUCCESS id=$notificationId',
       );
       debugPrint('[NotificationService] showInstantNotification SUCCESS id=$notificationId');
     } catch (e, st) {
+      print(
+        '[NotificationService] showInstantNotification FAILED id=$notificationId: $e',
+      );
       debugPrint('[NotificationService] showInstantNotification FAILED id=$notificationId: '
           '$e\n$st');
     }
@@ -655,9 +685,17 @@ class NotificationService {
       );
     }
     if (ok) {
+      print(
+        '[NotificationService] scheduleFromReminderData SUCCESS '
+        'reminderId=$reminderId notificationId=$notificationId',
+      );
       debugPrint('[NotificationService] scheduleFromReminderData SUCCESS '
           'reminderId=$reminderId notificationId=$notificationId');
     } else {
+      print(
+        '[NotificationService] scheduleFromReminderData FAILED '
+        'reminderId=$reminderId notificationId=$notificationId',
+      );
       debugPrint('[NotificationService] scheduleFromReminderData FAILED '
           '(zonedSchedule returned false / threw) reminderId=$reminderId '
           'notificationId=$notificationId');

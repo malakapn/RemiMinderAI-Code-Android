@@ -906,25 +906,6 @@ class _RemindersScreenState extends State<RemindersScreen>
         final reminderId = data['id']?.toString() ??
             DateTime.now().millisecondsSinceEpoch.toString();
         final serverMessage = data['message']?.toString()?.trim();
-        final dosageLine =
-            dosage.isNotEmpty ? dosage : 'Take your medication as prescribed';
-
-        // Schedule local notification immediately
-        try {
-          await NotificationService().scheduleFromReminderData(
-            reminderId: reminderId,
-            medicationName: title,
-            dosage: dosageLine,
-            scheduledTime: scheduledTime.toLocal(),
-            isRecurring: recurrence != 'once',
-            recurrencePattern: recurrence,
-            notificationBody: (serverMessage != null && serverMessage.isNotEmpty)
-                ? serverMessage
-                : null,
-          );
-        } catch (err) {
-          debugPrint('Failed to schedule notification: $err');
-        }
 
         if (mounted)
           ScaffoldMessenger.of(context)

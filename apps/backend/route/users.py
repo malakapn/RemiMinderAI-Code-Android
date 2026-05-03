@@ -339,6 +339,7 @@ class UpdatePhoneResponse(BaseModel):
 # =========================================
 
 @router.get("/language-preferences", response_model=LanguagePreferencesResponse)
+@router.get("/me/language-preferences", response_model=LanguagePreferencesResponse)
 async def get_language_preferences(current_user: dict = Depends(get_current_user)):
     """
     Get user's language preferences.
@@ -378,6 +379,7 @@ async def get_language_preferences(current_user: dict = Depends(get_current_user
 
 
 @router.put("/language-preferences")
+@router.put("/me/language-preferences")
 async def update_language_preferences(
     request: UpdateLanguagePreferencesRequest,
     current_user: dict = Depends(get_current_user)

@@ -56,7 +56,10 @@ class ReminderNotificationSync {
       for (final r in merged) {
         final scheduledTime =
             DateTime.tryParse(r['scheduled_time']?.toString() ?? '')?.toLocal();
-        if (scheduledTime == null || scheduledTime.isBefore(now)) continue;
+        final skipIfBefore = now.subtract(const Duration(minutes: 2));
+        if (scheduledTime == null || scheduledTime.isBefore(skipIfBefore)) {
+          continue;
+        }
 
         final reminderId = r['id']?.toString() ?? '';
         if (reminderId.isEmpty) continue;
@@ -135,7 +138,7 @@ class ReminderNotificationSync {
     await syncPatientFromMapped(mapped);
   }
 
-  /// Skips only reminders clearly in the past; allows a 1-minute buffer so a
+  /// Skips only reminders clearly in the past; allows a 2-minute buffer so a
   /// row just created (or clock/API skew) is not dropped from the rebuild.
   static Future<void> _scheduleOnePatientRow(
     NotificationService svc,
@@ -143,7 +146,7 @@ class ReminderNotificationSync {
     DateTime now,
   ) async {
     final scheduledTime = r['scheduledTime'] as DateTime?;
-    final skipIfBefore = now.subtract(const Duration(minutes: 1));
+    final skipIfBefore = now.subtract(const Duration(minutes: 2));
     if (scheduledTime == null || scheduledTime.isBefore(skipIfBefore)) return;
 
     final status = r['status']?.toString().toLowerCase() ?? '';

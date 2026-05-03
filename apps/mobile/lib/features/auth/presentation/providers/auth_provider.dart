@@ -110,15 +110,6 @@ class AuthNotifier extends Notifier<AuthState> {
         }
         print('🔐 AuthNotifier: role confirmed from backend: $confirmedRole');
       } catch (e) {
-        if (e is CaregiverInviteRequiredException) {
-          print(
-              '🔐 AuthNotifier: caregiver sign-in blocked (no invite/team): $e');
-          await _authRepository.signOut();
-          await storage.saveUserRole('');
-          await storage.saveFullName('');
-          state = AuthState.error(e.message);
-          return;
-        }
         print('🔐 AuthNotifier: backend unreachable, trying cache: $e');
 
         // Step 2: Backend unavailable — use persisted cache
@@ -288,11 +279,6 @@ class AuthNotifier extends Notifier<AuthState> {
           state = AuthState.error(e.message);
           return;
         }
-        if (e is CaregiverInviteRequiredException) {
-          await _authRepository.signOut();
-          state = AuthState.error(e.message);
-          return;
-        }
         print('🔐 AuthNotifier: backend bootstrap/profile skipped on signIn: $e');
         if (selectedRole != null) {
           await _authRepository.signOut();
@@ -349,11 +335,6 @@ class AuthNotifier extends Notifier<AuthState> {
         }
       } catch (e) {
         if (e is RoleMismatchException) {
-          await _authRepository.signOut();
-          state = AuthState.error(e.message);
-          return;
-        }
-        if (e is CaregiverInviteRequiredException) {
           await _authRepository.signOut();
           state = AuthState.error(e.message);
           return;

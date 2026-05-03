@@ -494,7 +494,7 @@ class PatientApiService {
   /// Language Preferences
   Future<Map<String, String>> getLanguagePreferences() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/api/users/language-preferences'),
+      Uri.parse('$baseUrl/api/users/me/language-preferences'),
       headers: _headers,
     );
 
@@ -519,7 +519,7 @@ class PatientApiService {
     required String visitLanguage,
   }) async {
     final response = await http.put(
-      Uri.parse('$baseUrl/api/users/language-preferences'),
+      Uri.parse('$baseUrl/api/users/me/language-preferences'),
       headers: _headers,
       body: json.encode({
         'app_language': appLanguage,
