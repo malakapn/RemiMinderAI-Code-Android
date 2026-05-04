@@ -226,7 +226,7 @@ async def invite_care_team_member(
 
         patient_name = current_user.get("name") or "Your patient"
         try:
-            await asyncio.to_thread(
+            email_ok = await asyncio.to_thread(
                 send_invite_email,
                 to_email=request.email,
                 invite_token=token,
@@ -234,6 +234,25 @@ async def invite_care_team_member(
             )
         except Exception as e:
             logger.warning(f"Failed to send care team invite email: {e}")
+            invalidate(f"care_team_pending:{patient_id}")
+            invalidate(f"care_team_list:{patient_id}")
+            raise HTTPException(
+                status_code=503,
+                detail="Invitation was created but email could not be sent. Try resend from Care Team.",
+            ) from e
+
+        if not email_ok:
+            logger.error(
+                "care team invite email returned failure for patient_id=%s to=%s",
+                patient_id,
+                request.email,
+            )
+            invalidate(f"care_team_pending:{patient_id}")
+            invalidate(f"care_team_list:{patient_id}")
+            raise HTTPException(
+                status_code=503,
+                detail="Invitation was created but email delivery failed. Try resend or check your email configuration.",
+            )
 
         invalidate(f"care_team_pending:{patient_id}")
         invalidate(f"care_team_list:{patient_id}")
@@ -455,7 +474,7 @@ async def resend_pending_care_team_invitation(
 
         patient_name = current_user.get("name") or "Your patient"
         try:
-            await asyncio.to_thread(
+            email_ok = await asyncio.to_thread(
                 send_invite_email,
                 to_email=invitation["invitee_email"],
                 invite_token=token,
@@ -463,6 +482,21 @@ async def resend_pending_care_team_invitation(
             )
         except Exception as e:
             logger.warning(f"Failed to resend care team invite email: {e}")
+            raise HTTPException(
+                status_code=503,
+                detail="Could not send invitation email. Please try again later.",
+            ) from e
+
+        if not email_ok:
+            logger.error(
+                "resend invite email failed for patient_id=%s invitation_id=%s",
+                patient_id,
+                invitation_id,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Could not send invitation email. Please try again later.",
+            )
 
         invalidate(f"care_team_pending:{patient_id}")
         invalidate(f"care_team_list:{patient_id}")
