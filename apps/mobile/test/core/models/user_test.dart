@@ -38,14 +38,27 @@ void main() {
       );
     });
 
-    test('resolves boolean caregiver marker from Firestore-shaped profile json',
-        () {
+    test('resolves account_type, user_type, and app_role from profile json', () {
       expect(
         UserRole.fromProfileJson({
-          'email': 'tina@example.com',
-          'isCaregiver': true,
+          'email': 'a@example.com',
+          'account_type': 'caregiver',
         }),
         UserRole.caregiver,
+      );
+      expect(
+        UserRole.fromProfileJson({
+          'email': 'b@example.com',
+          'user_type': 'Caregiver',
+        }),
+        UserRole.caregiver,
+      );
+      expect(
+        UserRole.fromProfileJson({
+          'email': 'c@example.com',
+          'app_role': 'patient',
+        }),
+        UserRole.patient,
       );
     });
   });
