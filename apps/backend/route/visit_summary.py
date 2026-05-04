@@ -18,6 +18,41 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Visit Summaries"])
 
 
+def _coerce_string_list(value) -> list:
+    """Normalize list-like or string Gemini fields to a list of non-empty strings."""
+    if value is None:
+        return []
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    if isinstance(value, list):
+        return [str(x).strip() for x in value if str(x).strip()]
+    return []
+
+
+def _normalize_structured_summary_payload(payload: dict) -> dict:
+    """
+    Merge v1-shaped Gemini JSON (questions_next_visit, action_items, key_diagnoses)
+    into the contract expected by the mobile app (actions, decisions, medications).
+    """
+    if not isinstance(payload, dict):
+        return payload
+    out = dict(payload)
+    actions = _coerce_string_list(out.get("actions"))
+    if not actions:
+        actions = _coerce_string_list(out.get("questions_next_visit"))
+    if not actions:
+        actions = _coerce_string_list(out.get("action_items"))
+    out["actions"] = actions
+
+    decisions = _coerce_string_list(out.get("decisions"))
+    if not decisions:
+        decisions = _coerce_string_list(out.get("key_diagnoses"))
+    out["decisions"] = decisions
+
+    out["medications"] = _coerce_string_list(out.get("medications"))
+    return out
+
+
 def get_user_id(current_user=Depends(get_current_user)) -> str:
     """Extract firebase_uid from authenticated user"""
     # Firebase UID is the canonical user identity
@@ -501,7 +536,7 @@ async def get_visit_summary_structured(
 
         # Step 3: Return appropriate response
         if structured_data:
-            return structured_data
+            return _normalize_structured_summary_payload(structured_data)
         else:
             logger.info("Returning processing status for structured summary")
             return {"status": "processing"}

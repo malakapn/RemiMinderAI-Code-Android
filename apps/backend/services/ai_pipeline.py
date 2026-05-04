@@ -44,7 +44,7 @@ def _get_prompt_version() -> str:
     Feature flag for prompt versioning.
     Defaults to v1 for missing/invalid values.
     """
-    version = (os.getenv("AI_SUMMARY_PROMPT_VERSION") or "v1").lower().strip()
+    version = (os.getenv("AI_SUMMARY_PROMPT_VERSION") or "v2").lower().strip()
     return "v2" if version == "v2" else "v1"
 
 
