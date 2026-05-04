@@ -38,7 +38,7 @@ void main() {
       );
     });
 
-    test('resolves account_type, user_type, and app_role from profile json', () {
+    test('resolves account_type, user_type, accountType, and app_role from profile json', () {
       expect(
         UserRole.fromProfileJson({
           'email': 'a@example.com',
@@ -56,7 +56,31 @@ void main() {
       expect(
         UserRole.fromProfileJson({
           'email': 'c@example.com',
+          'accountType': 'Caregiver',
+        }),
+        UserRole.caregiver,
+      );
+      expect(
+        UserRole.fromProfileJson({
+          'email': 'd@example.com',
           'app_role': 'patient',
+        }),
+        UserRole.patient,
+      );
+    });
+
+    test('resolves isCaregiver marker from profile json', () {
+      expect(
+        UserRole.fromProfileJson({
+          'email': 'caregiver@example.com',
+          'isCaregiver': true,
+        }),
+        UserRole.caregiver,
+      );
+      expect(
+        UserRole.fromProfileJson({
+          'email': 'patient@example.com',
+          'isCaregiver': false,
         }),
         UserRole.patient,
       );

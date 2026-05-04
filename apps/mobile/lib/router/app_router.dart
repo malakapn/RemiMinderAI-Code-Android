@@ -105,9 +105,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/welcome';
       }
 
-      // Signed out (or error) — keep onboarding routes; everything else → role picker
+      // Signed out (or error) — keep onboarding routes; everything else → Welcome.
       if (!loggedIn) {
-        return isPublicAuthPath(path) ? null : '/role-selection';
+        return isPublicAuthPath(path) ? null : '/welcome';
       }
 
       // Logged in — leave protected routes alone, push off auth pages
