@@ -96,10 +96,10 @@ class AuthNotifier extends Notifier<AuthState> {
             .getMyProfile()
             .timeout(const Duration(seconds: 8));
         profile = AuthProfile.fromUserProfile(backendProfile);
-        confirmedRole = backendProfile.role; // 'caregiver' | 'patient' | 'user'
+        confirmedRole = backendProfile.role; // normalized: 'caregiver' | 'patient'
         confirmedName = backendProfile.fullName;
 
-        if (confirmedRole == 'caregiver') {
+        if (UserRole.tryFromString(confirmedRole) == UserRole.caregiver) {
           await _ensureCaregiverHasInviteOrTeam(backendProfile);
         }
 
@@ -131,9 +131,8 @@ class AuthNotifier extends Notifier<AuthState> {
 
       // Map confirmed role string → enum.
       // Backend stores "user" for patients (legacy), "caregiver" for caregivers.
-      final userRole = (confirmedRole == 'caregiver')
-          ? UserRole.caregiver
-          : UserRole.patient; // 'patient', 'user', or anything else → patient
+      final userRole =
+          UserRole.tryFromString(confirmedRole) ?? UserRole.patient;
 
       final resolvedUser = user.copyWith(
         role: userRole,
@@ -199,7 +198,7 @@ class AuthNotifier extends Notifier<AuthState> {
   ///
   /// Never throws — invite/team checks must not block sign-in.
   Future<void> _ensureCaregiverHasInviteOrTeam(UserProfile profile) async {
-    if (profile.role != 'caregiver') return;
+    if (UserRole.tryFromString(profile.role) != UserRole.caregiver) return;
 
     try {
       final authService = ref.read(_authServiceProvider);
@@ -229,9 +228,9 @@ class AuthNotifier extends Notifier<AuthState> {
   /// the account type returned by `/api/users/me`.
   void _assertLoginRoleMatches(UserRole? selectedRole, String backendRole) {
     if (selectedRole == null) return;
-    final r = backendRole.toLowerCase().trim();
-    final backendIsCaregiver = r == 'caregiver';
-    final backendIsPatient = r == 'patient' || r == 'user';
+    final normalizedRole = UserRole.tryFromString(backendRole);
+    final backendIsCaregiver = normalizedRole == UserRole.caregiver;
+    final backendIsPatient = normalizedRole == UserRole.patient;
 
     if (selectedRole == UserRole.patient && !backendIsPatient) {
       throw RoleMismatchException(
@@ -265,9 +264,8 @@ class AuthNotifier extends Notifier<AuthState> {
         await _ensureCaregiverHasInviteOrTeam(backendProfile);
 
         profile = AuthProfile.fromUserProfile(backendProfile);
-        final backendRole = backendProfile.role == 'caregiver'
-            ? UserRole.caregiver
-            : UserRole.patient;
+        final backendRole =
+            UserRole.tryFromString(backendProfile.role) ?? UserRole.patient;
         resolvedUser = user.copyWith(
           role: backendRole,
           fullName: backendProfile.fullName ?? user.fullName,
@@ -326,9 +324,8 @@ class AuthNotifier extends Notifier<AuthState> {
         await _ensureCaregiverHasInviteOrTeam(backendProfile);
 
         profile = AuthProfile.fromUserProfile(backendProfile);
-        final backendRole = backendProfile.role == 'caregiver'
-            ? UserRole.caregiver
-            : UserRole.patient;
+        final backendRole =
+            UserRole.tryFromString(backendProfile.role) ?? UserRole.patient;
         resolvedUser = user.copyWith(
           role: backendRole,
           fullName: backendProfile.fullName ?? user.fullName,
