@@ -5,17 +5,68 @@ enum UserRole {
   patient,
   caregiver;
 
+  static String _normalizeRoleValue(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'[\s_-]+'), '');
+  }
+
   /// Convert string to enum
   static UserRole fromString(String value) {
-    switch (value.toLowerCase()) {
+    final role = tryFromString(value);
+    if (role != null) {
+      return role;
+    }
+    throw ArgumentError('Invalid user role: $value');
+  }
+
+  /// Convert string to enum when the source value may be optional or mixed case.
+  static UserRole? tryFromString(String? value) {
+    if (value == null) return null;
+    switch (_normalizeRoleValue(value)) {
       case 'patient':
       case 'user': // Database uses 'user' but we map it to patient
         return UserRole.patient;
       case 'caregiver':
         return UserRole.caregiver;
       default:
-        throw ArgumentError('Invalid user role: $value');
+        return null;
     }
+  }
+
+  /// Resolve user role from backend or Firestore-shaped profile data.
+  ///
+  /// Supported role sources:
+  /// - role: "patient" | "user" | "caregiver"
+  /// - userType/user_type/accountType/account_type/app_role: same values
+  /// - isCaregiver/is_caregiver: boolean marker used by some Firestore docs
+  static UserRole fromProfileJson(Map<String, dynamic> json) {
+    for (final key in const [
+      'role',
+      'userType',
+      'user_type',
+      'accountType',
+      'account_type',
+      'app_role',
+      'type',
+    ]) {
+      final role = tryFromString(json[key]?.toString());
+      if (role != null) {
+        return role;
+      }
+    }
+
+    for (final key in const ['isCaregiver', 'is_caregiver']) {
+      final value = json[key];
+      if (value is bool) {
+        return value ? UserRole.caregiver : UserRole.patient;
+      }
+      if (value is String) {
+        final normalized = value.trim().toLowerCase();
+        if (normalized == 'true') return UserRole.caregiver;
+        if (normalized == 'false') return UserRole.patient;
+      }
+    }
+
+    throw ArgumentError('Missing or invalid user role in profile');
   }
 
   /// Display name for UI
@@ -66,7 +117,7 @@ class User extends Equatable {
       email: json['email'] as String,
       fullName: json['full_name'] as String?,
       displayName: json['display_name'] as String,
-      role: UserRole.fromString(json['role'] as String),
+      role: UserRole.fromProfileJson(json),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
@@ -142,11 +193,12 @@ class UserProfile {
 
   /// Create UserProfile from JSON (API response)
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final role = UserRole.fromProfileJson(json);
     return UserProfile(
       fullName: json['full_name'] as String?,
       email: json['email'] as String,
       phone: json['phone'] as String?,
-      role: json['role'] as String,
+      role: role.name,
     );
   }
 
