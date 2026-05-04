@@ -4,7 +4,6 @@ import '../../data/models/auth_state.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../../../core/errors/role_mismatch_exception.dart';
 import '../../../../core/models/user.dart';
-import '../../../care_team/data/services/care_team_api_service.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/services/token_manager.dart';
@@ -99,10 +98,6 @@ class AuthNotifier extends Notifier<AuthState> {
         confirmedRole = backendProfile.role; // normalized: 'caregiver' | 'patient'
         confirmedName = backendProfile.fullName;
 
-        if (UserRole.tryFromString(confirmedRole) == UserRole.caregiver) {
-          await _ensureCaregiverHasInviteOrTeam(backendProfile);
-        }
-
         // Persist to cache for next cold start
         await storage.saveUserRole(confirmedRole);
         if (confirmedName != null && confirmedName.isNotEmpty) {
@@ -193,38 +188,6 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  /// Caregivers without patients or a pending invite may still sign in; the
-  /// caregiver home screen shows an empty state until they connect.
-  ///
-  /// Never throws — invite/team checks must not block sign-in.
-  Future<void> _ensureCaregiverHasInviteOrTeam(UserProfile profile) async {
-    if (UserRole.tryFromString(profile.role) != UserRole.caregiver) return;
-
-    try {
-      final authService = ref.read(_authServiceProvider);
-      final careTeam = CareTeamApiService(authService: authService);
-
-      var hasPatient = false;
-      try {
-        final patients = await careTeam.getMyPatients();
-        hasPatient = patients.isNotEmpty;
-      } catch (e) {
-        print('🔐 AuthNotifier: getMyPatients skipped: $e');
-      }
-      if (hasPatient) return;
-
-      final v = await careTeam.validateCaregiverSignup(
-        email: profile.email.trim(),
-      );
-      if (v['ok'] != true) {
-        return;
-      }
-    } catch (e) {
-      print('🔐 AuthNotifier: _ensureCaregiverHasInviteOrTeam skipped: $e');
-    }
-  }
-
-  /// When [selectedRole] is set (from role selection → login), it must match
   /// the account type returned by `/api/users/me`.
   void _assertLoginRoleMatches(UserRole? selectedRole, String backendRole) {
     if (selectedRole == null) return;
@@ -260,8 +223,6 @@ class AuthNotifier extends Notifier<AuthState> {
         await _backendApiService.bootstrapUser(role: selectedRole);
         final backendProfile = await _backendApiService.getMyProfile();
         _assertLoginRoleMatches(selectedRole, backendProfile.role);
-
-        await _ensureCaregiverHasInviteOrTeam(backendProfile);
 
         profile = AuthProfile.fromUserProfile(backendProfile);
         final backendRole =
@@ -320,8 +281,6 @@ class AuthNotifier extends Notifier<AuthState> {
         await _backendApiService.bootstrapUser(role: selectedRole);
         final backendProfile = await _backendApiService.getMyProfile();
         _assertLoginRoleMatches(selectedRole, backendProfile.role);
-
-        await _ensureCaregiverHasInviteOrTeam(backendProfile);
 
         profile = AuthProfile.fromUserProfile(backendProfile);
         final backendRole =

@@ -51,7 +51,7 @@ class CareTeamAcceptRequest(BaseModel):
 
 
 class CaregiverSignupValidateBody(BaseModel):
-    """Pre-Firebase signup: verify email has a pending care-team invite (optional token match)."""
+    """Optional pre-signup check: valid email; if token is sent, must match pending invite."""
 
     email: EmailStr
     token: Optional[str] = None
@@ -64,8 +64,8 @@ class CareTeamPermissionUpdateRequest(BaseModel):
 @router.post("/public/validate-caregiver-signup", status_code=status.HTTP_200_OK)
 async def public_validate_caregiver_signup(body: CaregiverSignupValidateBody):
     """
-    Unauthenticated: returns whether this email may register as a caregiver
-    (pending invitation, optionally verified by invite token).
+    Unauthenticated: returns whether this email may register as a caregiver.
+    Invitations are optional; if token is provided, it is validated against a pending invite.
     """
     ok, reason = await validate_caregiver_signup_allowed(body.email, body.token)
     return {"ok": ok, "reason": reason}

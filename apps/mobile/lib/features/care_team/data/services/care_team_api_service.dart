@@ -306,7 +306,7 @@ class CareTeamApiService {
     }
   }
 
-  /// Unauthenticated: caregiver signup gate (pending invite for email).
+  /// Optional: validates invite [token] against a pending invitation when present.
   Future<Map<String, dynamic>> validateCaregiverSignup({
     required String email,
     String? token,

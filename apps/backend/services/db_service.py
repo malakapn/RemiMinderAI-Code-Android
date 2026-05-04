@@ -1098,7 +1098,10 @@ async def validate_caregiver_signup_allowed(
 ) -> tuple[bool, str]:
     """
     Returns (allowed, reason_code). reason_code is 'ok' or a stable machine string.
-    If invite_token is set, it must match a pending invitation for the same email.
+
+    Caregivers may register without a prior invitation; they get an empty dashboard
+    until a patient connects them. If invite_token is set, it must match a pending
+    invitation for the same email (optional stricter check from email deep links).
     """
     normalized = (email or "").strip().lower()
     if not normalized:
@@ -1124,9 +1127,7 @@ async def validate_caregiver_signup_allowed(
                 return False, "expired"
         return True, "ok"
 
-    if await has_pending_care_team_invitation_for_email(normalized):
-        return True, "ok"
-    return False, "no_pending_invite"
+    return True, "ok"
 
 
 async def get_my_care_team_invitations(user_email: str) -> list[dict]:

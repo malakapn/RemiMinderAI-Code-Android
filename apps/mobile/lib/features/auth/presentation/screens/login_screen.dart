@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
 import '../../../../core/services/secure_storage.dart';
+import '../../../care_team/data/services/care_team_api_service.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -20,6 +21,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       false; // false = password hidden, true = password visible
   bool _rememberMe = false; // Remember me checkbox state
   String? _userRole;
+  String? _careInviteToken;
 
   /// Convert technical errors to user-friendly messages
   String _getUserFriendlyErrorMessage(dynamic error) {
@@ -73,6 +75,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Get role from navigation parameters
     final uri = Uri.parse(GoRouterState.of(context).uri.toString());
     _userRole = uri.queryParameters['role'];
+    final raw =
+        uri.queryParameters['inviteToken'] ?? uri.queryParameters['token'];
+    _careInviteToken =
+        (raw != null && raw.trim().isNotEmpty) ? raw.trim() : null;
     // Load remember me preference
     _loadRememberMePreference();
   }
@@ -98,6 +104,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _tryAcceptPendingCareInvite() async {
+    final token = _careInviteToken?.trim();
+    if (token == null || token.isEmpty) return;
+    if (_intentRole != UserRole.caregiver) return;
+    try {
+      await CareTeamApiService().acceptInvitation(token: token);
+      _careInviteToken = null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You are connected to your patient\'s care team.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not accept the invitation automatically. '
+              'Open Care Team in the menu and tap Accept. (${e.toString()})',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _signIn() async {
@@ -143,6 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             context.go('/patient/home');
           }
         } else if (user?.isCaregiver ?? false) {
+          await _tryAcceptPendingCareInvite();
           if (mounted) {
             context.go('/caregiver/home');
           }
@@ -509,7 +544,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: TextButton(
                   onPressed: () {
                     final r = _userRole;
-                    final q = (r != null && r.isNotEmpty) ? '?role=$r' : '';
+                    final roleQ =
+                        (r != null && r.isNotEmpty) ? 'role=$r' : '';
+                    final tok = _careInviteToken?.trim();
+                    final tokQ = (tok != null && tok.isNotEmpty)
+                        ? 'token=${Uri.encodeQueryComponent(tok)}'
+                        : '';
+                    final parts = [roleQ, tokQ].where((s) => s.isNotEmpty).join('&');
+                    final q = parts.isEmpty ? '' : '?$parts';
                     context.go('/register$q');
                   },
                   style: TextButton.styleFrom(
@@ -593,6 +635,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             context.go('/patient/home');
           }
         } else if (user?.isCaregiver ?? false) {
+          await _tryAcceptPendingCareInvite();
           if (mounted) {
             context.go('/caregiver/home');
           }

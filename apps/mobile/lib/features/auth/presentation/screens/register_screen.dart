@@ -10,7 +10,7 @@ import '../providers/auth_provider.dart';
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key, this.inviteToken});
 
-  /// Optional invite token from email deep link (stronger signup validation).
+  /// Optional invite token from email link (`token` or `inviteToken` query param).
   final String? inviteToken;
 
   @override
@@ -65,8 +65,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String _caregiverInviteMessage(String reason) {
     switch (reason) {
       case 'no_pending_invite':
-        return 'Caregiver accounts need a pending invitation from a patient '
-            'for this email. Ask your patient to invite you, then try again.';
+        return 'No pending invitation found for this email. '
+            'You can still register as a caregiver and connect when an invite arrives.';
       case 'invalid_token':
         return 'This invitation link is invalid. Ask your patient for a new invite.';
       case 'email_mismatch':
@@ -162,7 +162,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // Subtitle
                 Text(
                   ref.watch(selectedRoleProvider) == UserRole.caregiver
-                      ? 'Caregivers need a pending patient invitation for this email before you can register.'
+                      ? 'Create your caregiver account with Google or email. '
+                          'Patient details appear after someone invites you by email and you accept.'
                       : 'Join RemiMinder to get started',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(context).colorScheme.secondary,
@@ -543,20 +544,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
 
       if (selectedRole == UserRole.caregiver) {
-        final v = await CareTeamApiService().validateCaregiverSignup(
-          email: email,
-          token: widget.inviteToken,
-        );
-        if (v['ok'] != true) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    _caregiverInviteMessage(v['reason']?.toString() ?? '')),
-              ),
-            );
+        final inviteTok = widget.inviteToken?.trim();
+        if (inviteTok != null && inviteTok.isNotEmpty) {
+          final v = await CareTeamApiService().validateCaregiverSignup(
+            email: email,
+            token: inviteTok,
+          );
+          if (v['ok'] != true) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    _caregiverInviteMessage(v['reason']?.toString() ?? ''),
+                  ),
+                ),
+              );
+            }
+            return;
           }
-          return;
         }
       }
 
@@ -567,6 +572,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               role: selectedRole,
               fullName: fullName,
             );
+
+        if (selectedRole == UserRole.caregiver) {
+          final inviteTok = widget.inviteToken?.trim();
+          if (inviteTok != null && inviteTok.isNotEmpty) {
+            try {
+              await CareTeamApiService().acceptInvitation(token: inviteTok);
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Account created. Sign in and open Care Team to finish accepting your invitation if needed.',
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+        }
 
         // Show success dialog and navigate to login
         if (mounted) {
@@ -583,12 +607,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).pop(); // Close dialog
-                      // Navigate back to login screen
                       final selectedRole = ref.read(selectedRoleProvider);
                       final roleParam = selectedRole == UserRole.patient
                           ? 'patient'
                           : 'caregiver';
-                      context.go('/login?role=$roleParam');
+                      final tok = widget.inviteToken?.trim();
+                      final tokQ = (tok != null && tok.isNotEmpty)
+                          ? '&token=${Uri.encodeQueryComponent(tok)}'
+                          : '';
+                      context.go('/login?role=$roleParam$tokQ');
                     },
                     child: const Text('Go to Sign In'),
                   ),
