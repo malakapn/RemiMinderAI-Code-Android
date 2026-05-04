@@ -200,6 +200,9 @@ def update_user_role(target_firebase_uid: str, request: UpdateRoleRequest, curre
 
 class BootstrapRequest(BaseModel):
     full_name: Optional[str] = None
+    # Client-selected role at sign-up / OAuth ("patient" | "caregiver"). Persisted on create
+    # and used to upgrade legacy "user" rows to caregiver when the user picks caregiver.
+    app_role: Optional[str] = None
 
 
 @router.post("/bootstrap")
@@ -221,9 +224,21 @@ async def bootstrap_user(
 
     # Safely read request full_name
     request_full_name = request.full_name if request else None
+    app_role = (request.app_role if request else None) or None
+    if app_role is not None and app_role not in ("patient", "caregiver"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid app_role. Must be 'patient' or 'caregiver'.",
+        )
 
     try:
-        created = await ensure_user_exists(firebase_uid, email, request_full_name, firebase_name)
+        created = await ensure_user_exists(
+            firebase_uid,
+            email,
+            request_full_name,
+            firebase_name,
+            app_role=app_role,
+        )
 
         if created:
             return {"status": "created"}

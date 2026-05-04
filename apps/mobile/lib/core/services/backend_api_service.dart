@@ -105,15 +105,22 @@ class BackendApiService {
   }
 
   /// Bootstrap user in backend after Firebase authentication
-  Future<void> bootstrapUser({String? fullName}) async {
+  Future<void> bootstrapUser({String? fullName, UserRole? role}) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
     }
 
     final uri = Uri.parse('${Environment.apiBaseUrl}/api/users/bootstrap');
-    final requestBody =
-        fullName != null ? json.encode({'full_name': fullName}) : null;
+    final body = <String, dynamic>{};
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      body['full_name'] = fullName.trim();
+    }
+    if (role != null) {
+      body['app_role'] =
+          role == UserRole.caregiver ? 'caregiver' : 'patient';
+    }
+    final requestBody = body.isEmpty ? null : json.encode(body);
 
     final response = await http.post(
       uri,

@@ -172,24 +172,66 @@ async def get_audio_gcs_url(visit_id: str, user_id: str) -> str:
         raise
 
 
-async def ensure_user_exists(firebase_uid: str, email: str, request_full_name: Optional[str] = None, firebase_name: Optional[str] = None) -> bool:
+def _initial_db_role_from_app_role(app_role: Optional[str]) -> str:
+    """DB stores patient-like accounts as 'user'; caregivers as 'caregiver'."""
+    if (app_role or "").strip().lower() == "caregiver":
+        return "caregiver"
+    return "user"
+
+
+def _maybe_upgrade_user_to_caregiver(
+    conn, user_id: str, firebase_uid: str, current_db_role: Optional[str], app_role: Optional[str]
+) -> None:
+    if (app_role or "").strip().lower() != "caregiver":
+        return
+    if (current_db_role or "").strip().lower() != "user":
+        return
+    conn.execute(
+        text("UPDATE users SET role = 'caregiver' WHERE id = :user_id"),
+        {"user_id": user_id},
+    )
+    try:
+        from services.cache_service import invalidate
+
+        invalidate(f"user_profile:{firebase_uid}")
+    except Exception:
+        pass
+
+
+async def ensure_user_exists(
+    firebase_uid: str,
+    email: str,
+    request_full_name: Optional[str] = None,
+    firebase_name: Optional[str] = None,
+    app_role: Optional[str] = None,
+) -> bool:
     """
     Ensure a user row exists in Cloud SQL.
     Returns True if created, False if already exists.
     Populates full_name if empty using request or Firebase token data.
+
+    If app_role is 'caregiver', new rows are created as caregiver; existing
+    rows with role 'user' are upgraded to 'caregiver' so OAuth sign-in matches
+    the in-app role selection.
     """
+    initial_role = _initial_db_role_from_app_role(app_role)
     engine = get_cloud_sql_engine()
     with engine.begin() as conn:
         # Check if user exists by firebase_uid
         result = conn.execute(
-            text("SELECT id, full_name FROM users WHERE firebase_uid = :firebase_uid"),
+            text(
+                "SELECT id, full_name, role FROM users WHERE firebase_uid = :firebase_uid"
+            ),
             {"firebase_uid": firebase_uid},
         )
         existing_user = result.fetchone()
 
         if existing_user:
-            # User exists - update full_name if empty
-            user_id, current_full_name = existing_user
+            # User exists - update full_name if empty; optional caregiver upgrade
+            user_id, current_full_name, current_db_role = existing_user
+            _maybe_upgrade_user_to_caregiver(
+                conn, str(user_id), firebase_uid, str(current_db_role), app_role
+            )
             if not current_full_name or current_full_name.strip() == "":
                 # Determine name to use
                 name_to_set = None
@@ -209,13 +251,17 @@ async def ensure_user_exists(firebase_uid: str, email: str, request_full_name: O
         # No firebase_uid match yet. If the email already exists, link this
         # Firebase account to the existing row instead of inserting a duplicate.
         email_result = conn.execute(
-            text("SELECT id, full_name, firebase_uid FROM users WHERE email = :email"),
+            text(
+                "SELECT id, full_name, firebase_uid, role FROM users WHERE email = :email"
+            ),
             {"email": email},
         )
         email_user = email_result.fetchone()
 
         if email_user:
-            user_id, current_full_name, existing_firebase_uid = email_user
+            user_id, current_full_name, existing_firebase_uid, current_db_role = (
+                email_user
+            )
 
             # The email has already been verified by Firebase, so if the Firebase
             # UID changed (for example after the user deleted and recreated their
@@ -226,6 +272,10 @@ async def ensure_user_exists(firebase_uid: str, email: str, request_full_name: O
                     text("UPDATE users SET firebase_uid = :firebase_uid WHERE id = :user_id"),
                     {"firebase_uid": firebase_uid, "user_id": user_id},
                 )
+
+            _maybe_upgrade_user_to_caregiver(
+                conn, str(user_id), firebase_uid, str(current_db_role), app_role
+            )
 
             # Fill in a name if the existing row doesn't have one yet.
             if not current_full_name or current_full_name.strip() == "":
@@ -254,9 +304,14 @@ async def ensure_user_exists(firebase_uid: str, email: str, request_full_name: O
         conn.execute(
             text("""
                 INSERT INTO users (firebase_uid, email, full_name, role, is_active)
-                VALUES (:firebase_uid, :email, :full_name, 'user', true)
+                VALUES (:firebase_uid, :email, :full_name, :role, true)
             """),
-            {"firebase_uid": firebase_uid, "email": email, "full_name": full_name},
+            {
+                "firebase_uid": firebase_uid,
+                "email": email,
+                "full_name": full_name,
+                "role": initial_role,
+            },
         )
         return True
 

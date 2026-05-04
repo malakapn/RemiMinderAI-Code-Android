@@ -176,7 +176,7 @@ class AuthNotifier extends Notifier<AuthState> {
       AuthProfile? profile;
       try {
         // Bootstrap user in backend with full name
-        await _backendApiService.bootstrapUser(fullName: fullName);
+        await _backendApiService.bootstrapUser(fullName: fullName, role: role);
         // Fetch user profile from backend
         final backendProfile = await _backendApiService.getMyProfile();
         profile = AuthProfile.fromUserProfile(backendProfile);
@@ -258,7 +258,7 @@ class AuthNotifier extends Notifier<AuthState> {
       User resolvedUser = user;
 
       try {
-        await _backendApiService.bootstrapUser();
+        await _backendApiService.bootstrapUser(role: selectedRole);
         final backendProfile = await _backendApiService.getMyProfile();
         _assertLoginRoleMatches(selectedRole, backendProfile.role);
 
@@ -319,7 +319,7 @@ class AuthNotifier extends Notifier<AuthState> {
       User resolvedUser = user;
 
       try {
-        await _backendApiService.bootstrapUser();
+        await _backendApiService.bootstrapUser(role: selectedRole);
         final backendProfile = await _backendApiService.getMyProfile();
         _assertLoginRoleMatches(selectedRole, backendProfile.role);
 
