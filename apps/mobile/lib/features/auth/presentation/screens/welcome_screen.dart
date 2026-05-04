@@ -28,7 +28,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 40),
 
               // Logo and branding
               Expanded(
@@ -37,13 +37,12 @@ class WelcomeScreen extends StatelessWidget {
                   children: [
                     // App Logo
                     Image.asset(
-                      'assets/images/RemiMinder_logo.png',
-                      width: 160,
-                      height: 160,
-                      fit: BoxFit.contain,
+                      'assets/images/RemiMinder_logo_2a.png',
+                      width: 120,
+                      height: 120,
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 32),
 
                     // Welcome Title
                     Text(
@@ -81,11 +80,11 @@ class WelcomeScreen extends StatelessWidget {
 
                     const SizedBox(height: 48),
 
-                    // Continue → Login (no first-launch gating)
+                    // Get Started Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => context.go('/login'),
+                        onPressed: () => context.go('/role-selection'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -93,7 +92,7 @@ class WelcomeScreen extends StatelessWidget {
                           ),
                         ),
                         child: const Text(
-                          'Continue',
+                          'Get Started',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
