@@ -18,6 +18,7 @@ from services.db_service import (
     get_user_uuid,
     get_caregiver_alert_email_enabled,
     set_caregiver_alert_email_enabled,
+    sync_caregiver_role_from_active_membership,
 )
 from sqlalchemy import text
 
@@ -257,6 +258,7 @@ async def get_current_user_profile(current_user: dict = Depends(get_current_user
         raise HTTPException(401, "Invalid token: missing user ID")
 
     try:
+        await sync_caregiver_role_from_active_membership(firebase_uid)
         cache_key = f"user_profile:{firebase_uid}"
         cached = get(cache_key)
         if cached is not None:

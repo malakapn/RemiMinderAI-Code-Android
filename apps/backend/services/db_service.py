@@ -790,6 +790,81 @@ async def get_care_team_invitation_by_token(token: str) -> Optional[dict]:
         raise
 
 
+async def upgrade_user_to_caregiver_if_user_role(
+    user_id: str,
+    firebase_uid: Optional[str] = None,
+) -> bool:
+    """
+    Promote a user from patient-like role ('user') to 'caregiver' after they
+    join a care team (invite accept). Login checks users.role against the
+    Caregiver sign-in path; without this, accept succeeds but Google/email
+    caregiver sign-in still fails with a role mismatch.
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""
+                    UPDATE users
+                    SET role = 'caregiver'
+                    WHERE id = CAST(:user_id AS uuid)
+                      AND role = 'user'
+                """),
+                {"user_id": user_id},
+            )
+            updated = result.rowcount > 0
+        if firebase_uid:
+            try:
+                from services.cache_service import invalidate
+
+                invalidate(f"user_profile:{firebase_uid}")
+            except Exception:
+                pass
+        return updated
+    except Exception as e:
+        logger.error(
+            "Error upgrading user_id=%s to caregiver: %s", user_id, e
+        )
+        raise
+
+
+async def sync_caregiver_role_from_active_membership(firebase_uid: str) -> bool:
+    """
+    Promote role from 'user' to 'caregiver' when the account already has an
+    active care_team_members row (e.g. accepted an invite before accept-handler
+    upgraded role). Idempotent; returns True if an upgrade was applied.
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            row = conn.execute(
+                text("""
+                    SELECT u.id::text FROM users u
+                    WHERE u.firebase_uid = :firebase_uid
+                      AND u.role = 'user'
+                      AND EXISTS (
+                        SELECT 1 FROM care_team_members m
+                        WHERE m.member_user_id = u.id
+                          AND m.status = 'active'
+                      )
+                    LIMIT 1
+                """),
+                {"firebase_uid": firebase_uid},
+            ).fetchone()
+        if not row:
+            return False
+        return await upgrade_user_to_caregiver_if_user_role(
+            str(row[0]), firebase_uid=firebase_uid
+        )
+    except Exception as e:
+        logger.error(
+            "sync_caregiver_role_from_active_membership failed for uid=%s: %s",
+            firebase_uid,
+            e,
+        )
+        raise
+
+
 async def mark_care_team_invitation_accepted(
     invitation_id: str,
     accepted_by_user_id: str,

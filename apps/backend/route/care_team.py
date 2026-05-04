@@ -27,6 +27,7 @@ from services.db_service import (
     remove_care_team_member,
     resend_care_team_invitation,
     update_care_team_member_permission,
+    upgrade_user_to_caregiver_if_user_role,
     validate_caregiver_signup_allowed,
 )
 from services.invitation_email_service import send_invite_email
@@ -302,6 +303,11 @@ async def accept_care_team_invitation(
             status="active",
             invited_by_user_id=invitation.get("invited_by_user_id"),
             consent_version=request.consent_version or "phase1-v1",
+        )
+
+        await upgrade_user_to_caregiver_if_user_role(
+            member_user_id,
+            firebase_uid=firebase_uid,
         )
 
         updated = await mark_care_team_invitation_accepted(

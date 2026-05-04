@@ -148,7 +148,16 @@ def send_invite_email(to_email: str, invite_token: str, patient_name: str) -> bo
                 response.text[:500],
             )
             return False
-        logger.info("Care team invite email sent via Brevo to %s", to_email)
+        try:
+            detail = response.json()
+        except Exception:
+            detail = {}
+        mid = detail.get("messageId")
+        logger.info(
+            "Care team invite email sent via Brevo to %s messageId=%s",
+            to_email,
+            mid,
+        )
         return True
     except requests.RequestException as e:
         logger.error("Brevo invite email request failed: %s", e)
