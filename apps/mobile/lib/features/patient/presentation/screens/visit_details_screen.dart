@@ -447,10 +447,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
         if (_medications.isNotEmpty)
           _buildListSection(title: 'Medications', items: _medications),
         if (_actions.isNotEmpty)
-          _buildListSection(
-            title: 'Questions for Your Next Visit',
-            items: _actions,
-          ),
+          _buildListSection(title: 'Next Steps', items: _actions),
       ],
     );
   }
