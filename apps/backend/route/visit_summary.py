@@ -12,44 +12,35 @@ from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
 from services.gcs_service import upload_audio, upload_image
 from services.auth_gateway import get_current_user_jwt as get_current_user
 from services.access_control import assert_patient_access
+from services.ai.summary_normalizer_v2 import _ensure_string_list
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["Visit Summaries"])
 
 
-def _coerce_string_list(value) -> list:
-    """Normalize list-like or string Gemini fields to a list of non-empty strings."""
-    if value is None:
-        return []
-    if isinstance(value, str) and value.strip():
-        return [value.strip()]
-    if isinstance(value, list):
-        return [str(x).strip() for x in value if str(x).strip()]
-    return []
-
-
 def _normalize_structured_summary_payload(payload: dict) -> dict:
     """
-    Merge v1-shaped Gemini JSON (questions_next_visit, action_items, key_diagnoses)
-    into the contract expected by the mobile app (actions, decisions, medications).
+    Merge v1-shaped Gemini JSON into the contract expected by the mobile app.
+
+    actions (Next Steps): imperative / action items only. Priority is action_items,
+    then legacy actions. questions_next_visit is never copied into actions — caregivers
+    must not see question-style copy in this section.
     """
     if not isinstance(payload, dict):
         return payload
     out = dict(payload)
-    actions = _coerce_string_list(out.get("actions"))
+    actions = _ensure_string_list(out.get("action_items"))
     if not actions:
-        actions = _coerce_string_list(out.get("questions_next_visit"))
-    if not actions:
-        actions = _coerce_string_list(out.get("action_items"))
+        actions = _ensure_string_list(out.get("actions"))
     out["actions"] = actions
 
-    decisions = _coerce_string_list(out.get("decisions"))
+    decisions = _ensure_string_list(out.get("decisions"))
     if not decisions:
-        decisions = _coerce_string_list(out.get("key_diagnoses"))
+        decisions = _ensure_string_list(out.get("key_diagnoses"))
     out["decisions"] = decisions
 
-    out["medications"] = _coerce_string_list(out.get("medications"))
+    out["medications"] = _ensure_string_list(out.get("medications"))
     return out
 
 
