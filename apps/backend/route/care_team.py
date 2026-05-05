@@ -1,22 +1,25 @@
 import asyncio
 import logging
+import os
 import secrets
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
 
 from services.auth_gateway import get_current_user_jwt as get_current_user
 from services.cache_service import get, set, invalidate
 from services.db_service import (
-    add_care_team_member,
     cancel_care_team_invitation,
     create_care_team_invitation,
+    ensure_user_exists,
     get_care_team_invitation_by_token,
-    get_care_team_members,
     get_care_team_member_by_id,
+    get_care_team_members,
     get_my_care_team_invitations,
     get_pending_care_team_invitations,
+    get_user_by_email,
     get_user_email,
     get_user_uuid,
     mark_care_team_invitation_accepted,
@@ -29,6 +32,9 @@ from services.invitation_email_service import send_invite_email
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/care-team", tags=["Care Team"])
+
+# Alias router: email links and legacy frontends
+invitations_router = APIRouter(prefix="/api/invitations", tags=["Invitations"])
 
 
 class CareTeamInviteRequest(BaseModel):
@@ -45,13 +51,109 @@ class CareTeamPermissionUpdateRequest(BaseModel):
     permission: str
 
 
+async def _invitation_verify_payload(token: str) -> dict:
+    invitation = await get_care_team_invitation_by_token(token)
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    if invitation["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Invitation is not pending")
+
+    expires_at = invitation.get("expires_at")
+    if expires_at:
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        if expires_at < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Invitation expired")
+
+    return {
+        "patient_name": "Patient",
+        "caregiver_email": invitation["invitee_email"],
+    }
+
+
+# --- /api/invitations (email deep links) ---
+
+
+@invitations_router.get("/verify")
+async def verify_invitation_alias(token: str):
+    return await _invitation_verify_payload(token)
+
+
+@invitations_router.get("/accept")
+async def accept_invitation_redirect(token: str):
+    """
+    Handle clicks from invitation emails (no Authorization header).
+    Marks invitation accepted when possible and redirects to the web app.
+    """
+    try:
+        invitation = await get_care_team_invitation_by_token(token)
+        frontend_url = os.getenv("REACT_APP_FRONTEND_URL", "https://remiminderai.com").rstrip(
+            "/"
+        )
+        if not invitation:
+            logger.error("Invite redirect: invitation not found for token=%s", token)
+            return RedirectResponse(
+                url=f"{frontend_url}?status=error&message=invalid_token"
+            )
+
+        if invitation["status"] != "pending":
+            return RedirectResponse(
+                url=f"{frontend_url}?status=error&message=not_pending"
+            )
+
+        expires_at = invitation.get("expires_at")
+        if expires_at:
+            if isinstance(expires_at, str):
+                expires_at = datetime.fromisoformat(expires_at)
+            if expires_at < datetime.now(timezone.utc):
+                return RedirectResponse(
+                    url=f"{frontend_url}?status=error&message=expired"
+                )
+
+        email = invitation.get("invitee_email")
+        user = await get_user_by_email(email) if email else None
+
+        if user and user.get("firebase_uid"):
+            member_uid = str(user["firebase_uid"])
+            await mark_care_team_invitation_accepted(
+                invitation_id=str(invitation["id"]),
+                accepted_by_user_id=member_uid,
+            )
+            logger.info(
+                "Auto-linked existing user %s via GET /api/invitations/accept",
+                email,
+            )
+            return RedirectResponse(url=f"{frontend_url}?status=success")
+
+        # Invitee not in our users table yet: keep invitation pending for POST /accept after signup/login.
+        return RedirectResponse(
+            url=f"{frontend_url}?status=pending&invite_token={token}"
+        )
+
+    except Exception as e:
+        logger.error("Error in GET invitation accept redirect: %s", e, exc_info=True)
+        frontend_url = os.getenv("REACT_APP_FRONTEND_URL", "https://remiminderai.com").rstrip(
+            "/"
+        )
+        return RedirectResponse(url=f"{frontend_url}?status=error")
+
+
+@invitations_router.post("/accept")
+async def accept_invitation_alias(
+    request: CareTeamAcceptRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    return await accept_care_team_invitation(request, current_user)
+
+
+# --- /api/care-team ---
+
+
 @router.get("", status_code=status.HTTP_200_OK)
 async def list_care_team_members(
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    List care team members for the current patient.
-    """
     try:
         firebase_uid = current_user.get("sub")
         if not firebase_uid:
@@ -78,9 +180,6 @@ async def invite_care_team_member(
     request: CareTeamInviteRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Create a care team invitation for a caregiver.
-    """
     try:
         firebase_uid = current_user.get("sub")
         if not firebase_uid:
@@ -104,20 +203,23 @@ async def invite_care_team_member(
             invited_by_user_id=patient_id,
         )
 
-        patient_name = current_user.get("name") or "Your patient"
+        email_ok = False
         try:
-            await asyncio.to_thread(
+            email_ok = await asyncio.to_thread(
                 send_invite_email,
-                to_email=request.email,
-                invite_token=token,
-                patient_name=patient_name,
+                request.email,
+                token,
             )
         except Exception as e:
-            logger.warning(f"Failed to send care team invite email: {e}")
+            logger.warning("Exception sending care team invite email: %s", e)
 
         invalidate(f"care_team_pending:{patient_id}")
         invalidate(f"care_team_list:{patient_id}")
-        return {"status": "sent"}
+
+        if email_ok:
+            return {"status": "invited", "email_sent": True}
+
+        return {"status": "invited", "email_sent": False}
 
     except HTTPException:
         raise
@@ -131,12 +233,9 @@ async def accept_care_team_invitation(
     request: CareTeamAcceptRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Accept a care team invitation by token.
-    """
     try:
-        firebase_uid = current_user.get("sub")
-        if not firebase_uid:
+        auth_uid = current_user.get("sub")
+        if not auth_uid:
             raise HTTPException(status_code=401, detail="Invalid token")
 
         invitation = await get_care_team_invitation_by_token(request.token)
@@ -153,16 +252,17 @@ async def accept_care_team_invitation(
             if expires_at < datetime.now(timezone.utc):
                 raise HTTPException(status_code=400, detail="Invitation expired")
 
-        member_user_id = await get_user_uuid(firebase_uid)
+        email = current_user.get("email") or invitation.get("invitee_email")
+        name = current_user.get("name") or "Caregiver"
 
-        await add_care_team_member(
-            patient_id=str(invitation["patient_id"]),
-            member_user_id=member_user_id,
-            role=str(invitation["role"]),
-            permission=str(invitation["permission"]),
-            status="active",
-            invited_by_user_id=invitation.get("invited_by_user_id"),
+        await ensure_user_exists(
+            firebase_uid=auth_uid,
+            email=email,
+            firebase_name=name,
+            role="caregiver",
         )
+
+        member_user_id = await get_user_uuid(auth_uid)
 
         updated = await mark_care_team_invitation_accepted(
             invitation_id=str(invitation["id"]),
@@ -180,7 +280,7 @@ async def accept_care_team_invitation(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to accept care team invitation: {e}")
+        logger.error(f"Failed to accept care team invitation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to accept invitation")
 
 
@@ -188,9 +288,6 @@ async def accept_care_team_invitation(
 async def list_my_care_team_invitations(
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    List pending care team invitations for the current caregiver.
-    """
     try:
         firebase_uid = current_user.get("sub")
         if not firebase_uid:
@@ -217,9 +314,6 @@ async def list_my_care_team_invitations(
 async def list_pending_care_team_invitations(
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    List pending care team invitations for the current patient.
-    """
     try:
         firebase_uid = current_user.get("sub")
         if not firebase_uid:
@@ -246,9 +340,6 @@ async def cancel_pending_care_team_invitation(
     invitation_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Cancel a pending care team invitation for the current patient.
-    """
     try:
         firebase_uid = current_user.get("sub")
         if not firebase_uid:
@@ -278,9 +369,6 @@ async def resend_pending_care_team_invitation(
     invitation_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Resend a pending care team invitation for the current patient.
-    """
     try:
         firebase_uid = current_user.get("sub")
         if not firebase_uid:
@@ -298,20 +386,20 @@ async def resend_pending_care_team_invitation(
         if not invitation:
             raise HTTPException(status_code=404, detail="Invitation not found")
 
-        patient_name = current_user.get("name") or "Your patient"
+        email_ok = False
         try:
-            await asyncio.to_thread(
+            email_ok = await asyncio.to_thread(
                 send_invite_email,
-                to_email=invitation["invitee_email"],
-                invite_token=token,
-                patient_name=patient_name,
+                invitation["invitee_email"],
+                token,
             )
         except Exception as e:
-            logger.warning(f"Failed to resend care team invite email: {e}")
+            logger.warning("Exception resending care team invite email: %s", e)
 
         invalidate(f"care_team_pending:{patient_id}")
         invalidate(f"care_team_list:{patient_id}")
-        return {"success": True}
+
+        return {"success": True, "email_sent": email_ok}
 
     except HTTPException:
         raise
@@ -320,15 +408,23 @@ async def resend_pending_care_team_invitation(
         raise HTTPException(status_code=500, detail="Failed to resend invitation")
 
 
+@router.get("/invitations/verify")
+async def verify_care_team_invitation(token: str):
+    try:
+        return await _invitation_verify_payload(token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to verify care team invitation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to verify invitation")
+
+
 @router.patch("/{member_id}", status_code=status.HTTP_200_OK)
 async def update_care_team_permission(
     member_id: str,
     request: CareTeamPermissionUpdateRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Update a care team member's permission for the current patient.
-    """
     try:
         firebase_uid = current_user.get("sub")
         if not firebase_uid:
@@ -366,9 +462,6 @@ async def delete_care_team_member_endpoint(
     member_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    Delete a care team member for the current patient.
-    """
     try:
         firebase_uid = current_user.get("sub")
         if not firebase_uid:

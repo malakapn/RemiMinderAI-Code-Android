@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
 import '../../../../core/services/secure_storage.dart';
+import '../../data/models/auth_state.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -109,11 +110,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final authState = ref.read(authNotifierProvider);
 
       if (authState.hasError) {
-        if (mounted) {
-          _showFullAuthErrorDialog(
-            authState.errorMessage ?? 'Authentication failed',
-          );
-        }
         return;
       }
 
@@ -229,6 +225,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      if (!next.hasError || !mounted) return;
+      final message = next.errorMessage ?? '';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showFullAuthErrorDialog(message);
+      });
+    });
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -558,11 +563,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final authState = ref.read(authNotifierProvider);
 
       if (authState.hasError) {
-        if (mounted) {
-          _showFullAuthErrorDialog(
-            authState.errorMessage ?? 'Google Sign-In failed',
-          );
-        }
         return;
       }
 

@@ -87,6 +87,7 @@ app.add_middleware(
 app.include_router(visit_summary.router)      # Visit summaries (audio + STT only)
 app.include_router(users.router)              # User authentication
 app.include_router(care_team.router)          # Care team invitations
+app.include_router(care_team.invitations_router)  # Email deep links (/api/invitations)
 app.include_router(patient_tasks.router)      # Patient tasks
 app.include_router(reminders.router)          # Reminders
 logger.info("Reminders routes registered")

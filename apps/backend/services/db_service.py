@@ -149,7 +149,44 @@ async def get_audio_gcs_url(visit_id: str, user_id: str) -> str:
         raise
 
 
-async def ensure_user_exists(firebase_uid: str, email: str, request_full_name: Optional[str] = None, firebase_name: Optional[str] = None) -> bool:
+async def get_user_by_email(email: str) -> Optional[dict]:
+    """
+    Fetch user by email (citext match). Used for invite email deep-link accept.
+    Returns id, firebase_uid, email, full_name or None.
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            query = text("""
+                SELECT id, firebase_uid, email, full_name
+                FROM users
+                WHERE email = :email
+                LIMIT 1
+            """)
+            result = conn.execute(query, {"email": email.strip()})
+            row = result.fetchone()
+            if not row:
+                return None
+            if hasattr(row, "_mapping"):
+                return dict(row._mapping)
+            return {
+                "id": row[0],
+                "firebase_uid": row[1],
+                "email": row[2],
+                "full_name": row[3],
+            }
+    except Exception as e:
+        logger.error(f"Error fetching user by email={email}: {e}")
+        raise
+
+
+async def ensure_user_exists(
+    firebase_uid: str,
+    email: str,
+    request_full_name: Optional[str] = None,
+    firebase_name: Optional[str] = None,
+    role: str = "user",
+) -> bool:
     """
     Ensure a user row exists in Cloud SQL.
     Returns True if created, False if already exists.
@@ -194,9 +231,14 @@ async def ensure_user_exists(firebase_uid: str, email: str, request_full_name: O
         conn.execute(
             text("""
                 INSERT INTO users (firebase_uid, email, full_name, role, is_active)
-                VALUES (:firebase_uid, :email, :full_name, 'user', true)
+                VALUES (:firebase_uid, :email, :full_name, :role, true)
             """),
-            {"firebase_uid": firebase_uid, "email": email, "full_name": full_name},
+            {
+                "firebase_uid": firebase_uid,
+                "email": email,
+                "full_name": full_name,
+                "role": role,
+            },
         )
         return True
 
@@ -585,19 +627,19 @@ async def create_care_team_invitation(
     expires_at: str | None = None,
 ) -> str:
     """
-    Create a new care team invitation.
+    Create a new care team invitation and a pending shadow row in care_team_members.
     Returns the invitation ID.
     """
     try:
         engine = get_cloud_sql_engine()
         with engine.begin() as conn:
-            query = text("""
+            query_inv = text("""
                 INSERT INTO care_team_invitations
                 (patient_id, invitee_email, role, permission, status, token, invited_by_user_id, expires_at)
                 VALUES (:patient_id, :invitee_email, :role, :permission, 'pending', :token, :invited_by_user_id, :expires_at)
                 RETURNING id
             """)
-            result = conn.execute(query, {
+            result_inv = conn.execute(query_inv, {
                 "patient_id": patient_id,
                 "invitee_email": invitee_email,
                 "role": role,
@@ -606,10 +648,24 @@ async def create_care_team_invitation(
                 "invited_by_user_id": invited_by_user_id,
                 "expires_at": expires_at,
             })
-            row = result.fetchone()
-            if not row:
+            row_inv = result_inv.fetchone()
+            if not row_inv:
                 raise Exception("Failed to create care team invitation")
-            return str(row[0])
+            inv_id = str(row_inv[0])
+
+            query_mem = text("""
+                INSERT INTO care_team_members
+                (patient_id, member_user_id, role, permission, status, invited_by_user_id, invitee_email)
+                VALUES (:patient_id, NULL, :role, :permission, 'pending', :invited_by_user_id, :invitee_email)
+            """)
+            conn.execute(query_mem, {
+                "patient_id": patient_id,
+                "role": role,
+                "permission": permission,
+                "invited_by_user_id": invited_by_user_id,
+                "invitee_email": invitee_email,
+            })
+            return inv_id
     except Exception as e:
         logger.error(f"Error creating care team invitation for patient_id={patient_id}: {e}")
         raise
@@ -668,29 +724,62 @@ async def get_care_team_invitation_by_token(token: str) -> Optional[dict]:
 
 async def mark_care_team_invitation_accepted(
     invitation_id: str,
-    accepted_by_user_id: str,
+    accepted_by_user_id: Optional[str],
 ) -> bool:
     """
-    Mark a care team invitation as accepted.
-    Returns True if update succeeded, False if not found.
+    Mark invitation accepted and reconcile the pending care_team_members shadow row.
+    accepted_by_user_id may be None when the invitee has not registered yet (email-click flow).
     """
     try:
         engine = get_cloud_sql_engine()
         with engine.begin() as conn:
-            query = text("""
+            logger.info(
+                "Updating invitation: id=%s, accepted_by_user_id=%s",
+                invitation_id,
+                accepted_by_user_id,
+            )
+            query_inv = text("""
                 UPDATE care_team_invitations
                 SET status = 'accepted',
                     accepted_by_user_id = :accepted_by_user_id,
                     accepted_at = now()
                 WHERE id = :invitation_id
+                RETURNING patient_id, invitee_email, invited_by_user_id
             """)
-            result = conn.execute(query, {
+            result_inv = conn.execute(query_inv, {
                 "invitation_id": invitation_id,
                 "accepted_by_user_id": accepted_by_user_id,
             })
-            return result.rowcount > 0
+            row_inv = result_inv.fetchone()
+            if not row_inv:
+                return False
+
+            if hasattr(row_inv, "_mapping"):
+                rd = dict(row_inv._mapping)
+                pat_id = rd["patient_id"]
+                inv_email = rd["invitee_email"]
+            else:
+                pat_id = row_inv[0]
+                inv_email = row_inv[1]
+
+            mem_status = "active" if accepted_by_user_id else "accepted"
+            query_mem = text("""
+                UPDATE care_team_members
+                SET status = :status,
+                    member_user_id = :member_user_id
+                WHERE patient_id = :patient_id
+                  AND invitee_email = :email
+                  AND status = 'pending'
+            """)
+            conn.execute(query_mem, {
+                "patient_id": pat_id,
+                "email": inv_email,
+                "status": mem_status,
+                "member_user_id": accepted_by_user_id,
+            })
+            return True
     except Exception as e:
-        logger.error(f"Error marking care team invitation accepted: {e}")
+        logger.error(f"Error marking care team invitation accepted: {e}", exc_info=True)
         raise
 
 

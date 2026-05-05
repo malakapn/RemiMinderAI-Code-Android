@@ -51,3 +51,4 @@ pytz
 python-multipart
 sqlalchemy>=1.4.0,<3.0.0
 psycopg2-binary>=2.9.0,<3.0.0
+sib-api-v3-sdk>=7.6.0
