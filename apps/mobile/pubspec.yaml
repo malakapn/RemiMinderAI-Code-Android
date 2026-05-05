@@ -1,45 +1,34 @@
 name: RemiMinder
 description: A healthcare companion app for patients and caregivers
-
 version: 1.3.1+59
-
 environment:
   sdk: '>=3.0.0 <4.0.0'
-
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-
   # State Management
   flutter_riverpod: ^3.1.0
-
   # Navigation
   go_router: ^17.0.1
-
   # Networking & Authentication
   http: ^1.1.0
   url_launcher: ^6.3.1
   google_sign_in: ^6.2.1
   flutter_dotenv: ^6.0.0
-
   # Firebase (initialized but not used for auth yet)
   firebase_core: ^4.0.0
   firebase_auth: ^6.0.0
   # ^16.x required with firebase_core ^4 + cloud_firestore ^6 (platform_interface ^6)
   firebase_messaging: ^16.1.0
   cloud_firestore: ^6.0.0
-
   # Secure Storage (for JWT tokens)
   flutter_secure_storage: ^10.0.0
-
   # Local Storage (for app preferences)
   shared_preferences: ^2.2.2
-
   # Utils
   intl: ^0.20.2
   table_calendar: ^3.1.3
-
   # Localization
   flutter_localizations:
     sdk: flutter
@@ -49,14 +38,11 @@ dependencies:
   crypto: ^3.0.3
   uuid: ^4.2.1
   encrypt: ^5.0.1
-
   # Charts
   fl_chart: ^1.1.1
-
   # Local notifications (reminders when app is closed)
   flutter_local_notifications: ^18.0.0
   timezone: ^0.9.4
-
   # Permissions & Media
   permission_handler: ^12.0.1
   camera: 0.10.6
@@ -64,30 +50,21 @@ dependencies:
   speech_to_text: ^7.3.0
   image_picker: ^1.1.1
   path_provider: ^2.1.2
-  url_launcher: 6.2.6
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
-
 flutter:
   uses-material-design: true
   generate: true
-
   assets:
     - assets/images/
     - assets/icon.png
-    # Required for flutter_dotenv: copy `.env.example` to `.env` in this folder before build/run.
     - .env
-    # Logo assets for authentication (currently JPEG, ideally SVG)
     - assets/images/google_logo.svg
-    # - assets/images/apple_logo.svg  # Not available yet
-    # Custom role icons
     - assets/images/patient_icon.svg
     - assets/images/caregiver_icon.svg
-
   fonts:
     - family: Merriweather
       fonts:
@@ -105,18 +82,16 @@ flutter:
     - family: Poppins
       fonts:
         - asset: assets/fonts/Poppins-Regular.ttf
-
 # App Icon Configuration
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/icon.png"
-  min_sdk_android: 21 # android min sdk min:16, default 21
+  min_sdk_android: 21
   web:
     generate: true
     image_path: "assets/icon.png"
     background_color: "#F8F4E8"
     theme_color: "#1B4E59"
-
 dependency_overrides:
   camera_android_camerax: 0.6.18+1
