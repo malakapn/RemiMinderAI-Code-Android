@@ -1,4 +1,5 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/auth_state.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -337,12 +338,15 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> _syncFcmTokenAndAttachRefreshListener() async {
+    final device = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'ios'
+        : 'android';
     try {
       final token = await _notificationService.getFcmToken();
       if (token != null && token.isNotEmpty) {
         await _backendApiService.registerFcmToken(
           fcmToken: token,
-          deviceType: 'android',
+          deviceType: device,
         );
       }
     } catch (_) {
@@ -359,7 +363,7 @@ class AuthNotifier extends Notifier<AuthState> {
         if (token.isNotEmpty) {
           await _backendApiService.registerFcmToken(
             fcmToken: token,
-            deviceType: 'android',
+            deviceType: device,
           );
         }
       } catch (_) {
