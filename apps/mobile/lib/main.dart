@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,9 +15,9 @@ Future<void> main() async {
 
   // Load environment variables
   await Environment.load();
-  Environment.validate(); // Ensure required vars are set
+  Environment.validate();
 
-  // Initialize Firebase with error handling
+  // Initialize Firebase
   try {
     await Firebase.initializeApp();
     if (Firebase.apps.isEmpty) {
@@ -26,6 +27,13 @@ Future<void> main() async {
     }
   } catch (e, st) {
     debugPrint('Firebase initialization failed: $e\n$st');
+  }
+
+  // Initialize notifications
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('Notification service initialization failed: $e');
   }
 
   runApp(

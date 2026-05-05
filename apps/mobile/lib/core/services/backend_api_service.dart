@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
 import '../config/environment.dart';
 import '../models/user.dart';
@@ -8,6 +9,7 @@ import '../models/user.dart';
 /// Service for making authenticated API calls to the backend
 class BackendApiService {
   final AuthService _authService;
+  static const Duration _apiTimeout = Duration(seconds: 8);
 
   BackendApiService({AuthService? authService})
       : _authService = authService ?? AuthService();
@@ -79,7 +81,7 @@ class BackendApiService {
   }
 
   /// Trigger OCR processing for uploaded image
-  Future<void> triggerOcr({required String visitId}) async {
+  Future<Map<String, dynamic>> triggerOcr({required String visitId}) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
@@ -99,18 +101,26 @@ class BackendApiService {
       throw Exception(
           'OCR trigger failed: ${response.statusCode} - ${response.body}');
     }
+    return json.decode(response.body) as Map<String, dynamic>;
   }
 
   /// Bootstrap user in backend after Firebase authentication
-  Future<void> bootstrapUser({String? fullName}) async {
+  Future<void> bootstrapUser({String? fullName, UserRole? role}) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
     }
 
     final uri = Uri.parse('${Environment.apiBaseUrl}/api/users/bootstrap');
-    final requestBody =
-        fullName != null ? json.encode({'full_name': fullName}) : null;
+    final body = <String, dynamic>{};
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      body['full_name'] = fullName.trim();
+    }
+    if (role != null) {
+      body['app_role'] =
+          role == UserRole.caregiver ? 'caregiver' : 'patient';
+    }
+    final requestBody = body.isEmpty ? null : json.encode(body);
 
     final response = await http.post(
       uri,
@@ -119,7 +129,7 @@ class BackendApiService {
         'Content-Type': 'application/json',
       },
       body: requestBody,
-    );
+    ).timeout(_apiTimeout);
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
@@ -141,7 +151,7 @@ class BackendApiService {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
       },
-    );
+    ).timeout(_apiTimeout);
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -150,6 +160,39 @@ class BackendApiService {
 
     final jsonData = json.decode(response.body) as Map<String, dynamic>;
     return UserProfile.fromJson(jsonData);
+  }
+
+  /// Update the current user's full name
+  Future<void> updateName(String fullName) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) throw Exception('Authentication required');
+    final response = await http.put(
+      Uri.parse('${Environment.apiBaseUrl}/api/users/me/name'),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'full_name': fullName}),
+    ).timeout(_apiTimeout);
+    if (response.statusCode != 200) {
+      throw Exception('Update name failed: ${response.statusCode}');
+    }
+  }
+
+  /// Update user role in backend
+  Future<void> updateUserRole(String firebaseUid, String role) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) return;
+
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/users/$firebaseUid/role');
+    await http.put(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'role': role}),
+    ).timeout(_apiTimeout);
   }
 
   /// Update current user's phone number

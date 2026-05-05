@@ -1,21 +1,13 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Install frontend dependencies from the nested web app folder.
+COPY frontend/package*.json ./frontend/
+WORKDIR /app/frontend
+RUN npm ci --omit=dev
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
-COPY . .
-
-# Build the app
-RUN npm run build
-
-# Expose port
+# Copy frontend source and run the app.
+COPY frontend/ ./
 EXPOSE 3000
-
-# Start the app
 CMD ["npm", "start"]

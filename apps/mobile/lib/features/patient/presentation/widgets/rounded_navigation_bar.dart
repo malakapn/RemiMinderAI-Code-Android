@@ -121,7 +121,6 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
                       Colors.green,
                       () {
                         Navigator.of(context).pop();
-                        // Use current visit or start new one for camera
                         final visitContext = VisitContext();
                         final visitId = visitContext.getCurrentVisitId() ??
                             visitContext.startNewVisit();
@@ -242,21 +241,11 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
             Color(0xFF1A4D4D), // Dark teal-green
             Color(0xFF051818), // Very dark green/black
           ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(35),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 25,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: const Border(
-          top: BorderSide(
-            color: Colors.white,
-            width: 0.5,
+          border: const Border(
+            top: BorderSide(
+              color: Colors.white,
+              width: 0.5,
+            ),
           ),
         ),
       ),

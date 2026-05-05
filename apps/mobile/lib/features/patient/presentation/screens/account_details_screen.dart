@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
+import '../../data/services/patient_api_service.dart';
 import 'upgrade_screen.dart';
 
 class AccountDetailsScreen extends ConsumerStatefulWidget {
@@ -14,6 +16,31 @@ class AccountDetailsScreen extends ConsumerStatefulWidget {
 
 class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
   bool _isUpdatingPhone = false;
+  int _summariesUsed = 0;
+  bool _isLoadingUsage = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummariesUsage();
+  }
+
+  Future<void> _loadSummariesUsage() async {
+    try {
+      final token = await AuthService().getAccessToken();
+      if (token == null) return;
+      PatientApiService.setAuthToken(token);
+      final summaries = await PatientApiService().getSummaries();
+      if (!mounted) return;
+      setState(() {
+        _summariesUsed = summaries.length;
+        _isLoadingUsage = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingUsage = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -312,13 +339,13 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
   }
 
   Widget _buildUsageDetailItem(ThemeData theme, String plan) {
-    // Hardcoded values for now
-    const int used = 1;
     const int limit = 2;
-
     final isFreePlan = plan == "free";
-    final displayValue =
-        isFreePlan ? 'Free plan — $used / $limit summaries used' : 'Unlimited';
+    final displayValue = _isLoadingUsage
+        ? 'Loading usage...'
+        : isFreePlan
+            ? 'Free plan — $_summariesUsed / $limit summaries used'
+            : 'Unlimited';
     final actionText = isFreePlan ? 'Upgrade' : null;
 
     return InkWell(

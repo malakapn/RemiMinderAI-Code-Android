@@ -1,12 +1,16 @@
-name: Flutter Build APK
+name: Flutter Build App Bundle
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
+  # Secrets: DEBUG_KEYSTORE_BASE64, KEYSTORE_ALIAS, KEYSTORE_STORE_PASSWORD, KEYSTORE_KEY_PASSWORD
   build:
     runs-on: ubuntu-latest
 
@@ -56,12 +60,16 @@ jobs:
         run: flutter pub get
         working-directory: apps/mobile
 
-      - name: Build APK
-        run: flutter build apk --debug
+      - name: Build release App Bundle
+        env:
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+        run: flutter build appbundle --release
         working-directory: apps/mobile
 
-      - name: Upload APK artifact
+      - name: Upload App Bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: remiminderai-debug
-          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          name: remiminderai-release-aab
+          path: apps/mobile/build/app/outputs/bundle/release/app-release.aab

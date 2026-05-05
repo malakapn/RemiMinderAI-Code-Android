@@ -2,7 +2,8 @@ import asyncio
 import logging
 import os
 import secrets
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -18,6 +19,7 @@ from services.db_service import (
     get_care_team_member_by_id,
     get_care_team_members,
     get_my_care_team_invitations,
+    get_my_patients_for_caregiver,
     get_pending_care_team_invitations,
     get_user_by_email,
     get_user_email,
@@ -26,8 +28,11 @@ from services.db_service import (
     remove_care_team_member,
     resend_care_team_invitation,
     update_care_team_member_permission,
+    validate_caregiver_signup_allowed,
 )
 from services.invitation_email_service import send_invite_email
+from services.phi_access_log import log_phi_access
+from route.caregiver_notes import _require_patient_in_my_care_team
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +50,14 @@ class CareTeamInviteRequest(BaseModel):
 
 class CareTeamAcceptRequest(BaseModel):
     token: str
+    consent_version: Optional[str] = "phase1-v1"
+
+
+class CaregiverSignupValidateBody(BaseModel):
+    """Pre-Firebase signup: verify email has a pending care-team invite (optional token match)."""
+
+    email: EmailStr
+    token: Optional[str] = None
 
 
 class CareTeamPermissionUpdateRequest(BaseModel):
@@ -308,6 +321,40 @@ async def list_my_care_team_invitations(
     except Exception as e:
         logger.error(f"Failed to list care team invitations: {e}")
         raise HTTPException(status_code=500, detail="Failed to load invitations")
+
+
+@router.post(
+    "/my-invitations/{invitation_id}/decline",
+    status_code=status.HTTP_200_OK,
+)
+async def decline_my_care_team_invitation(
+    invitation_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Decline a pending invitation received by the current caregiver."""
+    try:
+        firebase_uid = current_user.get("sub")
+        if not firebase_uid:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        user_id = await get_user_uuid(firebase_uid)
+        user_email = await get_user_email(user_id)
+        patient_id = await decline_care_team_invitation_by_invitee(
+            invitation_id, user_email
+        )
+        if not patient_id:
+            raise HTTPException(status_code=404, detail="Invitation not found")
+
+        invalidate(f"care_team_my_invites:{user_id}")
+        invalidate(f"care_team_pending:{patient_id}")
+        invalidate(f"care_team_list:{patient_id}")
+        return {"success": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to decline care team invitation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to decline invitation")
 
 
 @router.get("/pending", status_code=status.HTTP_200_OK)

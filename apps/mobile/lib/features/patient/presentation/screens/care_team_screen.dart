@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../care_team/data/models/care_team_invitation.dart';
 import '../../../care_team/data/models/care_team_member.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
+import '../../../../features/auth/presentation/providers/auth_provider.dart';
 
-class CareTeamScreen extends StatefulWidget {
+class CareTeamScreen extends ConsumerStatefulWidget {
   const CareTeamScreen({super.key});
 
   @override
-  State<CareTeamScreen> createState() => _CareTeamScreenState();
+  ConsumerState<CareTeamScreen> createState() => _CareTeamScreenState();
 }
 
-class _CareTeamScreenState extends State<CareTeamScreen> {
+class _CareTeamScreenState extends ConsumerState<CareTeamScreen> {
   bool _isLoading = true;
   String? _error;
   List<CareTeamMember> _members = [];
@@ -22,7 +25,14 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCareTeamData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authNotifierProvider).user;
+      if (user != null && user.isCaregiver) {
+        context.go('/caregiver/accept-invitations');
+        return;
+      }
+      _loadCareTeamData();
+    });
   }
 
   Future<void> _loadCareTeamData() async {
@@ -52,16 +62,15 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
       if (!mounted) return;
       CareTeamApiService.setCachedMembers(members);
       CareTeamApiService.setCachedPendingInvites(pending);
-      if (_membersChanged(members) || _pendingChanged(pending)) {
-        setState(() {
-          _members = members;
-          _pendingInvitations = pending;
-          _pendingActionLoading.clear();
-          _pendingActionMessage.clear();
-          _pendingActionIsError.clear();
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _members = members;
+        _pendingInvitations = pending;
+        _pendingActionLoading.clear();
+        _pendingActionMessage.clear();
+        _pendingActionIsError.clear();
+        _isLoading = false;
+        _error = null;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -69,30 +78,6 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  bool _membersChanged(List<CareTeamMember> next) {
-    if (_members.length != next.length) {
-      return true;
-    }
-    if (_members.isEmpty && next.isEmpty) {
-      return false;
-    }
-    return _members.isNotEmpty && next.isNotEmpty
-        ? _members.first.id != next.first.id
-        : true;
-  }
-
-  bool _pendingChanged(List<CareTeamInvitation> next) {
-    if (_pendingInvitations.length != next.length) {
-      return true;
-    }
-    if (_pendingInvitations.isEmpty && next.isEmpty) {
-      return false;
-    }
-    return _pendingInvitations.isNotEmpty && next.isNotEmpty
-        ? _pendingInvitations.first.id != next.first.id
-        : true;
   }
 
   @override

@@ -13,10 +13,15 @@ To fully run the system locally, you MUST run:
    python -m workers.stt_worker
 
 If the worker is not running, audio uploads will succeed but summaries will NEVER be generated.
+
+When Cloud SQL env vars are set, SQL migrations in schemas/migrations/ run automatically on API
+startup (see lifespan). Set SKIP_DB_MIGRATIONS=true to disable (e.g. local tests without DB).
 """
+import asyncio
 import logging
 import os
 import sys
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 
@@ -61,18 +66,54 @@ sys.path.append('..')
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from route import care_team, patient_tasks, reminders, visit_summary, users
+from route import care_team, caregiver_notes, internal_cron, patient_tasks, reminders, visit_summary, users
 # DISABLED: Other routes temporarily disabled to focus on audio + STT features
 # from route import invitations, patient_register, caregiver_patient, caregivers
 # DISABLED: Reminders temporarily disabled due to Supabase dependency cleanup
 # from route import reminders
 
-app = FastAPI()
+
+def _run_db_migrations() -> None:
+    from tools.apply_migrations import apply_migrations
+
+    apply_migrations()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    skip = os.getenv("SKIP_DB_MIGRATIONS", "").strip().lower() in ("1", "true", "yes")
+    if skip:
+        logger.info("SKIP_DB_MIGRATIONS is set; skipping automatic SQL migrations on startup.")
+    elif cloud_sql_configured:
+        logger.info("Applying pending SQL migrations (schemas/migrations) …")
+        await asyncio.to_thread(_run_db_migrations)
+        logger.info("SQL migrations step completed.")
+    else:
+        logger.info("Cloud SQL not fully configured; skipping automatic migrations.")
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+# Resolve CORS origins from environment first, then safe local defaults.
+default_local_origins = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+]
+cors_origins_env = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+if cors_origins_env:
+    allow_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+else:
+    allow_origins = default_local_origins
+
+logger.info("CORS allowed origins: %s", allow_origins)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend origin
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -91,6 +132,8 @@ app.include_router(care_team.invitations_router)  # Email deep links (/api/invit
 app.include_router(patient_tasks.router)      # Patient tasks
 app.include_router(reminders.router)          # Reminders
 logger.info("Reminders routes registered")
+app.include_router(caregiver_notes.router)    # Caregiver notes
+app.include_router(internal_cron.router)      # Scheduled internal jobs (cron secret)
 
 @app.get("/")
 def root() -> dict:

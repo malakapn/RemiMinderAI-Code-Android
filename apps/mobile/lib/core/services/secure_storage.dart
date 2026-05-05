@@ -14,6 +14,24 @@ class SecureStorage {
 
   // User preference keys
   static const String _rememberMeKey = 'remember_me';
+  static const String _cachedRoleKey = 'cached_user_role';
+  static const String _cachedFullNameKey = 'cached_full_name';
+
+  Future<void> saveUserRole(String role) async {
+    await _storage.write(key: _cachedRoleKey, value: role);
+  }
+
+  Future<String?> getUserRole() async {
+    return await _storage.read(key: _cachedRoleKey);
+  }
+
+  Future<void> saveFullName(String name) async {
+    await _storage.write(key: _cachedFullNameKey, value: name);
+  }
+
+  Future<String?> getFullName() async {
+    return await _storage.read(key: _cachedFullNameKey);
+  }
 
   /// Save authentication tokens
   Future<void> saveTokens(String accessToken, String refreshToken) async {

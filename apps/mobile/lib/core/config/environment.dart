@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 
 import 'billing_redirect_stub.dart'
     if (dart.library.io) 'billing_redirect.dart' as billing_redirect;
@@ -9,16 +10,33 @@ class Environment {
   // Track if environment has been loaded
   static bool _isLoaded = false;
 
+  /// Default host for dev. **Physical devices:** `10.0.2.2` (Android) and `localhost`
+  /// (iOS/desktop) point at the **phone**, not your PC — set `MOBILE_API_BASE_URL` in `.env`
+  /// to `http://<your-computer-LAN-IP>:<port>` (e.g. Docker backend often `:8001`).
+  static String get _defaultDevApiBaseUrl {
+    try {
+      return (!kIsWeb && Platform.isAndroid)
+          ? 'http://10.0.2.2:8000'
+          : 'http://localhost:8000';
+    } catch (_) {
+      return 'http://localhost:8000';
+    }
+  }
+
   // Auth Provider Configuration
   static String get authProvider =>
       _isLoaded ? (dotenv.env['AUTH_PROVIDER'] ?? 'firebase') : 'firebase';
 
-  // API Configuration
-  static String get apiBaseUrl => _isLoaded
-      ? (dotenv.env['MOBILE_API_BASE_URL'] ??
-          dotenv.env['API_BASE_URL'] ??
-          'http://localhost:8000')
-      : 'http://localhost:8000';
+  /// Backend origin for REST calls. Prefer `MOBILE_API_BASE_URL` in `.env` for real devices.
+  static String get apiBaseUrl {
+    final configured = _isLoaded
+        ? (dotenv.env['MOBILE_API_BASE_URL'] ?? dotenv.env['API_BASE_URL'])
+        : null;
+    final resolved = (configured != null && configured.trim().isNotEmpty)
+        ? configured.trim()
+        : _defaultDevApiBaseUrl;
+    return resolved;
+  }
 
   // App Environment
   static String get flutterEnv =>
@@ -106,6 +124,7 @@ class Environment {
       debugPrint('Environment.load: could not load .env ($e)');
       debugPrint('$st');
       _isLoaded = false;
+      debugPrint('Environment file not found, using defaults: $e');
     }
   }
 
@@ -116,7 +135,9 @@ class Environment {
       return;
     }
 
-    final requiredVars = <String>[];
+    final requiredVars = isProduction
+        ? <String>['MOBILE_API_BASE_URL']
+        : <String>[];
 
     final missing = requiredVars.where((String varName) =>
         dotenv.env[varName] == null || dotenv.env[varName]!.isEmpty);
@@ -127,6 +148,13 @@ class Environment {
         throw Exception(
             'Missing required environment variables: ${missing.join(', ')}');
       }
+    }
+
+    final usingLocalhost = apiBaseUrl.contains('localhost') ||
+        apiBaseUrl.contains('127.0.0.1');
+    if ((isProduction || isStaging) && usingLocalhost) {
+      throw Exception(
+          'Invalid API base URL for $flutterEnv: $apiBaseUrl. Use a non-local backend URL.');
     }
   }
 }

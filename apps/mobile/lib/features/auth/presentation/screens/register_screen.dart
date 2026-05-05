@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
+import '../../../care_team/data/services/care_team_api_service.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.inviteToken});
+
+  /// Optional invite token from email deep link (stronger signup validation).
+  final String? inviteToken;
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -109,7 +113,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // Subtitle
                 Text(
-                  'Join RemiMinder to get started',
+                  ref.watch(selectedRoleProvider) == UserRole.caregiver
+                      ? 'Caregivers need a pending patient invitation for this email before you can register.'
+                      : 'Join RemiMinder to get started',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(context).colorScheme.secondary,
                         fontSize: 18,
@@ -279,7 +285,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             fontSize: 14,
                           ),
                           children: [
-                            const TextSpan(text: 'By creating an account, you agree to our '),
+                            const TextSpan(
+                                text:
+                                    'By creating an account, you agree to our '),
                             TextSpan(
                               text: 'Terms of Service',
                               style: TextStyle(
@@ -314,23 +322,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _acceptTerms ? _registerWithEmail : null,
+                    onPressed: _acceptTerms && !ref.watch(isAuthLoadingProvider)
+                        ? _registerWithEmail
+                        : null,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      backgroundColor: _acceptTerms
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).disabledColor,
+                      backgroundColor:
+                          _acceptTerms && !ref.watch(isAuthLoadingProvider)
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).disabledColor,
                     ),
-                    child: const Text(
-                      'Create Account',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: ref.watch(isAuthLoadingProvider)
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Create Account',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
 
@@ -383,7 +403,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
     );
   }
-
 
   void _showTermsOfService() {
     showDialog(
@@ -467,13 +486,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final lastName = _lastNameController.text.trim();
       final fullName = '$firstName $lastName'.trim();
 
-      // Get selected role from provider
-      final selectedRole = ref.read(selectedRoleProvider);
+      final selectedRole = _effectiveRoleForSignup();
       if (selectedRole == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select a role first')),
         );
         return;
+      }
+
+      if (selectedRole == UserRole.caregiver) {
+        final v = await CareTeamApiService().validateCaregiverSignup(
+          email: email,
+          token: widget.inviteToken,
+        );
+        if (v['ok'] != true) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    _caregiverInviteMessage(v['reason']?.toString() ?? '')),
+              ),
+            );
+          }
+          return;
+        }
       }
 
       try {

@@ -32,6 +32,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   int _secondsElapsed = 0;
   String _formattedTime = '00:00';
   String? _audioFilePath;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -471,6 +472,8 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   }
 
   void _saveRecording() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
     print("🧪 SAVE BUTTON PRESSED");
 
     if (_audioFilePath == null) {
@@ -525,6 +528,8 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to upload audio: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 

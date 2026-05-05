@@ -81,8 +81,15 @@ class _HistoryScreenState extends State<HistoryScreen>
             ],
           ),
 
-          // Rounded Navigation Bar
-          const RoundedNavigationBar(currentItem: NavigationItem.history),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: BottomNavSafeWrapper(
+              child: const RoundedNavigationBar(
+                  currentItem: NavigationItem.visits),
+            ),
+          ),
         ],
       ),
     );

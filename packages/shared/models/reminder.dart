@@ -84,7 +84,8 @@ class Reminder {
       completedAt: json['completed_at'] != null
           ? DateTime.parse(json['completed_at'] as String)
           : null,
-      snoozeCount: json['snooze_count'] as int? ?? 0,
+      snoozeCount:
+          (json['snoozed_count'] as int?) ?? (json['snooze_count'] as int? ?? 0),
       snoozeUntil: json['snooze_until'] != null
           ? DateTime.parse(json['snooze_until'] as String)
           : null,
@@ -107,7 +108,7 @@ class Reminder {
       'recurrence': recurrence.name,
       'status': status.name,
       'completed_at': completedAt?.toIso8601String(),
-      'snooze_count': snoozeCount,
+      'snoozed_count': snoozeCount,
       'snooze_until': snoozeUntil?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),

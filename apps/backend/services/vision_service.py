@@ -3,10 +3,30 @@ Google Vision API service for OCR processing.
 Processes images from Google Cloud Storage.
 """
 
+import base64
+import json
 import logging
+import os
 from google.cloud import vision
+from google.oauth2 import service_account
 
 logger = logging.getLogger(__name__)
+
+
+def _get_vision_client() -> vision.ImageAnnotatorClient:
+    """Build a Vision client using FIREBASE_SERVICE_ACCOUNT if ADC not available."""
+    sa_b64 = os.getenv("FIREBASE_SERVICE_ACCOUNT", "").strip()
+    if sa_b64:
+        try:
+            sa_info = json.loads(base64.b64decode(sa_b64).decode("utf-8"))
+            creds = service_account.Credentials.from_service_account_info(
+                sa_info,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
+            return vision.ImageAnnotatorClient(credentials=creds)
+        except Exception as e:
+            logger.warning("Failed to build Vision client from FIREBASE_SERVICE_ACCOUNT: %s", e)
+    return vision.ImageAnnotatorClient()
 
 
 async def extract_text_from_gcs_uri(gcs_uri: str) -> dict:
@@ -25,7 +45,7 @@ async def extract_text_from_gcs_uri(gcs_uri: str) -> dict:
     """
     try:
         # Initialize Vision client
-        client = vision.ImageAnnotatorClient()
+        client = _get_vision_client()
 
         # Create image source from GCS URI
         image = vision.Image()

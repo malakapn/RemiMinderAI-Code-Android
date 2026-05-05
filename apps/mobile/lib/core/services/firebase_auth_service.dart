@@ -10,6 +10,8 @@ import 'secure_storage.dart';
 
 /// Firebase Authentication service for Email/Password and Google authentication
 class FirebaseAuthService {
+  static const Duration _firebaseAuthTimeout = Duration(seconds: 15);
+
   final firebase_auth.FirebaseAuth _firebaseAuth;
   final GoogleSignIn? _injectedGoogleSignIn;
   GoogleSignIn? _cachedGoogleSignIn;
@@ -46,7 +48,7 @@ class FirebaseAuthService {
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-      );
+      ).timeout(_firebaseAuthTimeout);
 
       if (userCredential.user == null) {
         throw Exception('Firebase sign up failed - no user returned');
@@ -98,7 +100,7 @@ class FirebaseAuthService {
       final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
-      );
+      ).timeout(_firebaseAuthTimeout);
 
       if (userCredential.user == null) {
         throw Exception('Firebase sign in failed - no user returned');
@@ -132,6 +134,10 @@ class FirebaseAuthService {
 
       return user;
     } on firebase_auth.FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            'Firebase signIn: FirebaseAuthException code=${e.code} message=${e.message}');
+      }
       throw _handleFirebaseAuthError(e);
     } catch (e, st) {
       Error.throwWithStackTrace(
@@ -173,7 +179,9 @@ class FirebaseAuthService {
 
       // Sign in to Firebase with Google credential
       final firebase_auth.UserCredential userCredential =
-          await _firebaseAuth.signInWithCredential(credential);
+          await _firebaseAuth
+              .signInWithCredential(credential)
+              .timeout(_firebaseAuthTimeout);
 
       if (userCredential.user == null) {
         throw Exception('Firebase sign-in with Google failed');
@@ -307,15 +315,15 @@ class FirebaseAuthService {
         print('🔥 FirebaseAuthService: Token is not valid after refresh');
         return null;
       }
-      print('🔥 FirebaseAuthService: Token is valid, creating User object');
+      await _tokenManager.saveTokens(freshToken, '');
+      print('🔥 FirebaseAuthService: Token refreshed, creating User object');
 
       return User(
         id: firebaseUser.uid,
         email: firebaseUser.email ?? '',
-        role: UserRole.patient, // Default role
+        role: UserRole.patient,
         fullName: firebaseUser.displayName,
-        displayName: firebaseUser.displayName ??
-            "User", // Temporary, will be replaced by backend
+        displayName: firebaseUser.displayName ?? "User",
         authUid: firebaseUser.uid,
       );
     } catch (e) {
@@ -340,7 +348,9 @@ class FirebaseAuthService {
       final firebaseUser = _firebaseAuth.currentUser;
       if (firebaseUser == null) return null;
 
-      final token = await firebaseUser.getIdToken();
+      final token = await firebaseUser.getIdToken().timeout(
+            const Duration(seconds: 6),
+          );
       return token;
     } catch (e) {
       return null;
@@ -378,5 +388,25 @@ class FirebaseAuthService {
       ..write(', message=${e.message ?? ''}');
     if (e.email != null) buf.write(', email=${e.email}');
     return Exception(buf.toString());
+  }
+
+  /// Maps platform-level failures (e.g. RecaptchaCallWrapper) to a clear error.
+  Exception _wrapNonFirebaseSignInError(Object e, String action) {
+    final msg = e.toString().toLowerCase();
+    final isLikelyNetworkOrRecaptcha = msg.contains('network error') ||
+        msg.contains('unreachable') ||
+        msg.contains('failed to connect') ||
+        msg.contains('timeout') ||
+        msg.contains('recaptcha') ||
+        msg.contains('internal error has occurred');
+    if (isLikelyNetworkOrRecaptcha) {
+      return Exception(
+          'Firebase could not complete $action (reCAPTCHA / device network to Google). '
+          'On emulator: use an image with Google Play, clear Settings → network proxy, '
+          'or run: adb shell settings delete global http_proxy. '
+          'Then retry on Wi-Fi without VPN, or a physical device with updated Play services. '
+          'Original: $e');
+    }
+    return Exception('Firebase $action failed: $e');
   }
 }

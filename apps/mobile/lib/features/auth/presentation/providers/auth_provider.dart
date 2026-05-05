@@ -1,13 +1,16 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/auth_state.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../../../core/errors/role_mismatch_exception.dart';
 import '../../../../core/models/user.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/services/token_manager.dart';
 import '../../../../core/services/secure_storage.dart';
+import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/reminder_notification_sync.dart';
 
 // =============================================================================
 // PROVIDERS
@@ -45,6 +48,8 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 /// Authentication state notifier
 class AuthNotifier extends Notifier<AuthState> {
+  static const Duration _authOperationTimeout = Duration(seconds: 20);
+
   @override
   AuthState build() {
     _authRepository = ref.watch(authRepositoryProvider);
@@ -55,30 +60,96 @@ class AuthNotifier extends Notifier<AuthState> {
 
   late final AuthRepository _authRepository;
   late final BackendApiService _backendApiService;
+  final NotificationService _notificationService = NotificationService();
+  bool _tokenRefreshListenerAttached = false;
 
-  /// Check authentication status on app start
+  /// Check authentication status on app start or resume.
+  ///
+  /// STRICT RULE: Never route to a role screen unless that role is
+  /// explicitly confirmed (from cache OR backend). If role cannot be
+  /// determined → force unauthenticated so user must re-login.
   Future<void> _checkAuthStatus() async {
     print("🔥 AuthNotifier._checkAuthStatus() started");
     state = AuthState.loading();
 
     try {
-      // Check if authentication services are available with timeout
       final user = await _authRepository
           .getCurrentUser()
           .timeout(const Duration(seconds: 10));
-      if (user != null) {
-        state = AuthState.authenticated(user);
-      } else {
+
+      if (user == null) {
         state = AuthState.unauthenticated();
+        return;
       }
+
+      final storage = SecureStorage();
+      final cachedRole = await storage.getUserRole();
+      final cachedName = await storage.getFullName();
+
+      // Step 1: Try to get role from backend (source of truth)
+      AuthProfile? profile;
+      String? confirmedRole;
+      String? confirmedName;
+
+      try {
+        final backendProfile = await _backendApiService
+            .getMyProfile()
+            .timeout(const Duration(seconds: 8));
+        profile = AuthProfile.fromUserProfile(backendProfile);
+        confirmedRole = backendProfile.role; // normalized: 'caregiver' | 'patient'
+        confirmedName = backendProfile.fullName;
+
+        if (UserRole.tryFromString(confirmedRole) == UserRole.caregiver) {
+          await _ensureCaregiverHasInviteOrTeam(backendProfile);
+        }
+
+        // Persist to cache for next cold start
+        await storage.saveUserRole(confirmedRole);
+        if (confirmedName != null && confirmedName.isNotEmpty) {
+          await storage.saveFullName(confirmedName);
+        }
+        print('🔐 AuthNotifier: role confirmed from backend: $confirmedRole');
+      } catch (e) {
+        print('🔐 AuthNotifier: backend unreachable, trying cache: $e');
+
+        // Step 2: Backend unavailable — use persisted cache
+        if (cachedRole != null && cachedRole.isNotEmpty) {
+          confirmedRole = cachedRole;
+          confirmedName = cachedName;
+          print('🔐 AuthNotifier: using cached role: $confirmedRole');
+        }
+      }
+
+      // Step 3: If role still unknown → force re-login
+      // This prevents wrong-role auto-login which is worse than showing login screen
+      if (confirmedRole == null || confirmedRole.isEmpty) {
+        print('🔐 AuthNotifier: role unknown — forcing re-login for safety');
+        await storage.saveUserRole('');
+        state = AuthState.unauthenticated();
+        return;
+      }
+
+      // Map confirmed role string → enum.
+      // Backend stores "user" for patients (legacy), "caregiver" for caregivers.
+      final userRole =
+          UserRole.tryFromString(confirmedRole) ?? UserRole.patient;
+
+      final resolvedUser = user.copyWith(
+        role: userRole,
+        fullName: confirmedName ?? user.fullName,
+      );
+
+      state = AuthState.authenticated(resolvedUser, profile: profile);
+      await _syncFcmTokenAndAttachRefreshListener();
+      await _syncLocalReminderNotifications(resolvedUser);
     } catch (e) {
-      // On ANY error or timeout, fallback to unauthenticated
-      // This ensures app never gets stuck in loading state
+      print('🔐 AuthNotifier: _checkAuthStatus failed: $e');
       state = AuthState.unauthenticated();
     }
   }
 
-  /// Explicit initialization trigger (called from LoadingScreen)
+  /// Re-runs auth resolution (e.g. pull-to-refresh on profile). The app starts at
+  /// `/welcome`; there is no separate splash route.
   Future<void> initialize() async {
     print("🔥 AuthNotifier.initialize() called");
     await _checkAuthStatus();
@@ -101,7 +172,7 @@ class AuthNotifier extends Notifier<AuthState> {
         password: password,
         role: role,
         fullName: fullName,
-      );
+      ).timeout(_authOperationTimeout);
 
       try {
         await _backendApiService.bootstrapUser(fullName: fullName);
@@ -131,7 +202,7 @@ class AuthNotifier extends Notifier<AuthState> {
       // Repository → FirebaseAuthService.signIn →
       // FirebaseAuth.instance.signInWithEmailAndPassword(); tokens persisted there.
       final user = await _authRepository.signIn(email, password,
-          selectedRole: selectedRole);
+          selectedRole: selectedRole).timeout(_authOperationTimeout);
 
       try {
         await _backendApiService.bootstrapUser();
@@ -146,6 +217,7 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     } catch (e) {
       state = AuthState.error(e.toString());
+      rethrow;
     }
   }
 
@@ -155,7 +227,9 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState.loading();
 
       final user =
-          await _authRepository.signInWithGoogle(selectedRole: selectedRole);
+          await _authRepository
+              .signInWithGoogle(selectedRole: selectedRole)
+              .timeout(_authOperationTimeout);
 
       try {
         await _backendApiService.bootstrapUser();
@@ -170,24 +244,25 @@ class AuthNotifier extends Notifier<AuthState> {
       // Catches all errors including PlatformException from Google Sign-In.
       print('signInWithGoogle error: $e\n$st');
       state = AuthState.error(e.toString());
+      rethrow;
     }
   }
 
   /// Sign out current user
   Future<void> signOut() async {
-    print('🔐 AuthNotifier: signOut() called - setting loading state');
-    state = AuthState.loading();
-
     try {
-      print('🔐 AuthNotifier: calling _authRepository.signOut()');
-      await _authRepository.signOut();
-      print(
-          '🔐 AuthNotifier: Firebase signOut completed, setting unauthenticated');
-      state = AuthState.unauthenticated();
-      print('🔐 AuthNotifier: AuthState set to unauthenticated');
+      await _authRepository.signOut().timeout(const Duration(seconds: 8));
     } catch (e) {
       print('🔐 AuthNotifier: signOut failed: $e');
-      state = AuthState.error(e.toString());
+    } finally {
+      // Clear cached role so next login starts fresh
+      try {
+        final s = SecureStorage();
+        await s.saveUserRole('');
+        await s.saveFullName('');
+      } catch (_) {}
+      // Unauthenticated — [GoRouter] sends users off protected routes to `/role-selection`.
+      state = AuthState.unauthenticated();
     }
   }
 
@@ -200,6 +275,7 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState.unauthenticated(); // Go back to login
     } catch (e) {
       state = AuthState.error(e.toString());
+      rethrow;
     }
   }
 
@@ -215,6 +291,7 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState.authenticated(state.user!);
     } catch (e) {
       state = AuthState.error(e.toString());
+      rethrow;
     }
   }
 
@@ -235,6 +312,43 @@ class AuthNotifier extends Notifier<AuthState> {
     if (state.user != null) {
       state = AuthState.authenticated(state.user!, profile: profile);
     }
+  }
+
+  Future<void> _syncLocalReminderNotifications(User user) async {
+    final auth = ref.read(_authServiceProvider);
+    await ReminderNotificationSync.syncAfterAuth(auth, user);
+  }
+
+  Future<void> _syncFcmTokenAndAttachRefreshListener() async {
+    try {
+      final token = await _notificationService.getFcmToken();
+      if (token != null && token.isNotEmpty) {
+        await _backendApiService.registerFcmToken(
+          fcmToken: token,
+          deviceType: 'android',
+        );
+      }
+    } catch (_) {
+      // Keep auth flow non-blocking if FCM sync fails.
+    }
+
+    if (_tokenRefreshListenerAttached) {
+      return;
+    }
+
+    _tokenRefreshListenerAttached = true;
+    await _notificationService.onTokenRefresh((token) async {
+      try {
+        if (token.isNotEmpty) {
+          await _backendApiService.registerFcmToken(
+            fcmToken: token,
+            deviceType: 'android',
+          );
+        }
+      } catch (_) {
+        // Do not fail app flow on background token refresh errors.
+      }
+    });
   }
 }
 

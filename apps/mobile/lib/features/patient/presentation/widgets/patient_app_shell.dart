@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'bottom_nav_safe_wrapper.dart';
 import 'rounded_navigation_bar.dart';
 
 /// App shell that wraps all patient screens with a floating bottom navigation bar
@@ -32,7 +33,7 @@ class _PatientAppShellState extends State<PatientAppShell> {
             child: widget.child,
           ),
 
-          // Floating navigation bar
+          // Floating navigation bar (SafeArea keeps content above home indicator / gesture inset)
           Positioned(
             left: 0,
             right: 0,
@@ -58,6 +59,8 @@ NavigationItem getCurrentNavigationItem(String location) {
     return NavigationItem.careTeam;
   } else if (location.startsWith('/patient/profile')) {
     return NavigationItem.profile;
+  } else if (location.startsWith('/patient/reminder')) {
+    return NavigationItem.home;
   } else if (location.startsWith('/profile')) {
     return NavigationItem.profile;
   } else if (location.startsWith('/caregiver/home')) {
@@ -68,6 +71,8 @@ NavigationItem getCurrentNavigationItem(String location) {
     return NavigationItem.overview;
   } else if (location.startsWith('/caregiver/accept-invitations')) {
     return NavigationItem.careTeam;
+  } else if (location.startsWith('/caregiver/reminders-timeline')) {
+    return NavigationItem.visits;
   } else {
     // Default to home for unknown routes
     return NavigationItem.home;

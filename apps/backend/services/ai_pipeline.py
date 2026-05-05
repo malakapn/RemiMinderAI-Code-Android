@@ -9,6 +9,7 @@ Coordinates the AI summary generation process:
 This orchestrator contains no LLM code, no SQL strings, and no business logic.
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -17,8 +18,25 @@ from services.ai.summary_normalizer_v2 import normalize_v2_summary
 from services.cache_service import get, set
 from services.db_service import get_transcript_text, insert_ai_summary_log, update_visit_with_structured_data, get_user_language_preferences
 from services.tasks_service import generate_reminders_from_actions, generate_tasks_from_summary
+from services.alert_service import (
+    notify_caregiver_new_visit_symptoms,
+    notify_caregivers_new_visit_recorded,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _log_background_task_error(task: asyncio.Task) -> None:
+    """Avoid silent failures when notify coroutines crash after create_task."""
+
+    try:
+        exc = task.exception()
+        if exc is not None:
+            logger.warning(
+                "Background caregiver notify task failed: %s", exc, exc_info=exc
+            )
+    except asyncio.CancelledError:
+        pass
 
 
 def _get_prompt_version() -> str:
@@ -98,23 +116,9 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
             structured_result,
         )
         logger.info(f"Structured summary saved successfully for visit {visit_id}")
-        if summary_id:
-            await generate_tasks_from_summary(
-                user_id=user_id,
-                visit_id=visit_id,
-                summary_id=summary_id,
-                structured_summary=structured_result,
-            )
-            await generate_reminders_from_actions(
-                user_id=user_id,
-                visit_id=visit_id,
-                actions=structured_result.get("actions", []),
-            )
 
-        # Step D: Update visit with structured data (always after summary generation)
         doctor_name = structured_result.get("doctor_name")
         if not isinstance(doctor_name, str) or not doctor_name.strip():
-            # Fallback: extract doctor name from transcript when LLM omits it.
             match = re.search(
                 r"(?:Dr\.?|Doctor)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3})",
                 raw_text or "",
@@ -122,7 +126,9 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
             )
             if match:
                 doctor_name = match.group(1).strip()
+
         specialty = structured_result.get("specialty")
+
         title = structured_result.get("visit_display_title")
         logger.info(
             "Updating visit metadata: visit_id=%s, doctor_name=%s, specialty=%s, title=%s",
@@ -137,6 +143,45 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
             specialty=specialty,
             title=title,
         )
+
+        if summary_id:
+            try:
+                await generate_tasks_from_summary(
+                    user_id=user_id,
+                    visit_id=visit_id,
+                    summary_id=summary_id,
+                    structured_summary=structured_result,
+                )
+            except Exception:
+                logger.exception(
+                    "Auxiliary tasks generation failed (non-fatal) visit_id=%s",
+                    visit_id,
+                )
+            try:
+                await generate_reminders_from_actions(
+                    user_id=user_id,
+                    visit_id=visit_id,
+                    actions=structured_result.get("actions", []),
+                )
+            except Exception:
+                logger.exception(
+                    "Auxiliary reminders generation failed (non-fatal) visit_id=%s",
+                    visit_id,
+                )
+            s_task = asyncio.create_task(
+                notify_caregiver_new_visit_symptoms(
+                    user_id, visit_id, summary_id, structured_result
+                )
+            )
+            s_task.add_done_callback(_log_background_task_error)
+
+            r_task = asyncio.create_task(
+                notify_caregivers_new_visit_recorded(
+                    user_id=user_id,
+                    visit_id=visit_id,
+                )
+            )
+            r_task.add_done_callback(_log_background_task_error)
 
         # Step E: Return the summary text (for backward compatibility)
         return summary_text

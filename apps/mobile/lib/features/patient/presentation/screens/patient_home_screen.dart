@@ -7,9 +7,8 @@ import 'package:http/http.dart' as http;
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../shared/utilities/greeting_utils.dart';
-import '../../data/models/patient_task.dart';
-import '../../data/services/patient_tasks_api_service.dart';
 import '../widgets/widgets.dart';
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
@@ -19,37 +18,64 @@ class PatientHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
-class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
+class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
+    with WidgetsBindingObserver {
   final AuthService _authService = AuthService();
-  final PatientTasksApiService _tasksApiService = PatientTasksApiService();
-  List<PatientTask> _tasks = [];
-  bool _isLoadingTasks = true;
   bool _isLoadingUpNext = true;
   Map<String, dynamic>? _upNextReminder;
   List<Map<String, dynamic>> _todayReminders = [];
+  List<Map<String, dynamic>> _upcomingReminders = [];
   bool _remindersError = false;
+
+  /// Task rows currently sending "complete" to the API.
+  final Set<String> _completingTaskIds = {};
 
   @override
   void initState() {
     super.initState();
-    _fetchTasks();
+    WidgetsBinding.instance.addObserver(this);
     _fetchUpNextReminder();
+    _requestNotificationPermissions();
   }
 
-  Future<void> _fetchTasks() async {
-    try {
-      final tasks = await _tasksApiService.fetchTasks();
-      if (!mounted) return;
-      setState(() {
-        _tasks = tasks;
-        _isLoadingTasks = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _tasks = [];
-        _isLoadingTasks = false;
-      });
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchUpNextReminder();
+    }
+  }
+
+  Future<void> _requestNotificationPermissions() async {
+    final svc = NotificationService();
+    await svc.requestPermissions();
+    await svc.requestExactAlarmPermission();
+  }
+
+  Future<void> _rescheduleAllNotifications(List<dynamic> reminders) async {
+    final svc = NotificationService();
+    final now = DateTime.now();
+    for (final raw in reminders) {
+      if (raw is! Map) continue;
+      final scheduledStr = raw['scheduled_time']?.toString() ?? '';
+      final scheduledTime = DateTime.tryParse(scheduledStr)?.toLocal();
+      if (scheduledTime == null || scheduledTime.isBefore(now)) continue;
+      final id = raw['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      try {
+        await svc.scheduleFromReminderData(
+          reminderId: id,
+          medicationName: raw['title']?.toString() ?? 'Reminder',
+          dosage: '',
+          scheduledTime: scheduledTime,
+          notificationBody: raw['message']?.toString(),
+        );
+      } catch (_) {}
     }
   }
 
@@ -75,20 +101,24 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         final today = data['today'] as List<dynamic>? ?? [];
         if (!mounted) return;
         setState(() {
-          _upNextReminder =
-              upcoming.isNotEmpty ? upcoming.first as Map<String, dynamic> : null;
-          _todayReminders = today
-              .whereType<Map<String, dynamic>>()
-              .toList();
+          _upNextReminder = upcoming.isNotEmpty
+              ? upcoming.first as Map<String, dynamic>
+              : null;
+          _todayReminders = today.whereType<Map<String, dynamic>>().toList();
+          _upcomingReminders =
+              upcoming.whereType<Map<String, dynamic>>().toList();
           _isLoadingUpNext = false;
           _remindersError = false;
         });
+        // Reschedule notifications immediately on login so nothing is missed
+        _rescheduleAllNotifications([...upcoming, ...today]);
         return;
       }
       if (!mounted) return;
       setState(() {
         _upNextReminder = null;
         _todayReminders = [];
+        _upcomingReminders = [];
         _isLoadingUpNext = false;
         _remindersError = true;
       });
@@ -97,9 +127,165 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       setState(() {
         _upNextReminder = null;
         _todayReminders = [];
+        _upcomingReminders = [];
         _isLoadingUpNext = false;
         _remindersError = true;
       });
+    }
+  }
+
+  List<Map<String, dynamic>> _collectMyTasks() {
+    bool isOpen(Map<String, dynamic> r) {
+      final s = (r['display_status'] ?? r['status'] ?? 'pending')
+          .toString()
+          .toLowerCase();
+      return s != 'completed' &&
+          s != 'complete' &&
+          s != 'skipped' &&
+          s != 'missed';
+    }
+
+    bool isTask(Map<String, dynamic> r) {
+      final t =
+          (r['reminder_type'] ?? r['type'] ?? '').toString().toLowerCase();
+      return t == 'task';
+    }
+
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final r in [..._todayReminders, ..._upcomingReminders]) {
+      if (!isTask(r) || !isOpen(r)) continue;
+      final id = r['id']?.toString() ?? '';
+      if (id.isEmpty || seen.contains(id)) continue;
+      seen.add(id);
+      out.add(r);
+    }
+    return out;
+  }
+
+  Widget _buildMyTasks() {
+    final tasks = _collectMyTasks();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: _isLoadingUpNext
+          ? const Center(child: CircularProgressIndicator())
+          : tasks.isEmpty
+              ? Text(
+                  'No tasks yet. Add reminders as "Task" from Reminders.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...tasks.map((r) {
+                      final id = r['id']?.toString() ?? '';
+                      final title = (r['title']?.toString() ?? '').trim();
+                      final body = (r['message']?.toString() ?? '').trim();
+                      final busy = _completingTaskIds.contains(id);
+                      final headline = title.isNotEmpty
+                          ? title
+                          : (body.isNotEmpty ? body : 'Task');
+                      return Padding(
+                        key: ValueKey<String>('my-task-$id'),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          secondary: busy
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(4.0),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  ),
+                                )
+                              : null,
+                          value: false,
+                          activeColor:
+                              Theme.of(context).colorScheme.primary,
+                          title: Text(
+                            headline,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          subtitle: body.isNotEmpty && title.isNotEmpty
+                              ? Text(
+                                  body,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .secondary,
+                                  ),
+                                )
+                              : null,
+                          onChanged: busy
+                              ? null
+                              : (v) {
+                                  if (v == true) {
+                                    _completeMyTask(id);
+                                  }
+                                },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+    );
+  }
+
+  Future<void> _completeMyTask(String id) async {
+    if (id.isEmpty) return;
+    setState(() => _completingTaskIds.add(id));
+    try {
+      final accessToken = await _authService.getAccessToken();
+      if (accessToken == null) throw Exception('Authentication required');
+      final response = await http.post(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id/complete'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode != 200) throw Exception('Action failed');
+      try {
+        await NotificationService().cancelFromReminderId(id);
+      } catch (_) {}
+      await _fetchUpNextReminder();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task completed')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to update task')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _completingTaskIds.remove(id));
+      }
     }
   }
 
@@ -243,13 +429,12 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
                 const SizedBox(height: 32),
 
-                // To-do List
                 const SectionHeader(
-                  title: 'To-do List',
-                  icon: Icons.checklist,
+                  title: 'My Tasks',
+                  icon: Icons.checklist_outlined,
                 ),
                 const SizedBox(height: 16),
-                _buildTodoList(),
+                _buildMyTasks(),
 
                 // Extra space for bottom navigation - this will be handled by the app shell
                 const SizedBox(height: 120),
@@ -327,7 +512,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
           else if (reminder == null)
             Text(
               'No upcoming reminders',
-            style: TextStyle(
+              style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -359,60 +544,80 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
             ),
           ],
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: reminder == null
-                      ? null
-                      : () {
-                    // TODO: Mark as taken
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Marked as taken!')),
-                    );
+          if (reminder == null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/patient/reminders?add=1'),
+                icon: const Icon(Icons.add),
+                label: const Text(
+                  'Add Reminder',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                ),
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _handleReminderAction(
+                          reminder['id']?.toString(), 'complete');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: const Text(
+                      'Take Now',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: () {
+                    _handleReminderAction(
+                        reminder['id']?.toString(), 'snooze');
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Theme.of(context).colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: const Text(
-                    'Take Now',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  icon: const Icon(Icons.snooze, color: Colors.white),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    padding: const EdgeInsets.all(12),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              IconButton(
-                onPressed: reminder == null
-                    ? null
-                    : () {
-                  // TODO: Snooze reminder
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Reminder snoozed for 1 hour')),
-                  );
-                },
-                icon: const Icon(Icons.snooze, color: Colors.white),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  padding: const EdgeInsets.all(12),
-                ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );
   }
 
   Widget _buildTodaysSchedule() {
+    final scheduleReminders = _todayReminders.where((reminder) {
+      final rawType = (reminder['reminder_type'] ?? reminder['type'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      return rawType == 'medication' || rawType == 'appointment';
+    }).toList();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -431,24 +636,24 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
           if (_isLoadingUpNext)
             const Center(child: CircularProgressIndicator())
           else if (_remindersError)
-              Text(
+            Text(
               'Nothing scheduled for today',
-                style: TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 color: Theme.of(context).colorScheme.secondary,
               ),
             )
-          else if (_todayReminders.isEmpty)
+          else if (scheduleReminders.isEmpty)
             Text(
               'Nothing scheduled for today',
-                  style: TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 color: Theme.of(context).colorScheme.secondary,
               ),
             )
           else
             Column(
-              children: _todayReminders.map((reminder) {
+              children: scheduleReminders.map((reminder) {
                 final title = reminder['title'] as String?;
                 final message = reminder['message'] as String?;
                 final scheduledTime = reminder['scheduled_time'] as String?;
@@ -476,16 +681,15 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
+                            children: [
+                              Text(
                                 title?.trim().isNotEmpty == true
                                     ? title!
                                     : (message ?? ''),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                                  color:
-                                      Theme.of(context).colorScheme.primary,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                               Text(
@@ -496,10 +700,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
                                       .colorScheme
                                       .secondary
                                       .withOpacity(0.7),
-                ),
-              ),
-            ],
-          ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -638,7 +842,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     if (scheduledTime == null || scheduledTime.trim().isEmpty) {
       return 'Upcoming';
     }
-    final scheduled = DateTime.tryParse(scheduledTime);
+    final scheduled = DateTime.tryParse(scheduledTime)?.toLocal();
     if (scheduled == null) {
       return 'Upcoming';
     }
@@ -663,7 +867,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     if (scheduledTime == null || scheduledTime.trim().isEmpty) {
       return '';
     }
-    final scheduled = DateTime.tryParse(scheduledTime);
+    final scheduled = DateTime.tryParse(scheduledTime)?.toLocal();
     if (scheduled == null) {
       return scheduledTime;
     }
@@ -672,6 +876,34 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     final period = hour >= 12 ? 'PM' : 'AM';
     final hour12 = hour % 12 == 0 ? 12 : hour % 12;
     return '$hour12:$minute $period';
+  }
+
+  Future<void> _handleReminderAction(String? reminderId, String action) async {
+    if (reminderId == null || reminderId.isEmpty) return;
+    try {
+      final accessToken = await _authService.getAccessToken();
+      if (accessToken == null) throw Exception('Authentication required');
+      final response = await http.post(
+        Uri.parse(
+            '${Environment.apiBaseUrl}/api/reminders/$reminderId/$action'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode != 200) throw Exception('Action failed');
+      await _fetchUpNextReminder();
+      if (!mounted) return;
+      final actionText = action == 'complete' ? 'taken' : 'snoozed';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reminder $actionText')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to update reminder')),
+      );
+    }
   }
 
 }

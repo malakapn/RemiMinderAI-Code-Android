@@ -28,7 +28,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
 
               // Logo and branding
               Expanded(
@@ -42,7 +42,7 @@ class WelcomeScreen extends StatelessWidget {
                       fit: BoxFit.contain,
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 8),
 
                     // Welcome Title
                     Text(
@@ -80,11 +80,11 @@ class WelcomeScreen extends StatelessWidget {
 
                     const SizedBox(height: 48),
 
-                    // Get Started Button
+                    // Continue → Login (no first-launch gating)
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => context.go('/role-selection'),
+                        onPressed: () => context.go('/login'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -92,7 +92,7 @@ class WelcomeScreen extends StatelessWidget {
                           ),
                         ),
                         child: const Text(
-                          'Get Started',
+                          'Continue',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,

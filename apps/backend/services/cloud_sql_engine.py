@@ -43,6 +43,8 @@ def get_cloud_sql_engine() -> Engine:
             "Set DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD for Cloud SQL connection."
         )
 
+    db_sslmode = os.getenv("DB_SSLMODE", "prefer")
+
     try:
         # Create database URL using SQLAlchemy URL.create() to safely handle special characters
         database_url = URL.create(
@@ -66,7 +68,7 @@ def get_cloud_sql_engine() -> Engine:
             connect_args={
                 "connect_timeout": 10,
                 "application_name": "MediMinder-Backend",
-                "sslmode": "require"
+                "sslmode": db_sslmode
             }
         )
 

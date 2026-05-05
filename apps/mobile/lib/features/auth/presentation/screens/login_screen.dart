@@ -68,6 +68,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _loadRememberMePreference();
   }
 
+  /// Role intent from `/login?role=…`, normalized via [UserRole.tryFromString].
+  UserRole? get _intentRole {
+    final raw = _userRole?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    return UserRole.tryFromString(raw) ?? UserRole.patient;
+  }
+
   Future<void> _loadRememberMePreference() async {
     final rememberMe = await SecureStorage().getRememberMe();
     if (mounted) {
@@ -96,15 +103,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     try {
-      // Convert string role to UserRole enum
-      UserRole? selectedRole;
-      if (_userRole != null) {
-        selectedRole =
-            _userRole == 'caregiver' ? UserRole.caregiver : UserRole.patient;
-      }
-      await ref
-          .read(authNotifierProvider.notifier)
-          .signIn(email, password, selectedRole: selectedRole);
+      await ref.read(authNotifierProvider.notifier).signIn(
+            email,
+            password,
+            selectedRole: _intentRole,
+          );
 
       // Check auth state after login attempt
       final authState = ref.read(authNotifierProvider);
@@ -244,7 +247,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Icons.arrow_back,
             color: Theme.of(context).colorScheme.primary,
           ),
-          onPressed: () => context.go('/role-selection'),
+          onPressed: () => context.go('/welcome'),
         ),
       ),
       body: SafeArea(
@@ -493,7 +496,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // Create Account Link
               Center(
                 child: TextButton(
-                  onPressed: () => context.go('/register'),
+                  onPressed: () {
+                    final r = _userRole;
+                    final q = (r != null && r.isNotEmpty) ? '?role=$r' : '';
+                    context.go('/register$q');
+                  },
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     minimumSize: Size.zero,
@@ -548,15 +555,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _signInWithGoogle() async {
     try {
-      // Convert string role to UserRole enum
-      UserRole? selectedRole;
-      if (_userRole != null) {
-        selectedRole =
-            _userRole == 'caregiver' ? UserRole.caregiver : UserRole.patient;
-      }
-
       await ref.read(authNotifierProvider.notifier).signInWithGoogle(
-            selectedRole: selectedRole,
+            selectedRole: _intentRole,
           );
 
       // Check auth state after login attempt
