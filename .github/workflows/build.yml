@@ -61,7 +61,7 @@ jobs:
               -keypass android
           fi
       - name: Copy upload keystore to android/app
-        run: cp apps/mobile/android/upload-keystore.jks apps/mobile/android/app/upload-keystore.jks
+        run: cp upload-keystore.jks apps/mobile/android/app/upload-keystore.jks
       - name: Create google-services.json
         run: |
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > apps/mobile/android/app/google-services.json
