@@ -1,6 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter/foundation.dart';
 
 import 'billing_redirect_stub.dart'
     if (dart.library.io) 'billing_redirect.dart' as billing_redirect;

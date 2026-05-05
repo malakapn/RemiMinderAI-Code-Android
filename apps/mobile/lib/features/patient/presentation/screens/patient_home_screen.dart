@@ -27,6 +27,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   List<Map<String, dynamic>> _upcomingReminders = [];
   bool _remindersError = false;
 
+  bool _isLoadingTasks = false;
+  List<_PatientHomeTodoItem> _tasks = [];
+
   /// Task rows currently sending "complete" to the API.
   final Set<String> _completingTaskIds = {};
 
@@ -80,6 +83,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   }
 
   Future<void> _fetchUpNextReminder() async {
+    if (mounted) {
+      setState(() => _isLoadingTasks = true);
+    }
     try {
       final accessToken = await _authService.getAccessToken();
       if (accessToken == null) {
@@ -112,6 +118,24 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         });
         // Reschedule notifications immediately on login so nothing is missed
         _rescheduleAllNotifications([...upcoming, ...today]);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final openTasks = _collectMyTasks();
+          setState(() {
+            _tasks = openTasks.map((r) {
+              final title = (r['title']?.toString() ?? '').trim();
+              final body = (r['message']?.toString() ?? '').trim();
+              final headline =
+                  title.isNotEmpty ? title : (body.isNotEmpty ? body : 'Task');
+              return _PatientHomeTodoItem(
+                title: headline,
+                createdAt:
+                    DateTime.tryParse(r['scheduled_time']?.toString() ?? ''),
+              );
+            }).toList();
+            _isLoadingTasks = false;
+          });
+        });
         return;
       }
       if (!mounted) return;
@@ -119,7 +143,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         _upNextReminder = null;
         _todayReminders = [];
         _upcomingReminders = [];
+        _tasks = [];
         _isLoadingUpNext = false;
+        _isLoadingTasks = false;
         _remindersError = true;
       });
     } catch (e) {
@@ -128,7 +154,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         _upNextReminder = null;
         _todayReminders = [];
         _upcomingReminders = [];
+        _tasks = [];
         _isLoadingUpNext = false;
+        _isLoadingTasks = false;
         _remindersError = true;
       });
     }
@@ -907,3 +935,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   }
 
 }
+
+class _PatientHomeTodoItem {
+  const _PatientHomeTodoItem({required this.title, this.createdAt});
+
+  final String title;
+  final DateTime? createdAt;
+}
+

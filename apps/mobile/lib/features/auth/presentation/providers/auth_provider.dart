@@ -4,13 +4,13 @@ import '../../data/models/auth_state.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../../../core/errors/role_mismatch_exception.dart';
 import '../../../../core/models/user.dart';
-import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/services/token_manager.dart';
 import '../../../../core/services/secure_storage.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
+import '../../../care_team/data/services/care_team_api_service.dart';
 
 // =============================================================================
 // PROVIDERS
@@ -317,6 +317,23 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _syncLocalReminderNotifications(User user) async {
     final auth = ref.read(_authServiceProvider);
     await ReminderNotificationSync.syncAfterAuth(auth, user);
+  }
+
+  /// Ensures caregivers have at least one roster patient or pending invite (non-blocking).
+  Future<void> _ensureCaregiverHasInviteOrTeam(UserProfile backendProfile) async {
+    try {
+      final auth = ref.read(_authServiceProvider);
+      final patients = await CareTeamApiService(authService: auth).getMyPatients();
+      if (patients.isNotEmpty) return;
+      final invites = await CareTeamApiService(authService: auth).getMyInvitations();
+      final pending = invites.where((i) => i.status.toLowerCase() == 'pending');
+      if (pending.isNotEmpty) return;
+      print(
+        '🔐 AuthNotifier: caregiver has no patients or pending invites (${backendProfile.email})',
+      );
+    } catch (e) {
+      print('🔐 AuthNotifier: _ensureCaregiverHasInviteOrTeam skipped: $e');
+    }
   }
 
   Future<void> _syncFcmTokenAndAttachRefreshListener() async {

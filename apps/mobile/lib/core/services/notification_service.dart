@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
+
+import '../config/environment.dart';
+import 'auth_service.dart';
 
 /// Local scheduled notifications (Android foreground/background).
 class NotificationService {
@@ -13,6 +19,8 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+
+  StreamSubscription<String>? _fcmTokenRefreshSub;
 
   /// Initializes plugin, timezone DB, Android channel, and requests
   /// POST_NOTIFICATIONS on Android 13+.
@@ -230,5 +238,65 @@ class NotificationService {
   Future<void> cancelAllReminders() async {
     await initialize();
     await _plugin.cancelAll();
+  }
+
+  /// Current FCM device token for push delivery (nullable on web/simulator/unavailable).
+  Future<String?> getFcmToken() async {
+    if (kIsWeb) return null;
+    try {
+      return await FirebaseMessaging.instance.getToken();
+    } catch (e, st) {
+      debugPrint('NotificationService.getFcmToken: $e\n$st');
+      return null;
+    }
+  }
+
+  /// Registers a listener for rotated FCM tokens.
+  ///
+  /// [callback] receives the raw token string. Only one subscriber is tracked;
+  /// calling again replaces the previous subscription.
+  Future<void> onTokenRefresh(
+      Future<void> Function(String token) callback) async {
+    if (kIsWeb) return;
+    await _fcmTokenRefreshSub?.cancel();
+    _fcmTokenRefreshSub =
+        FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+      try {
+        await callback(token);
+      } catch (e, st) {
+        debugPrint('NotificationService.onTokenRefresh callback: $e\n$st');
+      }
+    });
+  }
+
+  /// Removes this user's FCM row on the backend (call while JWT is valid).
+  Future<void> unregisterBackendFcmToken() async {
+    final token = await AuthService().getAccessToken();
+    if (token == null || token.isEmpty) return;
+
+    try {
+      final uri = Uri.parse('${Environment.apiBaseUrl}/api/reminders/fcm/token');
+      await http.delete(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // Best-effort; sign-out callers continue regardless.
+    }
+  }
+
+  /// Deletes local FCM installation token so the device gets a fresh one next launch.
+  Future<void> clearLocalFcmRegistration() async {
+    if (kIsWeb) return;
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
+        await FirebaseMessaging.instance.deleteToken();
+      }
+    } catch (_) {}
+    await _fcmTokenRefreshSub?.cancel();
+    _fcmTokenRefreshSub = null;
   }
 }

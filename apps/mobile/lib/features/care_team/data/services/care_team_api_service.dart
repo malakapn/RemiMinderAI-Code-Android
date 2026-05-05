@@ -1,18 +1,193 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 
+import '../../../../core/config/environment.dart';
+import '../../../../core/services/auth_service.dart';
 import '../models/care_team_invitation.dart';
 import '../models/care_team_member.dart';
 
-/// Care team + invitations backed by Firestore (replacing legacy REST API).
+/// Care team: Firestore-backed invitations + caregiver roster, with REST proxies
+/// for caregiver dashboard / reminders / PHI reads (backend Cloud SQL API).
 class CareTeamApiService {
-  CareTeamApiService();
+  CareTeamApiService({AuthService? authService})
+      : _authService = authService ?? AuthService();
+
+  final AuthService _authService;
 
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // In-memory cache (per app process)
   static CacheEntry<List<CareTeamMember>>? _membersCache;
   static CacheEntry<List<CareTeamInvitation>>? _pendingInvitesCache;
+
+  Future<Map<String, String>> _headers() async {
+    final token = await _authService.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication required');
+    }
+    return {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    };
+  }
+
+  /// Caregiver patient roster (`get_my_patients_for_caregiver` rows).
+  Future<List<Map<String, dynamic>>> getMyPatients() async {
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/my-patients');
+    final resp = await http.get(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception('getMyPatients failed: ${resp.statusCode} ${resp.body}');
+    }
+    final decoded = json.decode(resp.body);
+    if (decoded is List) {
+      return decoded
+          .whereType<Object?>()
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    throw Exception('Unexpected getMyPatients response');
+  }
+
+  /// Grouped reminders for one patient (`today` / `upcoming` / `past`).
+  Future<Map<String, dynamic>> getPatientReminderList(String patientId) async {
+    final uri =
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/patient/$patientId');
+    final resp = await http.get(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'getPatientReminderList failed: ${resp.statusCode} ${resp.body}');
+    }
+    final decoded = json.decode(resp.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    return Map<String, dynamic>.from(decoded as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> getPatientScannedDocs(String patientId) async {
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/caregiver/patients/$patientId/scanned-docs');
+    final resp = await http.get(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'getPatientScannedDocs failed: ${resp.statusCode} ${resp.body}');
+    }
+    final decoded = json.decode(resp.body);
+    if (decoded is List) {
+      return decoded
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return [];
+  }
+
+  /// Symptom journal entries + `filters_applied` map for caregiver UI.
+  Future<Map<String, dynamic>> getPatientSymptomJournal(
+    String patientId, {
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? severityContains,
+  }) async {
+    final qp = <String, String>{};
+    if (dateFrom != null) qp['date_from'] = dateFrom.toIso8601String();
+    if (dateTo != null) qp['date_to'] = dateTo.toIso8601String();
+    if (severityContains != null && severityContains.trim().isNotEmpty) {
+      qp['severity_contains'] = severityContains.trim();
+    }
+    final base =
+        '${Environment.apiBaseUrl}/api/caregiver/patients/$patientId/symptom-journal';
+    final uri =
+        qp.isEmpty ? Uri.parse(base) : Uri.parse(base).replace(queryParameters: qp);
+    final resp = await http.get(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'getPatientSymptomJournal failed: ${resp.statusCode} ${resp.body}');
+    }
+    final decoded = json.decode(resp.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    return Map<String, dynamic>.from(decoded as Map);
+  }
+
+  Future<void> createPatientReminder(
+      String patientId, Map<String, dynamic> payload) async {
+    final uri =
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/patient/$patientId');
+    final resp = await http.post(
+      uri,
+      headers: await _headers(),
+      body: json.encode(payload),
+    );
+    if (resp.statusCode != 200 && resp.statusCode != 201) {
+      throw Exception(
+          'createPatientReminder failed: ${resp.statusCode} ${resp.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> getPatientReminder(
+      String patientId, String reminderId) async {
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/reminders/patient/$patientId/$reminderId');
+    final resp = await http.get(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'getPatientReminder failed: ${resp.statusCode} ${resp.body}');
+    }
+    final decoded = json.decode(resp.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    return Map<String, dynamic>.from(decoded as Map);
+  }
+
+  Future<void> updatePatientReminder(
+      String patientId, String reminderId, Map<String, dynamic> updates) async {
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/reminders/patient/$patientId/$reminderId');
+    final resp = await http.put(
+      uri,
+      headers: await _headers(),
+      body: json.encode(updates),
+    );
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'updatePatientReminder failed: ${resp.statusCode} ${resp.body}');
+    }
+  }
+
+  Future<void> deletePatientReminder(
+      String patientId, String reminderId) async {
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/reminders/patient/$patientId/$reminderId');
+    final resp = await http.delete(uri, headers: await _headers());
+    if (resp.statusCode != 200 && resp.statusCode != 204) {
+      throw Exception(
+          'deletePatientReminder failed: ${resp.statusCode} ${resp.body}');
+    }
+  }
+
+  /// Pre-registration check for caregiver email + optional invite token.
+  Future<Map<String, dynamic>> validateCaregiverSignup({
+    required String email,
+    String? token,
+  }) async {
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/care-team/validate-caregiver-signup');
+    final resp = await http.post(
+      uri,
+      headers: const {'Content-Type': 'application/json'},
+      body: json.encode({
+        'email': email.trim(),
+        if (token != null && token.trim().isNotEmpty) 'token': token.trim(),
+      }),
+    );
+    if (resp.statusCode != 200) {
+      return {'ok': false, 'reason': 'network_${resp.statusCode}'};
+    }
+    final decoded = json.decode(resp.body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    return Map<String, dynamic>.from(decoded as Map);
+  }
 
   static List<CareTeamMember>? getCachedMembers() {
     return _membersCache?.data;
@@ -63,7 +238,6 @@ class CareTeamApiService {
     return 'view';
   }
 
-  /// Maps a `users/{patientId}/careTeam/{docId}` document to [CareTeamMember.fromJson] shape.
   CareTeamMember _careTeamDocToMember(
     String docId,
     Map<String, dynamic> data,
@@ -85,7 +259,6 @@ class CareTeamApiService {
     return CareTeamMember.fromJson(json);
   }
 
-  /// Maps invitation or pending careTeam doc to [CareTeamInvitation.fromJson] shape.
   CareTeamInvitation _toInvitation(String docId, Map<String, dynamic> data) {
     final json = <String, dynamic>{
       'id': data['id'] as String? ?? docId,
@@ -120,8 +293,6 @@ class CareTeamApiService {
     return CareTeamMember.fromJson(json);
   }
 
-  /// Accepted caregivers on `users/{userId}/careTeam`, plus patients this user
-  /// cares for (`invitations` where `caregiverUid` matches and `status` is accepted).
   Future<List<CareTeamMember>> getCareTeam() async {
     final uid = _requireUid();
     final out = <CareTeamMember>[];
@@ -148,7 +319,6 @@ class CareTeamApiService {
     return out;
   }
 
-  /// Creates `invitations/{inviteId}` and mirrors to `users/{userId}/careTeam/{inviteId}`.
   Future<void> inviteCaregiver({
     required String email,
     required String role,
@@ -159,8 +329,7 @@ class CareTeamApiService {
     final inviteId = inviteRef.id;
     final emailNorm = _normalizeEmail(email);
     final patient = FirebaseAuth.instance.currentUser;
-    final patientName =
-        patient?.displayName ?? patient?.email ?? 'Patient';
+    final patientName = patient?.displayName ?? patient?.email ?? 'Patient';
     final patientEmail = patient?.email;
 
     final batch = _db.batch();
@@ -201,7 +370,6 @@ class CareTeamApiService {
     await batch.commit();
   }
 
-  /// Accept invite: `invitations/{token}` + patient's `careTeam/{token}`.
   Future<void> acceptInvitation({required String token}) async {
     final uid = _requireUid();
     final user = FirebaseAuth.instance.currentUser;
@@ -256,7 +424,6 @@ class CareTeamApiService {
     });
   }
 
-  /// Invitations where `caregiverEmail` matches the signed-in user's email.
   Future<List<CareTeamInvitation>> getMyInvitations() async {
     _requireUid();
     final user = FirebaseAuth.instance.currentUser;
@@ -274,7 +441,6 @@ class CareTeamApiService {
     return snap.docs.map((d) => _toInvitation(d.id, d.data())).toList();
   }
 
-  /// Pending rows on `users/{userId}/careTeam`.
   Future<List<CareTeamInvitation>> getPendingInvitations() async {
     final uid = _requireUid();
     final snap = await _db

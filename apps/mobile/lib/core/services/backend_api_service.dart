@@ -260,4 +260,37 @@ class BackendApiService {
     }
     return url;
   }
+
+  /// Register FCM token for the authenticated user (patient or caregiver).
+  Future<void> registerFcmToken({
+    required String fcmToken,
+    required String deviceType,
+  }) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) {
+      throw Exception('Authentication required. Please log in again.');
+    }
+
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/reminders/fcm/token');
+    final normalizedType =
+        deviceType.trim().toLowerCase() == 'ios' ? 'ios' : 'android';
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'fcm_token': fcmToken,
+        'device_type': normalizedType,
+      }),
+    ).timeout(_apiTimeout);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'registerFcmToken failed: ${response.statusCode} - ${response.body}',
+      );
+    }
+  }
 }

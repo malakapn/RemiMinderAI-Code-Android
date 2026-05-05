@@ -10,6 +10,7 @@ import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
 import '../../../../shared/widgets/twelve_hour_time_picker.dart';
+import '../../../reminders/data/reminder_repository.dart';
 
 /// Normalizes API `status` / `display_status` values to stable lowercase keys.
 String _reminderCanonicalStatus(String? raw, DateTime scheduledTime) {
@@ -69,8 +70,6 @@ String _reminderStatusDisplayLabel(String canonical) {
       return 'Pending';
   }
 }
-
-import '../../../reminders/data/reminder_repository.dart';
 
 class RemindersScreen extends ConsumerStatefulWidget {
   const RemindersScreen({

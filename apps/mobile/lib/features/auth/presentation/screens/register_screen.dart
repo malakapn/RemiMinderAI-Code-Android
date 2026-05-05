@@ -470,6 +470,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
+  UserRole? _effectiveRoleForSignup() => ref.read(selectedRoleProvider);
+
+  String _caregiverInviteMessage(String reason) {
+    switch (reason) {
+      case 'no_pending_invite':
+        return 'No pending invitation found for this email. Ask your patient to send a care-team invite first.';
+      case 'invalid_token':
+        return 'That invitation link is invalid.';
+      case 'email_mismatch':
+        return 'This invitation is for a different email address.';
+      case 'not_pending':
+        return 'This invitation is no longer pending.';
+      case 'expired':
+        return 'This invitation has expired.';
+      case 'email_required':
+        return 'Please enter your email address.';
+      default:
+        if (reason.startsWith('network_')) {
+          return 'Could not verify your invitation. Check your connection and try again.';
+        }
+        return 'Caregiver signup is not available: $reason';
+    }
+  }
+
   Future<void> _registerWithEmail() async {
     if (_formKey.currentState?.validate() ?? false) {
       if (!_acceptTerms) {

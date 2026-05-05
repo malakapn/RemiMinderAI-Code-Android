@@ -14,6 +14,7 @@ from services.cache_service import get, set, invalidate
 from services.db_service import (
     cancel_care_team_invitation,
     create_care_team_invitation,
+    decline_care_team_invitation_by_invitee,
     ensure_user_exists,
     get_care_team_invitation_by_token,
     get_care_team_member_by_id,
@@ -464,6 +465,41 @@ async def verify_care_team_invitation(token: str):
     except Exception as e:
         logger.error(f"Failed to verify care team invitation: {e}")
         raise HTTPException(status_code=500, detail="Failed to verify invitation")
+
+
+@router.post("/validate-caregiver-signup", status_code=status.HTTP_200_OK)
+async def validate_caregiver_signup(body: CaregiverSignupValidateBody):
+    """
+    Pre-Firebase registration: ensure the email has a pending care-team invite
+    (and optional invite token matches). Mobile expects {"ok": bool, "reason": str}.
+    """
+    try:
+        allowed, reason = await validate_caregiver_signup_allowed(
+            body.email,
+            invite_token=body.token,
+        )
+        return {"ok": allowed, "reason": reason if allowed else reason}
+    except Exception as e:
+        logger.error("validate_caregiver_signup failed: %s", e)
+        raise HTTPException(status_code=500, detail="Validation failed")
+
+
+@router.get("/my-patients", status_code=status.HTTP_200_OK)
+async def list_my_patients_for_caregiver_view(
+    current_user: dict = Depends(get_current_user),
+):
+    """Caregiver roster for dashboard / patient pickers (SQL care-team memberships)."""
+    try:
+        firebase_uid = current_user.get("sub")
+        if not firebase_uid:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        caregiver_uuid = await get_user_uuid(firebase_uid)
+        return await get_my_patients_for_caregiver(caregiver_uuid)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to list caregiver patients: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to load patients")
 
 
 @router.patch("/{member_id}", status_code=status.HTTP_200_OK)

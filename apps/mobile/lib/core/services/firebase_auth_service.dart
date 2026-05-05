@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user.dart';
@@ -315,7 +316,10 @@ class FirebaseAuthService {
         print('🔥 FirebaseAuthService: Token is not valid after refresh');
         return null;
       }
-      await _tokenManager.saveTokens(freshToken, '');
+      final freshToken = await firebaseUser.getIdToken(true);
+      if (freshToken != null) {
+        await _tokenManager.saveTokens(freshToken, '');
+      }
       print('🔥 FirebaseAuthService: Token refreshed, creating User object');
 
       return User(

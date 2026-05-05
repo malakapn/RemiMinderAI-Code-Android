@@ -1,14 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/config/theme.dart';
 import 'core/providers/locale_provider.dart';
-import 'core/services/auth_service.dart';
-import 'core/services/notification_service.dart';
-import 'core/services/reminder_notification_sync.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/data/models/auth_state.dart';
 import 'features/splash/splash_screen.dart';
@@ -20,17 +15,16 @@ class RemiMinderApp extends ConsumerStatefulWidget {
   const RemiMinderApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RemiMinderApp> createState() => _RemiMinderAppState();
+}
+
+class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(localeProvider);
 
-    // Show splash until auth resolves: `loading` during check, `initial` for first
-    // frame before `_checkAuthStatus` assigns `loading` (avoids white flash).
-    final showAuthSplash = authState.status == AuthStatus.loading ||
-        authState.status == AuthStatus.initial;
-
-    // Listen to auth state changes for logout navigation only
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next.status != AuthStatus.unauthenticated) return;
       final wasLoggedIn = previous?.status == AuthStatus.authenticated &&
@@ -40,6 +34,9 @@ class RemiMinderApp extends ConsumerStatefulWidget {
         ref.read(appRouterProvider).go('/role-selection');
       });
     });
+
+    final showAuthSplash = authState.status == AuthStatus.loading ||
+        authState.status == AuthStatus.initial;
 
     if (showAuthSplash) {
       return const MaterialApp(

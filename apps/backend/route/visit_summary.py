@@ -1,6 +1,8 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
 # REMOVED: Legacy summary functions deleted during Supabase cleanup
 # from services.db_service import (
@@ -12,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends, File, UploadFile
 from services.gcs_service import upload_audio, upload_image
 from services.auth_gateway import get_current_user_jwt as get_current_user
 from services.access_control import assert_patient_access
+from services.db_service import get_user_uuid, get_symptom_journal_for_patient
 
 logger = logging.getLogger(__name__)
 
@@ -743,6 +746,66 @@ async def get_caregiver_patient_scanned_docs(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch patient scanned docs: {str(e)}",
+        )
+
+
+@router.get("/caregiver/patients/{patient_id}/symptom-journal")
+async def get_caregiver_patient_symptom_journal(
+    patient_id: str,
+    user_id: str = Depends(get_user_id),
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    severity_contains: Optional[str] = None,
+):
+    """
+    Caregiver read-only symptom lines derived from visit AI summaries.
+
+    Mobile sends calendar-day bounds (ISO local-ish datetimes); [date_from, date_to]
+    treated as inclusive on both days by advancing date_to by one day for the SQL exclusive bound.
+    """
+    try:
+        caregiver_uuid = await get_user_uuid(user_id)
+        await assert_patient_access(caregiver_uuid, patient_id, "view")
+
+        df = None
+        if date_from:
+            try:
+                df = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
+            except ValueError:
+                df = None
+
+        dt_exc = None
+        if date_to:
+            try:
+                parsed_to = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
+                dt_exc = parsed_to + timedelta(days=1)
+            except ValueError:
+                dt_exc = None
+
+        entries = await get_symptom_journal_for_patient(
+            patient_ident=patient_id,
+            date_from=df,
+            date_to_exclusive=dt_exc,
+            severity_substring=severity_contains,
+        )
+        filters = {
+            "date_from": date_from,
+            "date_to": date_to,
+            "severity_contains": severity_contains,
+        }
+        return {"entries": entries, "filters_applied": filters}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "symptom-journal caregiver=%s patient=%s: %s",
+            user_id,
+            patient_id,
+            e,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch symptom journal: {str(e)}",
         )
 
 
