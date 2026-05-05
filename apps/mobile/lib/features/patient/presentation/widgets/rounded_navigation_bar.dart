@@ -241,11 +241,11 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
             Color(0xFF1A4D4D), // Dark teal-green
             Color(0xFF051818), // Very dark green/black
           ],
-          border: const Border(
-            top: BorderSide(
-              color: Colors.white,
-              width: 0.5,
-            ),
+        ),
+        border: const Border(
+          top: BorderSide(
+            color: Colors.white,
+            width: 0.5,
           ),
         ),
       ),

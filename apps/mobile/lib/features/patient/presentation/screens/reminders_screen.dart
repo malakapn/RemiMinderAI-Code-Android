@@ -5,8 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import 'package:flutter_timezone/flutter_timezone.dart';
-
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/notification_service.dart';
@@ -72,11 +70,17 @@ String _reminderStatusDisplayLabel(String canonical) {
   }
 }
 
-import '../../../../core/services/notification_service.dart';
 import '../../../reminders/data/reminder_repository.dart';
 
 class RemindersScreen extends ConsumerStatefulWidget {
-  const RemindersScreen({super.key});
+  const RemindersScreen({
+    super.key,
+    this.openAddOnLaunch = false,
+    this.prefillReminderTitle,
+  });
+
+  final bool openAddOnLaunch;
+  final String? prefillReminderTitle;
 
   @override
   ConsumerState<RemindersScreen> createState() => _RemindersScreenState();
@@ -91,6 +95,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
   bool _isLoading = true;
   bool _hasError = false;
   bool _consumedOpenAddIntent = false;
+  final List<Map<String, dynamic>> _allReminders = [];
 
   List<Reminder> _filterReminders(List<Reminder> all) {
     var reminders = List<Reminder>.from(all);
@@ -383,7 +388,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                     const SizedBox(width: 8),
                     InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      onTap: () => _showEditReminderDialog(reminder),
+                      onTap: () =>
+                          context.push('/patient/reminder/${reminder.id}'),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
@@ -692,11 +698,11 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
     });
   }
 
-  Future<void> _addNewReminder() async {
+  Future<void> _addNewReminder({String? titlePrefill}) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final titleCtrl = TextEditingController();
+    final titleCtrl = TextEditingController(text: titlePrefill ?? '');
     final descCtrl = TextEditingController();
     final dosageCtrl = TextEditingController();
     final freqCtrl = TextEditingController();
@@ -979,441 +985,6 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
         );
       }
     }
-  }
-
-  void _showAdherenceStats() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('New Reminder',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                      labelText: 'Title', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Dosage (optional)',
-                    hintText: 'e.g. 10 mg once daily',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (v) => dosageText = v,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedType,
-                  decoration: const InputDecoration(
-                      labelText: 'Type', border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'medication', child: Text('Medication')),
-                    DropdownMenuItem(value: 'task', child: Text('Task')),
-                    DropdownMenuItem(
-                        value: 'appointment', child: Text('Appointment')),
-                  ],
-                  onChanged: (v) => setModal(() => selectedType = v!),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedRecurrence,
-                  decoration: const InputDecoration(
-                      labelText: 'Repeat', border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'once', child: Text('Once')),
-                    DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                    DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                  ],
-                  onChanged: (v) => setModal(() => selectedRecurrence = v!),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(
-                            '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'),
-                        onPressed: () async {
-                          final d = await showDatePicker(
-                            context: ctx,
-                            initialDate: selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (d != null)
-                            setModal(() => selectedDate = DateTime(
-                                d.year,
-                                d.month,
-                                d.day,
-                                selectedTime.hour,
-                                selectedTime.minute));
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.access_time),
-                        label: Text(selectedTime.format(ctx)),
-                        onPressed: () async {
-                          final t = await showTwelveHourTimePickerSheet(
-                            ctx,
-                            initialTime: selectedTime,
-                          );
-                          if (t != null)
-                            setModal(() {
-                              selectedTime = t;
-                              selectedDate = DateTime(
-                                  selectedDate.year,
-                                  selectedDate.month,
-                                  selectedDate.day,
-                                  t.hour,
-                                  t.minute);
-                            });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B4E59),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () async {
-                      final title = titleController.text.trim();
-                      if (title.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Please enter a title')));
-                        return;
-                      }
-                      final tzName = await FlutterTimezone.getLocalTimezone();
-                      if (!ctx.mounted) return;
-                      Navigator.of(ctx).pop();
-                      if (!mounted) return;
-                      await _createReminderApi(
-                        title: title,
-                        type: selectedType,
-                        scheduledTime: selectedDate,
-                        recurrence: selectedRecurrence,
-                        timezone: tzName,
-                        dosage: dosageText.trim(),
-                      );
-                    },
-                    child: const Text('Create Reminder',
-                        style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _createReminderApi({
-    required String title,
-    required String type,
-    required DateTime scheduledTime,
-    required String recurrence,
-    required String timezone,
-    String dosage = '',
-  }) async {
-    try {
-      final token = await _authService.getAccessToken();
-      if (token == null) throw Exception('Authentication required');
-      final payload = <String, dynamic>{
-        'user_id': '',
-        'reminder_type': type,
-        'title': title,
-        'scheduled_time': scheduledTime.toUtc().toIso8601String(),
-        'timezone': timezone,
-        'recurrence': recurrence,
-      };
-      if (dosage.isNotEmpty) {
-        payload['context_data'] = {'dosage': dosage};
-      }
-      final response = await http.post(
-        Uri.parse('${Environment.apiBaseUrl}/api/reminders'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json'
-        },
-        body: json.encode(payload),
-      );
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        final reminderId = data['id']?.toString() ??
-            DateTime.now().millisecondsSinceEpoch.toString();
-        final serverMessage = data['message']?.toString()?.trim();
-
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('Reminder created!')));
-        await _loadReminders(
-          mergeReminderForSync: {
-            'id': reminderId,
-            'title': title,
-            'description': dosage.isNotEmpty
-                ? dosage
-                : (serverMessage != null && serverMessage.isNotEmpty)
-                    ? serverMessage
-                    : '',
-            'scheduledTime': scheduledTime.toLocal(),
-            'status': 'pending',
-            'type': type,
-            'dosage': dosage.isNotEmpty ? dosage : null,
-            'recurrence': recurrence,
-            'snoozeUntil': null,
-          },
-        );
-      } else {
-        throw Exception('Status ${response.statusCode}');
-      }
-    } catch (err) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to create reminder: $err')));
-    }
-  }
-
-  void _editReminder(Map<String, dynamic> reminder) {
-    final id = reminder['id']?.toString();
-    if (id == null || id.isEmpty) return;
-    context.push('/patient/reminder/$id');
-  }
-
-  void _showEditReminderDialog(Map<String, dynamic> reminder) {
-    final id = reminder['id']?.toString() ?? '';
-    if (id.isEmpty) return;
-
-    final titleController =
-        TextEditingController(text: reminder['title']?.toString() ?? '');
-    DateTime selectedDate =
-        (reminder['scheduledTime'] as DateTime?) ?? DateTime.now();
-    TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Edit Reminder',
-                    style: TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                      labelText: 'Title', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(
-                            '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'),
-                        onPressed: () async {
-                          final d = await showDatePicker(
-                            context: ctx,
-                            initialDate: selectedDate,
-                            firstDate: DateTime.now()
-                                .subtract(const Duration(days: 1)),
-                            lastDate: DateTime.now()
-                                .add(const Duration(days: 365)),
-                          );
-                          if (d != null) {
-                            setModal(() => selectedDate = DateTime(
-                                d.year,
-                                d.month,
-                                d.day,
-                                selectedTime.hour,
-                                selectedTime.minute));
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.access_time),
-                        label: Text(selectedTime.format(ctx)),
-                        onPressed: () async {
-                          final t = await showTwelveHourTimePickerSheet(
-                            ctx,
-                            initialTime: selectedTime,
-                          );
-                          if (t != null) {
-                            setModal(() {
-                              selectedTime = t;
-                              selectedDate = DateTime(
-                                  selectedDate.year,
-                                  selectedDate.month,
-                                  selectedDate.day,
-                                  t.hour,
-                                  t.minute);
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B4E59),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () async {
-                      final title = titleController.text.trim();
-                      if (title.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Please enter a title')));
-                        return;
-                      }
-                      if (!ctx.mounted) return;
-                      Navigator.of(ctx).pop();
-                      await _updateReminderApi(
-                          id: id,
-                          title: title,
-                          scheduledTime: selectedDate,
-                          recurrence:
-                              reminder['recurrence']?.toString() ?? 'once',
-                      );
-                    },
-                    child: const Text('Save Changes',
-                        style:
-                            TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _updateReminderApi({
-    required String id,
-    required String title,
-    required DateTime scheduledTime,
-    String recurrence = 'once',
-  }) async {
-    try {
-      final token = await _authService.getAccessToken();
-      if (token == null) throw Exception('Authentication required');
-      final response = await http.put(
-        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json'
-        },
-        body: json.encode({
-          'title': title,
-          'scheduled_time': scheduledTime.toUtc().toIso8601String(),
-        }),
-      );
-      if (response.statusCode == 200) {
-        final isRecurring = recurrence != 'once';
-        // Reschedule local notification: cancel prior alarm, register new fire time.
-        try {
-          await NotificationService().cancelFromReminderId(id);
-          await NotificationService().scheduleFromReminderData(
-            reminderId: id,
-            medicationName: title,
-            dosage: '',
-            scheduledTime: scheduledTime.toLocal(),
-            isRecurring: isRecurring,
-            recurrencePattern: recurrence,
-          );
-        } catch (_) {}
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Reminder updated!')));
-          _loadReminders();
-        }
-      } else {
-        throw Exception('Status ${response.statusCode}');
-      }
-    } catch (err) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to update: $err')));
-      }
-    }
-  }
-
-  void _markAsCompleted(String id) {
-    _reminderAction(id, 'complete', success: 'Reminder marked as completed!');
-    // Cancel local notification for this reminder
-    try {
-      NotificationService().cancelFromReminderId(id);
-    } catch (e) {
-      debugPrint('Failed to cancel notification for completed reminder: $e');
-    }
-  }
-
-  void _snoozeReminder(String id) {
-    _reminderAction(id, 'snooze', success: 'Reminder snoozed for 30 minutes');
-    // Cancel local notification for this reminder (will be rescheduled in snooze action)
-    try {
-      NotificationService().cancelFromReminderId(id);
-    } catch (e) {
-      debugPrint('Failed to cancel notification for snoozed reminder: $e');
-    }
-  }
-
-  void _deleteReminder(String id) {
-    _deleteReminderApi(id);
   }
 
   void _showAdherenceStats() {
@@ -1774,53 +1345,6 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
         _isLoading = false;
         _hasError = true;
       });
-    }
-  }
-
-  Future<void> _reminderAction(String id, String action,
-      {required String success}) async {
-    try {
-      final token = await _authService.getAccessToken();
-      if (token == null) throw Exception('Authentication required');
-      final response = await http.post(
-        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id/$action'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode != 200) throw Exception('Failed');
-      await _loadReminders();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(success)));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Action failed')));
-    }
-  }
-
-  Future<void> _deleteReminderApi(String id) async {
-    try {
-      final token = await _authService.getAccessToken();
-      if (token == null) throw Exception('Authentication required');
-      final response = await http.delete(
-        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode != 204) throw Exception('Failed');
-      await _loadReminders();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Reminder deleted')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Delete failed')));
     }
   }
 }
