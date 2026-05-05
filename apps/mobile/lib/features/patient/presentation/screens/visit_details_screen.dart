@@ -25,7 +25,6 @@ class VisitDetailsScreen extends StatefulWidget {
 class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   // AI Summary state
   String? _summaryText;
-  List<String> _decisions = [];
   List<String> _medications = [];
   List<String> _actions = [];
   bool _isLoadingSummary = true;
@@ -73,12 +72,11 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
         });
       } else if (data.containsKey('summary')) {
         print("🔍 Found structured summary, setting to ready state");
-        final decisions = _toStringList(data['decisions']);
         final medications = _toStringList(data['medications']);
-        final actions = _toStringList(data['actions']);
+        // Visit details: Visit Summary, Medications, Next Steps only (no questions UI).
+        final actions = _toStringList(data['actions'] ?? data['action_items']);
         setState(() {
-          _summaryText = data['summary'];
-          _decisions = decisions;
+          _summaryText = data['summary']?.toString();
           _medications = medications;
           _actions = actions;
           _summaryStatus = 'ready';
@@ -442,8 +440,6 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
             ),
           ),
         ),
-        if (_decisions.isNotEmpty)
-          _buildListSection(title: 'Clinical Decisions', items: _decisions),
         if (_medications.isNotEmpty)
           _buildListSection(title: 'Medications', items: _medications),
         if (_actions.isNotEmpty)
