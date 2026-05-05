@@ -1,5 +1,4 @@
 name: Flutter Build App Bundle
-
 on:
   push:
     branches:
@@ -8,28 +7,22 @@ on:
     branches:
       - main
   workflow_dispatch:
-
 jobs:
-  # Secrets: DEBUG_KEYSTORE_BASE64, KEYSTORE_ALIAS, KEYSTORE_STORE_PASSWORD, KEYSTORE_KEY_PASSWORD
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
       - name: Setup Java
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.6'
           channel: 'stable'
-
       - name: Restore debug keystore
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
@@ -37,17 +30,14 @@ jobs:
           set -euo pipefail
           mkdir -p "$HOME/.android"
           if [ -z "${DEBUG_KEYSTORE_BASE64:-}" ]; then
-            echo "::error::DEBUG_KEYSTORE_BASE64 secret is empty — add the keystore (base64) in repo Actions secrets."
+            echo "::error::DEBUG_KEYSTORE_BASE64 secret is empty"
             exit 1
           fi
           echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
           if [ ! -s "$HOME/.android/debug.keystore" ]; then
-            echo "::error::Decoded keystore file is empty — check DEBUG_KEYSTORE_BASE64."
+            echo "::error::Decoded keystore file is empty"
             exit 1
           fi
-
-      # Full keytool output only — never pipe to grep (pipefail makes grep exit 1 break the job).
-      # If KEYSTORE_* secrets are set, use them; otherwise default Android debug keystore creds.
       - name: Print keystore fingerprints (confirm)
         env:
           KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
@@ -70,11 +60,11 @@ jobs:
               -storepass android \
               -keypass android
           fi
-
+      - name: Copy upload keystore to android/app
+        run: cp apps/mobile/android/upload-keystore.jks apps/mobile/android/app/upload-keystore.jks
       - name: Create google-services.json
         run: |
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > apps/mobile/android/app/google-services.json
-
       - name: Create apps/mobile/.env for Flutter asset bundle
         run: |
           cat > apps/mobile/.env << EOF
@@ -83,11 +73,9 @@ jobs:
           MOBILE_API_BASE_URL=http://localhost:8000
           FLUTTER_ENV=development
           EOF
-
       - name: Get Flutter dependencies
         run: flutter pub get
         working-directory: apps/mobile
-
       - name: Build release App Bundle
         env:
           KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
@@ -95,7 +83,6 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: flutter build appbundle --release
         working-directory: apps/mobile
-
       - name: Upload App Bundle artifact
         uses: actions/upload-artifact@v4
         with:
