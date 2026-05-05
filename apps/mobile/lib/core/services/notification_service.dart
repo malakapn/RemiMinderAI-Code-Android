@@ -251,22 +251,24 @@ class NotificationService {
     }
   }
 
-  /// Registers a listener for rotated FCM tokens.
+  /// Listens for FCM token rotations; replaces any previous subscription.
   ///
-  /// [callback] receives the raw token string. Only one subscriber is tracked;
-  /// calling again replaces the previous subscription.
-  Future<void> onTokenRefresh(
-      Future<void> Function(String token) callback) async {
-    if (kIsWeb) return;
-    await _fcmTokenRefreshSub?.cancel();
+  /// Returns the active subscription (`Stream.listen` wrapper). Prefer
+  /// [fcmTokenRefreshStream] if you only need the `Stream`.
+  StreamSubscription<String> onTokenRefresh(void Function(String) callback) {
+    if (kIsWeb) {
+      return Stream<String>.empty().listen((_) {});
+    }
+    _fcmTokenRefreshSub?.cancel();
     _fcmTokenRefreshSub =
-        FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
-      try {
-        await callback(token);
-      } catch (e, st) {
-        debugPrint('NotificationService.onTokenRefresh callback: $e\n$st');
-      }
-    });
+        FirebaseMessaging.instance.onTokenRefresh.listen(callback);
+    return _fcmTokenRefreshSub!;
+  }
+
+  /// Raw FCM token refresh stream ([FirebaseMessaging.onTokenRefresh]).
+  Stream<String> get fcmTokenRefreshStream {
+    if (kIsWeb) return Stream<String>.empty();
+    return FirebaseMessaging.instance.onTokenRefresh;
   }
 
   /// Removes this user's FCM row on the backend (call while JWT is valid).

@@ -201,9 +201,12 @@ class ReminderNotificationSync {
           ? (p['full_name'] as String).trim()
           : ((p['email'] as String?)?.trim() ?? 'Patient');
       try {
-        final data = await api.getPatientReminderList(pid);
-        _appendBucket(data['today'], pid, pname, merged);
-        _appendBucket(data['upcoming'], pid, pname, merged);
+        final rows = await api.getPatientReminderList(pid);
+        for (final m in rows) {
+          merged.add(Map<String, dynamic>.from(m)
+            ..['_patient_id'] = pid
+            ..['_patient_name'] = pname);
+        }
       } catch (_) {}
     }
 

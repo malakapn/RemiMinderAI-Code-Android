@@ -99,20 +99,13 @@ class _CaregiverReminderTimelineScreenState
       final merged = <Map<String, dynamic>>[];
       for (final pid in targets) {
         try {
-          final data = await _api.getPatientReminderList(pid);
+          final rows = await _api.getPatientReminderList(pid);
           final name = _nameForPatient(pid);
-          for (final bucket in ['today', 'upcoming', 'past']) {
-            final list = data[bucket];
-            if (list is! List) continue;
-            for (final item in list) {
-              if (item is Map) {
-                final m = Map<String, dynamic>.from(item);
-                m['_patient_id'] = pid;
-                m['_patient_name'] = name;
-                m['_bucket'] = bucket;
-                merged.add(m);
-              }
-            }
+          for (final item in rows) {
+            final m = Map<String, dynamic>.from(item);
+            m['_patient_id'] = pid;
+            m['_patient_name'] = name;
+            merged.add(m);
           }
         } catch (_) {}
       }

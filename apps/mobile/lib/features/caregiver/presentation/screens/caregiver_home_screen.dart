@@ -168,23 +168,6 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen>
     return 'Patient';
   }
 
-  void _appendReminderBucket(
-    dynamic bucket,
-    String patientId,
-    String patientName,
-    List<Map<String, dynamic>> out,
-  ) {
-    if (bucket is! List) return;
-    for (final item in bucket) {
-      if (item is Map) {
-        final m = Map<String, dynamic>.from(item);
-        m['_patient_id'] = patientId;
-        m['_patient_name'] = patientName;
-        out.add(m);
-      }
-    }
-  }
-
   Future<void> _loadTopPatientReminders({bool silent = false}) async {
     final ids = _patients
         .map((p) => p['patient_id']?.toString())
@@ -211,10 +194,14 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen>
       final headers = await AuthService().getAuthHeaders();
       for (final pid in ids) {
         try {
-          final data = await svc.getPatientReminderList(pid);
+          final rows = await svc.getPatientReminderList(pid);
           final pname = _patientDisplayNameForId(pid);
-          _appendReminderBucket(data['today'], pid, pname, merged);
-          _appendReminderBucket(data['upcoming'], pid, pname, merged);
+          for (final m in rows) {
+            final copy = Map<String, dynamic>.from(m);
+            copy['_patient_id'] = pid;
+            copy['_patient_name'] = pname;
+            merged.add(copy);
+          }
           final notesResp = await http.get(
             Uri.parse(
                 '${Environment.apiBaseUrl}/api/caregiver-notes?patient_id=$pid'),

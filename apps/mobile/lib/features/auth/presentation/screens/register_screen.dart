@@ -519,10 +519,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
 
       if (selectedRole == UserRole.caregiver) {
-        final v = await CareTeamApiService().validateCaregiverSignup(
-          email: email,
-          token: widget.inviteToken,
-        );
+        final v = await CareTeamApiService().validateCaregiverSignup({
+          'email': email,
+          if (widget.inviteToken != null &&
+              widget.inviteToken!.trim().isNotEmpty)
+            'token': widget.inviteToken,
+        });
         if (v['ok'] != true) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

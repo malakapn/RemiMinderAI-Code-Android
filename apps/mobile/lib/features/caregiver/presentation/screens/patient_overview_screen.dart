@@ -319,11 +319,12 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
       }
       final data = await CareTeamApiService().getPatientSymptomJournal(
         _patientId!,
-        dateFrom: from,
-        dateTo: to,
-        severityContains: _symptomSeverityQuery.trim().isEmpty
-            ? null
-            : _symptomSeverityQuery.trim(),
+        {
+          if (from != null) 'date_from': from.toIso8601String(),
+          if (to != null) 'date_to': to.toIso8601String(),
+          if (_symptomSeverityQuery.trim().isNotEmpty)
+            'severity_contains': _symptomSeverityQuery.trim(),
+        },
       );
       if (!mounted) return;
       final raw = data['entries'];

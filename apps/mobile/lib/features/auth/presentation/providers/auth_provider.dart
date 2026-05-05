@@ -1,4 +1,6 @@
-﻿import 'package:flutter/foundation.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/auth_state.dart';
@@ -338,16 +340,10 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> _syncFcmTokenAndAttachRefreshListener() async {
-    final device = defaultTargetPlatform == TargetPlatform.iOS
-        ? 'ios'
-        : 'android';
     try {
       final token = await _notificationService.getFcmToken();
       if (token != null && token.isNotEmpty) {
-        await _backendApiService.registerFcmToken(
-          fcmToken: token,
-          deviceType: device,
-        );
+        await _backendApiService.registerFcmToken(token);
       }
     } catch (_) {
       // Keep auth flow non-blocking if FCM sync fails.
@@ -358,17 +354,16 @@ class AuthNotifier extends Notifier<AuthState> {
     }
 
     _tokenRefreshListenerAttached = true;
-    await _notificationService.onTokenRefresh((token) async {
-      try {
-        if (token.isNotEmpty) {
-          await _backendApiService.registerFcmToken(
-            fcmToken: token,
-            deviceType: device,
-          );
+    _notificationService.onTokenRefresh((token) {
+      unawaited(Future<void>(() async {
+        try {
+          if (token.isNotEmpty) {
+            await _backendApiService.registerFcmToken(token);
+          }
+        } catch (_) {
+          // Do not fail app flow on background token refresh errors.
         }
-      } catch (_) {
-        // Do not fail app flow on background token refresh errors.
-      }
+      }));
     });
   }
 }

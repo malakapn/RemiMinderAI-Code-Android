@@ -261,11 +261,8 @@ class BackendApiService {
     return url;
   }
 
-  /// Register FCM token for the authenticated user (patient or caregiver).
-  Future<void> registerFcmToken({
-    required String fcmToken,
-    required String deviceType,
-  }) async {
+  /// Register FCM token for the authenticated user (`device_type` ios vs android).
+  Future<void> registerFcmToken(String token) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
@@ -273,7 +270,7 @@ class BackendApiService {
 
     final uri = Uri.parse('${Environment.apiBaseUrl}/api/reminders/fcm/token');
     final normalizedType =
-        deviceType.trim().toLowerCase() == 'ios' ? 'ios' : 'android';
+        defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
 
     final response = await http.post(
       uri,
@@ -282,7 +279,7 @@ class BackendApiService {
         'Content-Type': 'application/json',
       },
       body: json.encode({
-        'fcm_token': fcmToken,
+        'fcm_token': token,
         'device_type': normalizedType,
       }),
     ).timeout(_apiTimeout);
