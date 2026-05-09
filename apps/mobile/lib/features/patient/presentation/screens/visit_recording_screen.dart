@@ -382,7 +382,6 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
 
     final twoPartyAccepted = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
-        fullscreenDialog: true,
         builder: (context) => const VisitRecordingTwoPartyConsentScreen(),
       ),
     );
