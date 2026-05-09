@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import '../../data/services/visit_summary_gemini_prompt.dart';
+import 'visit_recording_two_party_consent_screen.dart';
 import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/consent_service.dart';
@@ -377,6 +378,17 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       if (!accepted) {
         return; // User declined consent
       }
+    }
+
+    final twoPartyAccepted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        fullscreenDialog: true,
+        builder: (context) => const VisitRecordingTwoPartyConsentScreen(),
+      ),
+    );
+    if (!mounted) return;
+    if (twoPartyAccepted != true) {
+      return;
     }
 
     print('🎬 Starting recording...');
