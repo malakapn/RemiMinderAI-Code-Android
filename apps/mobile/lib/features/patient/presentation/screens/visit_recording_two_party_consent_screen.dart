@@ -113,6 +113,10 @@ class _VisitRecordingTwoPartyConsentScreenState
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white70,
+                      ),
                       onPressed: _accepted
                           ? () async {
                               await _logConsentBestEffort();
@@ -122,9 +126,7 @@ class _VisitRecordingTwoPartyConsentScreenState
                           : null,
                       child: Text(
                         'Start Recording',
-                        style: textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onPrimary,
-                        ),
+                        style: textTheme.labelLarge,
                       ),
                     ),
                   ],
