@@ -122,7 +122,9 @@ class _VisitRecordingTwoPartyConsentScreenState
                           : null,
                       child: Text(
                         'Start Recording',
-                        style: textTheme.labelLarge,
+                        style: textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onPrimary,
+                        ),
                       ),
                     ),
                   ],
