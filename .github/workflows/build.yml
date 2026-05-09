@@ -67,12 +67,12 @@ jobs:
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > apps/mobile/android/app/google-services.json
       - name: Create apps/mobile/.env for Flutter asset bundle
         run: |
-          cat > apps/mobile/.env << EOF
-          GOOGLE_WEB_CLIENT_ID=575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com
-          API_BASE_URL=https://remiminder-backend-575820802106.us-central1.run.app
-          MOBILE_API_BASE_URL=https://remiminder-backend-575820802106.us-central1.run.app
-          FLUTTER_ENV=production
-          EOF
+          {
+            echo "GOOGLE_WEB_CLIENT_ID=575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com"
+            echo "API_BASE_URL=https://remiminder-backend-575820802106.us-central1.run.app"
+            echo "MOBILE_API_BASE_URL=https://remiminder-backend-575820802106.us-central1.run.app"
+            echo "FLUTTER_ENV=production"
+          } > apps/mobile/.env
       - name: Get Flutter dependencies
         run: flutter pub get
         working-directory: apps/mobile
