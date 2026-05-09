@@ -33,8 +33,9 @@ class FCMService {
     );
   }
 
-  /// Registers background handler (once), requests permission, saves token to
+  /// Registers background handler (once), saves token to
   /// `users/{userId}` (`fcmToken`), and wires foreground / token refresh.
+  /// Does not show a launch-time OS notification prompt.
   Future<void> initialize(String userId) async {
     if (!_backgroundHandlerRegistered) {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -43,12 +44,6 @@ class FCMService {
 
     await _onMessageSub?.cancel();
     await _onTokenRefreshSub?.cancel();
-
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
 
     final token = await _messaging.getToken();
     if (token != null) {

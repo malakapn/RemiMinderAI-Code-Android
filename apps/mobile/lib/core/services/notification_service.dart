@@ -22,8 +22,8 @@ class NotificationService {
 
   StreamSubscription<String>? _fcmTokenRefreshSub;
 
-  /// Initializes plugin, timezone DB, Android channel, and requests
-  /// POST_NOTIFICATIONS on Android 13+.
+  /// Initializes plugin, timezone DB, and Android notification channel.
+  /// Does not request POST_NOTIFICATIONS (deferred to in-app flows / system).
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -56,7 +56,6 @@ class NotificationService {
           importance: Importance.max,
         );
         await android.createNotificationChannel(channel);
-        await android.requestNotificationsPermission();
       }
     }
 
@@ -145,11 +144,6 @@ class NotificationService {
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: match,
     );
-  }
-
-  /// Ensures plugin is ready and Android notification permission is requested.
-  Future<void> requestPermissions() async {
-    await initialize();
   }
 
   /// Android 12+: request exact alarm permission when required for scheduled notifications.

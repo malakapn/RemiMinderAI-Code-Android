@@ -38,7 +38,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _fetchUpNextReminder();
-    _requestNotificationPermissions();
   }
 
   @override
@@ -52,12 +51,6 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
     if (state == AppLifecycleState.resumed) {
       _fetchUpNextReminder();
     }
-  }
-
-  Future<void> _requestNotificationPermissions() async {
-    final svc = NotificationService();
-    await svc.requestPermissions();
-    await svc.requestExactAlarmPermission();
   }
 
   Future<void> _rescheduleAllNotifications(List<dynamic> reminders) async {
