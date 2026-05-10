@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
+import '../../../../core/services/pending_care_invite_token.dart';
 import '../../../../core/services/secure_storage.dart';
 import '../../data/models/auth_state.dart';
 import '../providers/auth_provider.dart';
@@ -64,6 +65,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Get role from navigation parameters
     final uri = Uri.parse(GoRouterState.of(context).uri.toString());
     _userRole = uri.queryParameters['role'];
+    final inviteTok = uri.queryParameters['inviteToken'];
+    if (inviteTok != null && inviteTok.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        PendingCareInviteToken.save(inviteTok);
+      });
+    }
+    final inviteEmail = uri.queryParameters['email'];
+    if (inviteEmail != null &&
+        inviteEmail.isNotEmpty &&
+        _emailController.text.isEmpty) {
+      _emailController.text = Uri.decodeComponent(inviteEmail);
+    }
     // Load remember me preference
     _loadRememberMePreference();
   }

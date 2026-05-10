@@ -13,6 +13,7 @@ import '../../../../core/services/token_manager.dart';
 import '../../../../core/services/secure_storage.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
+import '../../../../core/services/pending_care_invite_token.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
 
 // =============================================================================
@@ -145,10 +146,44 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState.authenticated(resolvedUser, profile: profile);
       await _syncFcmTokenAndAttachRefreshListener();
       await _syncLocalReminderNotifications(resolvedUser);
+      await _tryLinkPendingCareTeamInvite(resolvedUser);
     } catch (e) {
       print('🔐 AuthNotifier: _checkAuthStatus failed: $e');
       state = AuthState.unauthenticated();
     }
+  }
+
+  /// After caregiver auth, complete SQL care-team invite if email link stored a token.
+  Future<void> _tryLinkPendingCareTeamInvite(User user) async {
+    if (user.role != UserRole.caregiver) return;
+    var token = await PendingCareInviteToken.peek();
+    token = token?.trim();
+    if (token == null || token.isEmpty) {
+      token = await _firstPendingSqlInviteToken();
+    }
+    if (token == null || token.isEmpty) return;
+    try {
+      await CareTeamApiService(authService: ref.read(_authServiceProvider))
+          .acceptBackendCareTeamInvite(token: token);
+      await PendingCareInviteToken.clear();
+    } catch (e) {
+      debugPrint('AuthNotifier: pending care invite accept failed: $e');
+    }
+  }
+
+  /// Pending invite for this account's email (no deep link / stored token needed).
+  Future<String?> _firstPendingSqlInviteToken() async {
+    try {
+      final list = await CareTeamApiService(
+        authService: ref.read(_authServiceProvider),
+      ).getMyInvitations();
+      for (final inv in list) {
+        if (inv.status.toLowerCase() != 'pending') continue;
+        final t = inv.token?.trim();
+        if (t != null && t.isNotEmpty) return t;
+      }
+    } catch (_) {}
+    return null;
   }
 
   /// Re-runs auth resolution (e.g. pull-to-refresh on profile). The app starts at
@@ -183,10 +218,12 @@ class AuthNotifier extends Notifier<AuthState> {
 
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
+        await _tryLinkPendingCareTeamInvite(user);
       } catch (_) {
         // Backend profile load failed but Firebase account is valid
         // Do NOT sign out — authenticate with Firebase user only
         state = AuthState.authenticated(user);
+        await _tryLinkPendingCareTeamInvite(user);
       }
     } catch (e) {
       if (!state.hasError) {
@@ -216,10 +253,12 @@ class AuthNotifier extends Notifier<AuthState> {
 
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
+        await _tryLinkPendingCareTeamInvite(user);
       } catch (_) {
         // Backend profile load failed; Firebase session is still valid
         // Do NOT sign out — authenticate with Firebase user only
         state = AuthState.authenticated(user);
+        await _tryLinkPendingCareTeamInvite(user);
       }
     } catch (e) {
       state = AuthState.error(e.toString());
@@ -245,9 +284,11 @@ class AuthNotifier extends Notifier<AuthState> {
         final profile = await _backendApiService.getMyProfile();
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
+        await _tryLinkPendingCareTeamInvite(user);
       } catch (_) {
         // Same as email sign-in: backend optional when Firebase session is valid
         state = AuthState.authenticated(user);
+        await _tryLinkPendingCareTeamInvite(user);
       }
     } catch (e, st) {
       // Catches all errors including PlatformException from Google Sign-In.

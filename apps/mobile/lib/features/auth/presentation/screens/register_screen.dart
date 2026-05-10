@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
+import '../../../../core/services/pending_care_invite_token.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -27,6 +28,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final q = GoRouterState.of(context).uri.queryParameters;
+    final tok = widget.inviteToken ?? q['inviteToken'];
+    if (tok != null && tok.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        PendingCareInviteToken.save(tok);
+      });
+    }
+    final role = q['role']?.toLowerCase();
+    if (role == 'caregiver' || role == 'patient') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (role == 'caregiver') {
+          ref.read(selectedRoleProvider.notifier).selectRole(UserRole.caregiver);
+        } else {
+          ref.read(selectedRoleProvider.notifier).selectRole(UserRole.patient);
+        }
+      });
+    }
+    final em = q['email'];
+    if (em != null && em.isNotEmpty && _emailController.text.isEmpty) {
+      _emailController.text = Uri.decodeComponent(em);
+    }
+  }
 
   /// Shows the exact exception text on screen when registration fails.
   void _showFullRegistrationErrorDialog(Object error) {
@@ -113,7 +141,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // Subtitle
                 Text(
                   ref.watch(selectedRoleProvider) == UserRole.caregiver
-                      ? 'Caregivers need a pending patient invitation for this email before you can register.'
+                      ? 'Use the same email your patient invited. After you sign up, you will be connected when you open the link from their email or finish signing in.'
                       : 'Join RemiMinder to get started',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(context).colorScheme.secondary,

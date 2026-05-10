@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 
@@ -16,8 +15,6 @@ class CareTeamApiService {
       : _authService = authService ?? AuthService();
 
   final AuthService _authService;
-
-  static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // In-memory cache (per app process)
   static CacheEntry<List<CareTeamMember>>? _membersCache;
@@ -237,291 +234,178 @@ class CareTeamApiService {
 
   String _normalizeEmail(String email) => email.trim().toLowerCase();
 
-  String? _timestampToIsoString(dynamic value) {
-    if (value is Timestamp) {
-      return value.toDate().toUtc().toIso8601String();
-    }
-    if (value is DateTime) {
-      return value.toUtc().toIso8601String();
-    }
-    if (value is String) {
-      return value;
-    }
-    return null;
+  CareTeamMember _memberFromApiMap(Map<String, dynamic> m) {
+    return CareTeamMember.fromJson({
+      'id': m['id']?.toString() ?? '',
+      'patient_id': m['patient_id']?.toString() ?? '',
+      'member_user_id': m['member_user_id']?.toString() ?? '',
+      'full_name': m['full_name'] as String?,
+      'email': m['email'] as String?,
+      'role': m['role']?.toString() ?? '',
+      'permission': m['permission']?.toString() ?? 'view',
+      'status': m['status']?.toString() ?? 'active',
+    });
   }
 
-  String _permissionToString(dynamic permission, dynamic permissions) {
-    if (permission is String && permission.isNotEmpty) {
-      return permission;
-    }
-    if (permissions is List && permissions.isNotEmpty) {
-      return permissions.first.toString();
-    }
-    return 'view';
+  CareTeamInvitation _invitationFromApiMap(Map<String, dynamic> m) {
+    return CareTeamInvitation.fromJson({
+      'id': m['id']?.toString() ?? '',
+      'patient_id': m['patient_id']?.toString(),
+      'patient_name': m['patient_name'] as String?,
+      'invited_by_name': m['invited_by_name'] as String?,
+      'invitee_email': m['invitee_email']?.toString() ?? '',
+      'role': m['role']?.toString() ?? '',
+      'permission': m['permission']?.toString() ?? 'view',
+      'status': m['status']?.toString() ?? 'pending',
+      'token': m['token'] as String?,
+      'created_at': m['created_at']?.toString(),
+      'expires_at': m['expires_at']?.toString(),
+    });
   }
 
-  CareTeamMember _careTeamDocToMember(
-    String docId,
-    Map<String, dynamic> data,
-    String patientId,
-  ) {
-    final json = <String, dynamic>{
-      'id': data['id'] as String? ?? docId,
-      'patient_id': patientId,
-      'member_user_id': data['memberUserId'] ??
-          data['caregiverUid'] ??
-          data['caregiver_uid'] ??
-          '',
-      'full_name': data['name'] as String?,
-      'email': (data['email'] ?? data['caregiverEmail']) as String?,
-      'role': (data['relationship'] ?? data['role'] ?? '') as String,
-      'permission': _permissionToString(data['permission'], data['permissions']),
-      'status': (data['status'] ?? 'accepted') as String,
-    };
-    return CareTeamMember.fromJson(json);
-  }
-
-  CareTeamInvitation _toInvitation(String docId, Map<String, dynamic> data) {
-    final json = <String, dynamic>{
-      'id': data['id'] as String? ?? docId,
-      'patient_id': data['patientId'] as String?,
-      'patient_name': data['patientName'] as String?,
-      'invitee_email': (data['caregiverEmail'] ?? data['email'] ?? '') as String,
-      'role': (data['relationship'] ?? data['role'] ?? '') as String,
-      'permission': _permissionToString(data['permission'], data['permissions']),
-      'status': (data['status'] ?? 'pending') as String,
-      'token': data['inviteId'] as String? ?? docId,
-      'created_at': _timestampToIsoString(data['createdAt']),
-    };
-    return CareTeamInvitation.fromJson(json);
-  }
-
-  CareTeamMember _invitationAcceptedToMember(
-    String inviteId,
-    Map<String, dynamic> data,
-    String caregiverUid,
-  ) {
-    final patientId = data['patientId'] as String? ?? '';
-    final json = <String, dynamic>{
-      'id': inviteId,
-      'patient_id': patientId,
-      'member_user_id': caregiverUid,
-      'full_name': data['patientName'] as String?,
-      'email': data['patientEmail'] as String?,
-      'role': (data['relationship'] ?? 'Caregiver') as String,
-      'permission': _permissionToString(data['permission'], data['permissions']),
-      'status': 'accepted',
-    };
-    return CareTeamMember.fromJson(json);
-  }
-
+  /// Active care team members for the signed-in **patient** (Cloud SQL API).
   Future<List<CareTeamMember>> getCareTeam() async {
-    final uid = _requireUid();
-    final out = <CareTeamMember>[];
-
-    final patientSnap = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('careTeam')
-        .where('status', isEqualTo: 'accepted')
-        .get();
-    for (final d in patientSnap.docs) {
-      out.add(_careTeamDocToMember(d.id, d.data(), uid));
+    _requireUid();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team');
+    final resp = await http.get(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'getCareTeam failed: ${resp.statusCode} ${resp.body}');
     }
-
-    final invSnap = await _db
-        .collection('invitations')
-        .where('caregiverUid', isEqualTo: uid)
-        .where('status', isEqualTo: 'accepted')
-        .get();
-    for (final d in invSnap.docs) {
-      out.add(_invitationAcceptedToMember(d.id, d.data(), uid));
-    }
-
-    return out;
+    final decoded = json.decode(resp.body);
+    if (decoded is! List) return [];
+    return decoded
+        .whereType<Map>()
+        .map((e) => _memberFromApiMap(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
+  /// Patient sends email invite (Brevo + `care_team_invitations` row).
   Future<void> inviteCaregiver({
     required String email,
     required String role,
     required String permission,
   }) async {
-    final uid = _requireUid();
-    final inviteRef = _db.collection('invitations').doc();
-    final inviteId = inviteRef.id;
-    final emailNorm = _normalizeEmail(email);
-    final patient = FirebaseAuth.instance.currentUser;
-    final patientName = patient?.displayName ?? patient?.email ?? 'Patient';
-    final patientEmail = patient?.email;
+    _requireUid();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/invite');
+    final resp = await http.post(
+      uri,
+      headers: await _headers(),
+      body: json.encode({
+        'email': email,
+        'role': role,
+        'permission': permission,
+      }),
+    );
+    if (resp.statusCode != 201 && resp.statusCode != 200) {
+      throw Exception(
+          'Failed to invite caregiver: ${resp.statusCode} ${resp.body}');
+    }
+  }
 
-    final batch = _db.batch();
-    final now = FieldValue.serverTimestamp();
-
-    batch.set(inviteRef, {
-      'inviteId': inviteId,
-      'patientId': uid,
-      'patientName': patientName,
-      if (patientEmail != null) 'patientEmail': patientEmail,
-      'caregiverEmail': emailNorm,
-      'relationship': role,
-      'permission': permission,
-      'permissions': [permission],
-      'status': 'pending',
-      'createdAt': now,
-    });
-
-    final careTeamRef =
-        _db.collection('users').doc(uid).collection('careTeam').doc(inviteId);
-
-    batch.set(careTeamRef, {
-      'id': inviteId,
-      'inviteId': inviteId,
-      'patientId': uid,
-      'patientName': patientName,
-      'name': emailNorm,
-      'email': emailNorm,
-      'caregiverEmail': emailNorm,
-      'relationship': role,
-      'permission': permission,
-      'permissions': [permission],
-      'status': 'pending',
-      'activityCount': 0,
-      'createdAt': now,
-    });
-
-    await batch.commit();
+  /// Completes SQL-backed invite after caregiver is signed in (JWT).
+  Future<void> acceptBackendCareTeamInvite({required String token}) async {
+    _requireUid();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/accept');
+    final resp = await http.post(
+      uri,
+      headers: await _headers(),
+      body: json.encode({'token': token.trim()}),
+    );
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'Accept invite failed: ${resp.statusCode} ${resp.body}');
+    }
   }
 
   Future<void> acceptInvitation({required String token}) async {
-    final uid = _requireUid();
-    final user = FirebaseAuth.instance.currentUser;
-    final email = user?.email;
-    if (email == null || email.isEmpty) {
-      throw Exception('Account email required to accept invitation');
-    }
-    final emailNorm = _normalizeEmail(email);
-
-    final invRef = _db.collection('invitations').doc(token);
-
-    await _db.runTransaction((txn) async {
-      final invSnap = await txn.get(invRef);
-      if (!invSnap.exists) {
-        throw Exception('Invitation not found');
-      }
-      final inv = invSnap.data()!;
-      final inviteEmail =
-          _normalizeEmail((inv['caregiverEmail'] as String?) ?? '');
-      if (inviteEmail != emailNorm) {
-        throw Exception('This invitation is for a different email address');
-      }
-
-      final patientId = inv['patientId'] as String?;
-      if (patientId == null || patientId.isEmpty) {
-        throw Exception('Invitation missing patientId');
-      }
-
-      final now = FieldValue.serverTimestamp();
-      txn.update(invRef, {
-        'status': 'accepted',
-        'acceptedAt': now,
-        'caregiverUid': uid,
-      });
-
-      final ctRef = _db
-          .collection('users')
-          .doc(patientId)
-          .collection('careTeam')
-          .doc(token);
-
-      txn.set(
-        ctRef,
-        {
-          'status': 'accepted',
-          'acceptedAt': now,
-          'caregiverUid': uid,
-          'memberUserId': uid,
-        },
-        SetOptions(merge: true),
-      );
-    });
+    await acceptBackendCareTeamInvite(token: token);
   }
 
+  /// Invitations for the signed-in caregiver's **email** (Cloud SQL).
   Future<List<CareTeamInvitation>> getMyInvitations() async {
     _requireUid();
-    final user = FirebaseAuth.instance.currentUser;
-    final email = user?.email;
-    if (email == null || email.isEmpty) {
-      return [];
+    final uri =
+        Uri.parse('${Environment.apiBaseUrl}/api/care-team/my-invitations');
+    final resp = await http.get(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'getMyInvitations failed: ${resp.statusCode} ${resp.body}');
     }
-    final emailNorm = _normalizeEmail(email);
-
-    final snap = await _db
-        .collection('invitations')
-        .where('caregiverEmail', isEqualTo: emailNorm)
-        .get();
-
-    return snap.docs.map((d) => _toInvitation(d.id, d.data())).toList();
+    final decoded = json.decode(resp.body);
+    if (decoded is! List) return [];
+    return decoded
+        .whereType<Map>()
+        .map((e) => _invitationFromApiMap(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
+  /// Pending invites created by the signed-in **patient**.
   Future<List<CareTeamInvitation>> getPendingInvitations() async {
-    final uid = _requireUid();
-    final snap = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('careTeam')
-        .where('status', isEqualTo: 'pending')
-        .get();
-
-    return snap.docs.map((d) => _toInvitation(d.id, d.data())).toList();
+    _requireUid();
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/pending');
+    final resp = await http.get(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'getPendingInvitations failed: ${resp.statusCode} ${resp.body}');
+    }
+    final decoded = json.decode(resp.body);
+    if (decoded is! List) return [];
+    return decoded
+        .whereType<Map>()
+        .map((e) => _invitationFromApiMap(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
   Future<void> cancelPendingInvitation({required String invitationId}) async {
-    final uid = _requireUid();
-    final batch = _db.batch();
-
-    batch.delete(
-      _db.collection('users').doc(uid).collection('careTeam').doc(invitationId),
-    );
-
-    batch.update(_db.collection('invitations').doc(invitationId), {
-      'status': 'cancelled',
-      'cancelledAt': FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
+    _requireUid();
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/care-team/pending/$invitationId');
+    final resp = await http.delete(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'cancelPendingInvitation failed: ${resp.statusCode} ${resp.body}');
+    }
   }
 
   Future<void> resendPendingInvitation(String invitationId) async {
     _requireUid();
-    await _db.collection('invitations').doc(invitationId).update({
-      'resendRequestedAt': FieldValue.serverTimestamp(),
-    });
+    final uri = Uri.parse(
+        '${Environment.apiBaseUrl}/api/care-team/pending/$invitationId/resend');
+    final resp = await http.post(uri, headers: await _headers());
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'resendPendingInvitation failed: ${resp.statusCode} ${resp.body}');
+    }
   }
 
   Future<void> updatePermission({
     required String memberId,
     required String permission,
   }) async {
-    final uid = _requireUid();
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('careTeam')
-        .doc(memberId)
-        .update({
-      'permission': permission,
-      'permissions': [permission],
-    });
+    _requireUid();
+    final uri =
+        Uri.parse('${Environment.apiBaseUrl}/api/care-team/$memberId');
+    final resp = await http.patch(
+      uri,
+      headers: await _headers(),
+      body: json.encode({'permission': permission}),
+    );
+    if (resp.statusCode != 200) {
+      throw Exception(
+          'updatePermission failed: ${resp.statusCode} ${resp.body}');
+    }
   }
 
   Future<void> removeMember({required String memberId}) async {
-    final uid = _requireUid();
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('careTeam')
-        .doc(memberId)
-        .delete();
+    _requireUid();
+    final uri =
+        Uri.parse('${Environment.apiBaseUrl}/api/care-team/$memberId');
+    final resp = await http.delete(uri, headers: await _headers());
+    if (resp.statusCode != 200 && resp.statusCode != 204) {
+      throw Exception(
+          'removeMember failed: ${resp.statusCode} ${resp.body}');
+    }
   }
 }
 

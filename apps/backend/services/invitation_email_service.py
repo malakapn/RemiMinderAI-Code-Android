@@ -95,7 +95,9 @@ def send_invite_email(
 
 {display_name} has invited you to join their care team on RemiMinderAI.
 
-Open this link to continue (sign up or sign in if asked):
+Open this link on your phone or computer to continue. Then open the RemiMinderAI app (or create an account in the app), choose Caregiver, and sign in with this same email address ({to_email.strip()}) — you will be connected to your patient automatically after you sign in.
+
+Invitation link:
 {invite_link}
 
 If you didn't expect this, you can safely ignore this email.
@@ -122,6 +124,11 @@ If you didn't expect this, you can safely ignore this email.
             <p style="font-size:0.95em; color:#444;">
             If the button does not work, copy and paste this link into your browser:<br/>
             <span style="word-break:break-all;">{invite_link}</span>
+            </p>
+            <p style="font-size:0.95em; color:#333;">
+            <strong>Using the app:</strong> After you open the link, install or open <strong>RemiMinderAI</strong>,
+            select <strong>Caregiver</strong>, and sign in with <strong>Google or email using this same address</strong>
+            ({to_email.strip()}). Your account will link to your patient once you are signed in.
             </p>
             <hr style="border:none; border-top:1px solid #eee;" />
             <p style="font-size:0.9em; color:#555;">

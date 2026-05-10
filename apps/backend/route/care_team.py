@@ -4,6 +4,7 @@ import os
 import secrets
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -141,8 +142,17 @@ async def accept_invitation_redirect(token: str):
             return RedirectResponse(url=f"{frontend_url}?status=success")
 
         # Invitee not in our users table yet: keep invitation pending for POST /accept after signup/login.
+        mobile_landing = (os.getenv("CAREGIVER_INVITE_MOBILE_LANDING_URL") or "").strip().rstrip("/")
+        if mobile_landing:
+            q = (
+                f"inviteToken={quote(token, safe='')}"
+                f"&email={quote(email or '', safe='')}"
+                "&role=caregiver"
+            )
+            sep = "&" if "?" in mobile_landing else "?"
+            return RedirectResponse(url=f"{mobile_landing}{sep}{q}")
         return RedirectResponse(
-            url=f"{frontend_url}?status=pending&invite_token={token}"
+            url=f"{frontend_url}?status=pending&invite_token={quote(token, safe='')}"
         )
 
     except Exception as e:
@@ -289,6 +299,14 @@ async def accept_care_team_invitation(
                 expires_at = datetime.fromisoformat(expires_at)
             if expires_at < datetime.now(timezone.utc):
                 raise HTTPException(status_code=400, detail="Invitation expired")
+
+        jwt_email = (current_user.get("email") or "").strip().lower()
+        invite_email = (invitation.get("invitee_email") or "").strip().lower()
+        if jwt_email and invite_email and jwt_email != invite_email:
+            raise HTTPException(
+                status_code=403,
+                detail="Sign in with the email address that received this invitation.",
+            )
 
         email = current_user.get("email") or invitation.get("invitee_email")
         name = current_user.get("name") or "Caregiver"
