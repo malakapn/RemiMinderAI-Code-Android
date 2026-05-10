@@ -734,15 +734,32 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
               }).toList(),
             ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                context.go('/patient/reminders');
-              },
-              icon: const Icon(Icons.add_alert_outlined),
-              label: const Text('Add Reminder'),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => context.go('/patient/reminders'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('View All'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => context.go('/patient/reminders?add=1'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Add Item'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
