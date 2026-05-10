@@ -65,6 +65,23 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
       print("🔍 API response: $data");
 
       if (data['status'] == 'processing') {
+        print("🔍 Structured summary missing or processing; trying plain summary");
+        try {
+          final plain = await apiService.getVisitSummary(widget.visitId);
+          final text = plain['summary']?.toString().trim();
+          if (text != null && text.isNotEmpty) {
+            setState(() {
+              _summaryText = text;
+              _medications = [];
+              _actions = [];
+              _summaryStatus = 'ready';
+              _isLoadingSummary = false;
+            });
+            return;
+          }
+        } catch (e) {
+          print("🔍 Plain summary fallback failed: $e");
+        }
         print("🔍 Summary still processing, setting processing state");
         setState(() {
           _summaryStatus = 'processing';
