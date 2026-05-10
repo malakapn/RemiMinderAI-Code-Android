@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
+import '../../../../shared/widgets/twelve_hour_time_picker.dart';
 import '../../../reminders/data/reminder_repository.dart';
 
 /// Normalizes API `status` / `display_status` values to stable lowercase keys.
@@ -814,8 +815,8 @@ class _RemindersScreenState extends State<RemindersScreen>
               }
 
               Future<void> pickTime() async {
-                final t = await showTimePicker(
-                  context: ctx,
+                final t = await showTwelveHourTimePickerSheet(
+                  ctx,
                   initialTime: TimeOfDay.fromDateTime(scheduled),
                 );
                 if (t != null) {
@@ -875,7 +876,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                         ),
                         DropdownMenuItem(
                           value: 'appointment',
-                          child: Text('Appointments'),
+                          child: Text('Appointment'),
                         ),
                         DropdownMenuItem(
                           value: 'task',
@@ -918,9 +919,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                         Expanded(
                           child: OutlinedButton(
                             onPressed: pickTime,
-                            child: Text(
-                              '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')}',
-                            ),
+                            child: Text(_toAmPm(scheduled)),
                           ),
                         ),
                       ],

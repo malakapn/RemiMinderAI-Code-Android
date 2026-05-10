@@ -10,6 +10,7 @@ import '../../../care_team/data/services/care_team_api_service.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
+import '../../../../shared/widgets/twelve_hour_time_picker.dart';
 
 class PatientOverviewScreen extends StatefulWidget {
   const PatientOverviewScreen({super.key});
@@ -1511,9 +1512,20 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
     }
   }
 
+  String _timeOfDay12h(TimeOfDay t) {
+    final h = t.hour;
+    final m = t.minute.toString().padLeft(2, '0');
+    final p = h >= 12 ? 'PM' : 'AM';
+    final h12 = h % 12 == 0 ? 12 : h % 12;
+    return '$h12:$m $p';
+  }
+
   void _showAddReminderDialog({String initialType = 'medication'}) {
     final titleController = TextEditingController();
     String selectedType = initialType;
+    if (!['medication', 'appointment', 'task'].contains(selectedType)) {
+      selectedType = 'medication';
+    }
     String selectedRecurrence = 'once';
     DateTime selectedDate = DateTime.now().add(const Duration(hours: 1));
     TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
@@ -1554,17 +1566,18 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
                   decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: 'medication', child: Text('Medication')),
-                    DropdownMenuItem(value: 'task', child: Text('Task')),
                     DropdownMenuItem(value: 'appointment', child: Text('Appointment')),
+                    DropdownMenuItem(value: 'task', child: Text('Task')),
                   ],
                   onChanged: (v) => setModal(() => selectedType = v!),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: selectedRecurrence,
-                  decoration: const InputDecoration(labelText: 'Repeat', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Frequency', border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: 'once', child: Text('Once')),
+                    DropdownMenuItem(value: 'twice', child: Text('Twice')),
                     DropdownMenuItem(value: 'daily', child: Text('Daily')),
                     DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
                   ],
@@ -1594,9 +1607,12 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
                     Expanded(
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.access_time),
-                        label: Text(selectedTime.format(ctx)),
+                        label: Text(_timeOfDay12h(selectedTime)),
                         onPressed: () async {
-                          final t = await showTimePicker(context: ctx, initialTime: selectedTime);
+                          final t = await showTwelveHourTimePickerSheet(
+                            ctx,
+                            initialTime: selectedTime,
+                          );
                           if (t != null) {
                             setModal(() {
                               selectedTime = t;
@@ -2087,7 +2103,7 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
     }
     String selectedRecurrence =
         (apiReminder['recurrence']?.toString() ?? 'once').trim();
-    if (!['once', 'daily', 'weekly'].contains(selectedRecurrence)) {
+    if (!['once', 'twice', 'daily', 'weekly'].contains(selectedRecurrence)) {
       selectedRecurrence = 'once';
     }
     final parsed = DateTime.tryParse(
@@ -2137,9 +2153,9 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
                     items: const [
                       DropdownMenuItem(
                           value: 'medication', child: Text('Medication')),
-                      DropdownMenuItem(value: 'task', child: Text('Task')),
                       DropdownMenuItem(
                           value: 'appointment', child: Text('Appointment')),
+                      DropdownMenuItem(value: 'task', child: Text('Task')),
                     ],
                     onChanged: (v) => setModal(() => selectedType = v!),
                   ),
@@ -2147,11 +2163,12 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
                   DropdownButtonFormField<String>(
                     value: selectedRecurrence,
                     decoration: const InputDecoration(
-                      labelText: 'Repeat',
+                      labelText: 'Frequency',
                       border: OutlineInputBorder(),
                     ),
                     items: const [
                       DropdownMenuItem(value: 'once', child: Text('Once')),
+                      DropdownMenuItem(value: 'twice', child: Text('Twice')),
                       DropdownMenuItem(value: 'daily', child: Text('Daily')),
                       DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
                     ],
@@ -2190,10 +2207,10 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
                       Expanded(
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.access_time),
-                          label: Text(selectedTime.format(ctx)),
+                          label: Text(_timeOfDay12h(selectedTime)),
                           onPressed: () async {
-                            final t = await showTimePicker(
-                              context: ctx,
+                            final t = await showTwelveHourTimePickerSheet(
+                              ctx,
                               initialTime: selectedTime,
                             );
                             if (t != null) {
