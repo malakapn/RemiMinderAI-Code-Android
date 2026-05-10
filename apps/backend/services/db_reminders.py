@@ -543,6 +543,8 @@ async def create_recurring_reminder(original_reminder: dict) -> Optional[Dict[st
         next_time = original_time + timedelta(days=1)
     elif original_reminder["recurrence"] == "weekly":
         next_time = original_time + timedelta(weeks=1)
+    elif original_reminder["recurrence"] == "twice":
+        next_time = original_time + timedelta(hours=12)
     else:
         return None  # No recurrence
     

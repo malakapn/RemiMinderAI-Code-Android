@@ -2,15 +2,13 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
-import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
-import '../../../../shared/widgets/twelve_hour_time_picker.dart';
 import '../../../reminders/data/reminder_repository.dart';
 
 /// Normalizes API `status` / `display_status` values to stable lowercase keys.
@@ -72,7 +70,7 @@ String _reminderStatusDisplayLabel(String canonical) {
   }
 }
 
-class RemindersScreen extends ConsumerStatefulWidget {
+class RemindersScreen extends StatefulWidget {
   const RemindersScreen({
     super.key,
     this.openAddOnLaunch = false,
@@ -83,10 +81,10 @@ class RemindersScreen extends ConsumerStatefulWidget {
   final String? prefillReminderTitle;
 
   @override
-  ConsumerState<RemindersScreen> createState() => _RemindersScreenState();
+  State<RemindersScreen> createState() => _RemindersScreenState();
 }
 
-class _RemindersScreenState extends ConsumerState<RemindersScreen>
+class _RemindersScreenState extends State<RemindersScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
@@ -124,6 +122,102 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
       default:
         return reminders;
     }
+  }
+
+  Future<String> _localIanaTimezone() async {
+    try {
+      return await FlutterTimezone.getLocalTimezone();
+    } catch (_) {
+      return 'America/New_York';
+    }
+  }
+
+  List<Reminder> _remindersForUi() {
+    return _allReminders.map((m) {
+      final st = m['scheduledTime'];
+      final scheduled = st is DateTime
+          ? st
+          : DateTime.parse(st.toString());
+      final su = m['snoozeUntil'];
+      DateTime? snoozeUntil;
+      if (su is DateTime) {
+        snoozeUntil = su;
+      } else if (su != null) {
+        snoozeUntil = DateTime.tryParse(su.toString());
+      }
+      return Reminder(
+        id: m['id']?.toString() ?? '',
+        title: m['title']?.toString() ?? '',
+        description: m['description']?.toString() ?? '',
+        type: m['type']?.toString() ?? 'task',
+        scheduledTime: scheduled,
+        status: m['status']?.toString() ?? 'pending',
+        dosage: m['dosage'] as String?,
+        frequency: m['recurrence']?.toString(),
+        snoozeCount: (m['snoozeCount'] as num?)?.toInt() ?? 0,
+        snoozeUntil: snoozeUntil,
+        createdAt: scheduled,
+      );
+    }).toList();
+  }
+
+  Widget _buildRemindersListBody(String uid) {
+    if (_isLoading && _allReminders.isEmpty) {
+      return const ListView(
+        physics: AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: 120),
+          Center(child: CircularProgressIndicator()),
+        ],
+      );
+    }
+    if (_hasError && _allReminders.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 80),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                Text(
+                  'Could not load reminders',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => _loadReminders(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    final filtered = _filterReminders(_remindersForUi());
+    if (filtered.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.45,
+            child: _buildEmptyState(),
+          ),
+        ],
+      );
+    }
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) {
+        return _buildReminderCard(filtered[index], uid);
+      },
+    );
   }
 
   @override
@@ -241,39 +335,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                     ),
                   ),
                 Expanded(
-                  child: StreamBuilder<List<Reminder>>(
-                    stream: ref.read(reminderRepositoryProvider).getReminders(uid),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting &&
-                          !snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              'Could not load reminders\n${snapshot.error}',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                      final filtered = _filterReminders(snapshot.data ?? []);
-                      if (filtered.isEmpty) {
-                        return _buildEmptyState();
-                      }
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          return _buildReminderCard(filtered[index], uid);
-                        },
-                      );
-                    },
+                  child: RefreshIndicator(
+                    onRefresh: () => _loadReminders(),
+                    child: _buildRemindersListBody(uid),
                   ),
                 ),
               ],
@@ -623,6 +687,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
         return Colors.blue;
       case 'appointment':
         return Colors.purple;
+      case 'task':
+        return Colors.teal;
       case 'measurement':
         return Colors.green;
       default:
@@ -636,6 +702,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
         return Icons.medication;
       case 'appointment':
         return Icons.calendar_today;
+      case 'task':
+        return Icons.task_alt;
       case 'measurement':
         return Icons.monitor_heart;
       default:
@@ -705,8 +773,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
     final titleCtrl = TextEditingController(text: titlePrefill ?? '');
     final descCtrl = TextEditingController();
     final dosageCtrl = TextEditingController();
-    final freqCtrl = TextEditingController();
     String type = 'medication';
+    String recurrence = 'once';
     DateTime scheduled = DateTime.now().add(const Duration(hours: 1));
 
     await showModalBottomSheet<void>(
@@ -801,12 +869,38 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'medication', child: Text('Medication')),
-                        DropdownMenuItem(value: 'appointment', child: Text('Appointment')),
-                        DropdownMenuItem(value: 'measurement', child: Text('Measurement')),
+                        DropdownMenuItem(
+                          value: 'medication',
+                          child: Text('Medication'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'appointment',
+                          child: Text('Appointments'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'task',
+                          child: Text('Task'),
+                        ),
                       ],
                       onChanged: (v) {
                         if (v != null) setModal(() => type = v);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: recurrence,
+                      decoration: const InputDecoration(
+                        labelText: 'Frequency',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'once', child: Text('Once')),
+                        DropdownMenuItem(value: 'twice', child: Text('Twice')),
+                        DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                        DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setModal(() => recurrence = v);
                       },
                     ),
                     const SizedBox(height: 12),
@@ -839,14 +933,6 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: freqCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Frequency (optional)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -870,35 +956,50 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                                 return;
                               }
                               try {
-                                final created =
-                                    await ref.read(reminderRepositoryProvider).createReminder(
-                                  uid,
-                                  Reminder(
-                                    id: '',
-                                    title: title,
-                                    description: descCtrl.text.trim(),
-                                    type: type,
-                                    scheduledTime: scheduled,
-                                    status: 'pending',
-                                    dosage: dosageCtrl.text.trim().isEmpty
-                                        ? null
-                                        : dosageCtrl.text.trim(),
-                                    frequency: freqCtrl.text.trim().isEmpty
-                                        ? null
-                                        : freqCtrl.text.trim(),
-                                    snoozeCount: 0,
-                                    snoozeUntil: null,
-                                    createdAt: DateTime.now(),
+                                final token =
+                                    await _authService.getAccessToken();
+                                if (token == null) {
+                                  throw Exception('Sign in required');
+                                }
+                                final tz = await _localIanaTimezone();
+                                final desc = descCtrl.text.trim();
+                                final dosage = dosageCtrl.text.trim();
+                                final body = <String, dynamic>{
+                                  'user_id': '',
+                                  'reminder_type': type,
+                                  'title': title,
+                                  'scheduled_time':
+                                      scheduled.toUtc().toIso8601String(),
+                                  'timezone': tz,
+                                  'recurrence': recurrence,
+                                };
+                                final ctxMap = <String, dynamic>{};
+                                if (desc.isNotEmpty) {
+                                  ctxMap['description'] = desc;
+                                }
+                                if (dosage.isNotEmpty) {
+                                  ctxMap['dosage'] = dosage;
+                                }
+                                if (ctxMap.isNotEmpty) {
+                                  body['context_data'] = ctxMap;
+                                }
+                                final res = await http.post(
+                                  Uri.parse(
+                                    '${Environment.apiBaseUrl}/api/reminders',
                                   ),
+                                  headers: {
+                                    'Authorization': 'Bearer $token',
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: json.encode(body),
                                 );
-                                final notifId = created.id.hashCode & 0x7fffffff;
-                                await NotificationService().scheduleReminder(
-                                  id: notifId,
-                                  title: created.title,
-                                  body: created.description,
-                                  scheduledTime: created.scheduledTime,
-                                );
+                                if (res.statusCode != 201) {
+                                  throw Exception(
+                                    'Server ${res.statusCode}: ${res.body}',
+                                  );
+                                }
                                 if (ctx.mounted) Navigator.of(ctx).pop();
+                                await _loadReminders();
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -938,7 +1039,20 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
 
   Future<void> _markAsCompleted(String uid, String id) async {
     try {
-      await ref.read(reminderRepositoryProvider).completeReminder(uid, id);
+      final token = await _authService.getAccessToken();
+      if (token == null) throw Exception('Sign in required');
+      final res = await http.post(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id/complete'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({}),
+      );
+      if (res.statusCode != 200) {
+        throw Exception('Failed (${res.statusCode})');
+      }
+      await _loadReminders();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reminder marked as completed!')),
@@ -955,7 +1069,19 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
 
   Future<void> _snoozeReminder(String uid, String id) async {
     try {
-      await ref.read(reminderRepositoryProvider).snoozeReminder(uid, id);
+      final token = await _authService.getAccessToken();
+      if (token == null) throw Exception('Sign in required');
+      final res = await http.post(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id/snooze'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (res.statusCode != 200) {
+        throw Exception('Failed (${res.statusCode})');
+      }
+      await _loadReminders();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reminder snoozed for 30 minutes')),
@@ -972,7 +1098,19 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
 
   Future<void> _deleteReminder(String uid, String id) async {
     try {
-      await ref.read(reminderRepositoryProvider).deleteReminder(uid, id);
+      final token = await _authService.getAccessToken();
+      if (token == null) throw Exception('Sign in required');
+      final res = await http.delete(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (res.statusCode != 200 && res.statusCode != 204) {
+        throw Exception('Failed (${res.statusCode})');
+      }
+      await _loadReminders();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reminder deleted')),
@@ -1310,6 +1448,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
           'type': r['reminder_type']?.toString() ?? 'task',
           'dosage': null,
           'recurrence': r['recurrence']?.toString() ?? 'once',
+          'snoozeCount': r['snoozed_count'] ?? 0,
           'snoozeUntil': r['snooze_until'] != null
               ? DateTime.tryParse(r['snooze_until'].toString())
               : null,

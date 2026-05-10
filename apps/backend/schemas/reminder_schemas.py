@@ -13,7 +13,7 @@ class ReminderCreate(BaseModel):
     title: str
     scheduled_time: datetime
     timezone: str = "America/New_York"
-    recurrence: Literal["daily", "weekly", "once"] = "once"
+    recurrence: Literal["daily", "weekly", "once", "twice"] = "once"
     context_data: Optional[dict] = None  # For AI: {medication_list: [...], task_type: "bp_check"}
 
 class ReminderUpdate(BaseModel):
