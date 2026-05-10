@@ -217,23 +217,47 @@ async def invite_care_team_member(
             invited_by_user_id=patient_id,
         )
 
+        patient_label = (
+            (current_user.get("name") or "").strip()
+            or (current_user.get("email") or "").strip()
+            or "Your patient"
+        )
+
         email_ok = False
         try:
             email_ok = await asyncio.to_thread(
                 send_invite_email,
                 request.email,
                 token,
+                patient_label,
             )
         except Exception as e:
             logger.warning("Exception sending care team invite email: %s", e)
+            invalidate(f"care_team_pending:{patient_id}")
+            invalidate(f"care_team_list:{patient_id}")
+            raise HTTPException(
+                status_code=503,
+                detail="Invitation was saved but the email could not be sent. "
+                "Check Brevo and public API URL env vars, then use Resend.",
+            ) from e
 
         invalidate(f"care_team_pending:{patient_id}")
         invalidate(f"care_team_list:{patient_id}")
 
-        if email_ok:
-            return {"status": "invited", "email_sent": True}
+        if not email_ok:
+            logger.error(
+                "care team invite email failed (Brevo or URL config) patient_id=%s to=%s",
+                patient_id,
+                request.email,
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Invitation was saved but email delivery failed. "
+                "Configure BREVO_API_KEY and a public API base URL "
+                "(BACKEND_URL or MOBILE_API_BASE_URL), then tap Resend.",
+            )
 
-        return {"status": "invited", "email_sent": False}
+        return {"status": "invited", "email_sent": True}
 
     except HTTPException:
         raise
@@ -434,20 +458,37 @@ async def resend_pending_care_team_invitation(
         if not invitation:
             raise HTTPException(status_code=404, detail="Invitation not found")
 
+        patient_label = (
+            (current_user.get("name") or "").strip()
+            or (current_user.get("email") or "").strip()
+            or "Your patient"
+        )
+
         email_ok = False
         try:
             email_ok = await asyncio.to_thread(
                 send_invite_email,
                 invitation["invitee_email"],
                 token,
+                patient_label,
             )
         except Exception as e:
             logger.warning("Exception resending care team invite email: %s", e)
+            raise HTTPException(
+                status_code=503,
+                detail="Could not send invitation email. Try again later.",
+            ) from e
 
         invalidate(f"care_team_pending:{patient_id}")
         invalidate(f"care_team_list:{patient_id}")
 
-        return {"success": True, "email_sent": email_ok}
+        if not email_ok:
+            raise HTTPException(
+                status_code=503,
+                detail="Could not send invitation email. Check email provider configuration.",
+            )
+
+        return {"success": True, "email_sent": True}
 
     except HTTPException:
         raise

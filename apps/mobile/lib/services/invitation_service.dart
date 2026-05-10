@@ -17,6 +17,10 @@ class InvitationService {
   static const _activeStatuses = ['pending', 'viewed', 'expired'];
 
   /// Invitations for the signed-in caregiver, newest first.
+  ///
+  /// Queries only by [inviteeId] (no composite Firestore index). Filters
+  /// statuses and sorts in memory so the Care Team tab does not fail with a
+  /// missing-index error at runtime.
   Stream<List<CaregiverInvitation>> watchReceivedInvitations() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
@@ -26,15 +30,22 @@ class InvitationService {
     return _firestore
         .collection('invitations')
         .where('inviteeId', isEqualTo: uid)
-        .where('status', whereIn: _activeStatuses)
-        .orderBy('status')
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snap) => snap.docs
-              .map(CaregiverInvitation.fromFirestore)
-              .toList(growable: false),
-        );
+        .map((snap) {
+      final list = snap.docs
+          .map(CaregiverInvitation.fromFirestore)
+          .where((inv) => _activeStatuses.contains(inv.status))
+          .toList();
+      list.sort((a, b) {
+        final ta = a.createdAt;
+        final tb = b.createdAt;
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return tb.compareTo(ta);
+      });
+      return list;
+    });
   }
 
   /// Marks a pending invitation as viewed (idempotent).
