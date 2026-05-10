@@ -178,7 +178,7 @@ class AuthNotifier extends Notifier<AuthState> {
       ).timeout(_authOperationTimeout);
 
       try {
-        await _backendApiService.bootstrapUser(fullName: fullName);
+        await _backendApiService.bootstrapUser(fullName: fullName, role: role);
         final profile = await _backendApiService.getMyProfile();
 
         state = AuthState.authenticated(user,
@@ -208,7 +208,10 @@ class AuthNotifier extends Notifier<AuthState> {
           selectedRole: selectedRole).timeout(_authOperationTimeout);
 
       try {
-        await _backendApiService.bootstrapUser();
+        await _backendApiService.bootstrapUser(
+          fullName: user.fullName,
+          role: user.role,
+        );
         final profile = await _backendApiService.getMyProfile();
 
         state = AuthState.authenticated(user,
@@ -235,7 +238,10 @@ class AuthNotifier extends Notifier<AuthState> {
               .timeout(_authOperationTimeout);
 
       try {
-        await _backendApiService.bootstrapUser();
+        await _backendApiService.bootstrapUser(
+          fullName: user.fullName,
+          role: user.role,
+        );
         final profile = await _backendApiService.getMyProfile();
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
