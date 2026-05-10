@@ -163,9 +163,9 @@ class _RemindersScreenState extends State<RemindersScreen>
 
   Widget _buildRemindersListBody(String uid) {
     if (_isLoading && _allReminders.isEmpty) {
-      return const ListView(
-        physics: AlwaysScrollableScrollPhysics(),
-        children: [
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
           SizedBox(height: 120),
           Center(child: CircularProgressIndicator()),
         ],
