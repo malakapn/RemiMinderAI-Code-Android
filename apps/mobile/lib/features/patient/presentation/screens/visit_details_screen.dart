@@ -74,7 +74,11 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
         print("🔍 Found structured summary, setting to ready state");
         final medications = _toStringList(data['medications']);
         // Visit details: Visit Summary, Medications, Next Steps only (no questions UI).
-        final actions = _toStringList(data['actions'] ?? data['action_items']);
+        final actions = _toStringList(
+          data['actions'] ??
+              data['action_items'] ??
+              data['next_steps'],
+        );
         setState(() {
           _summaryText = data['summary']?.toString();
           _medications = medications;
@@ -148,6 +152,25 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     }
     return [];
   }
+
+  /// Normalizer emits English placeholders when lists are empty; hide those in UI.
+  bool _isPlaceholderMedicationLine(String s) {
+    final t = s.toLowerCase();
+    return t.contains('no medications mentioned') ||
+        t.contains('no medication mentioned');
+  }
+
+  bool _isPlaceholderActionLine(String s) {
+    final t = s.toLowerCase();
+    return t.contains('no follow-up actions') ||
+        t.contains('no follow up actions') ||
+        t.contains('no follow-up action');
+  }
+
+  static const Color _sectionBodyGreen = Color(0xFF2E7D32);
+  static const Color _sectionSurfaceGreen = Color(0xFFE8F5E9);
+  static const Color _sectionBorderGreen = Color(0xFFA5D6A7);
+  static const Color _bulletTeal = Color(0xFF00897B);
 
   @override
   Widget build(BuildContext context) {
@@ -426,6 +449,15 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   }
 
   Widget _buildStructuredSummary() {
+    final meds = _medications
+        .where((s) => !_isPlaceholderMedicationLine(s))
+        .toList();
+    final steps =
+        _actions.where((s) => !_isPlaceholderActionLine(s)).toList();
+
+    final secondaryMuted =
+        Theme.of(context).colorScheme.secondary.withOpacity(0.85);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -433,18 +465,77 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
           title: 'Visit Summary',
           content: Text(
             _summaryText ?? '',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 16,
-              color: Theme.of(context).colorScheme.secondary,
+              color: _sectionBodyGreen,
               height: 1.5,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ),
-        if (_medications.isNotEmpty)
-          _buildListSection(title: 'Medications', items: _medications),
-        if (_actions.isNotEmpty)
-          _buildListSection(title: 'Next Steps', items: _actions),
+        _buildSummarySection(
+          title: 'Medications',
+          content: meds.isEmpty
+              ? Text(
+                  'No medications noted for this visit.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: secondaryMuted,
+                    fontStyle: FontStyle.italic,
+                    height: 1.45,
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children:
+                      meds.map((item) => _buildBulletLine(item)).toList(),
+                ),
+        ),
+        _buildSummarySection(
+          title: 'Next Steps',
+          content: steps.isEmpty
+              ? Text(
+                  'No follow-up steps noted for this visit.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: secondaryMuted,
+                    fontStyle: FontStyle.italic,
+                    height: 1.45,
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children:
+                      steps.map((item) => _buildBulletLine(item)).toList(),
+                ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildBulletLine(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 7),
+            child: Icon(Icons.circle, size: 7, color: _bulletTeal),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.45,
+                color: _sectionBodyGreen,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -452,15 +543,14 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     required String title,
     required Widget content,
   }) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.05),
+        color: _sectionSurfaceGreen,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.green.withOpacity(0.2),
-        ),
+        border: Border.all(color: _sectionBorderGreen),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,64 +558,13 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
           Text(
             title,
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: primary,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           content,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildListSection({
-    required String title,
-    required List<String> items,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('•  '),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).colorScheme.secondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
