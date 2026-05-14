@@ -152,7 +152,11 @@ class _OverviewScreenState extends State<OverviewScreen>
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('🎉 Your visit summary is ready!'),
-            content: const Text('Would you like to view it now?'),
+            content: const Text(
+              'After your recording, the pipeline writes a structured summary '
+              '(summary, decisions, medications, and actions). '
+              'Would you like to view it now?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),

@@ -682,7 +682,8 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       case RecordingState.recording:
         return 'Recording in progress...';
       case RecordingState.completed:
-        return 'Recording complete!\nTap Generate to process your visit summary';
+        return 'Recording complete!\nTap Generate so the pipeline can write your '
+            'structured summary (summary, decisions, medications, and actions)';
     }
   }
 
