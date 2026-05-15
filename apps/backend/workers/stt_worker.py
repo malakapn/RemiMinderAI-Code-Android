@@ -21,14 +21,17 @@ class HealthHandler(BaseHTTPRequestHandler):
         pass
 
 
-def serve_health_forever() -> None:
-    """Bind $PORT on the main thread so Cloud Run startup probes succeed immediately."""
+def create_health_server() -> HTTPServer:
+    """Create and bind HTTP server on $PORT (call before any DB work)."""
     port = int(os.environ.get("PORT", 8080))
     httpd = HTTPServer(("0.0.0.0", port), HealthHandler)
-    logger.info("STT worker health server listening on 0.0.0.0:%s", port)
+    logger.info("STT worker health server bound on 0.0.0.0:%s", port)
+    return httpd
+
+
+def serve_health_forever(httpd: HTTPServer) -> None:
+    """Run accept loop on the current thread (main thread for Cloud Run probes)."""
     httpd.serve_forever()
-
-
 def run_worker_loop() -> None:
     while True:
         job = claim_job(JOB_TYPE)
@@ -64,8 +67,8 @@ if __name__ == "__main__":
     else:
         logger.info("Using GCS bucket %s", bucket)
 
-    # Run job loop in a background thread; keep HTTP health on the main thread.
-    # If health ran in a daemon thread and the main thread blocked early (e.g. DB),
-    # some cold-start timings could miss binds and fail Cloud Run startup probes.
+    # Bind $PORT before starting the job loop so TCP startup probes succeed even if
+    # the first Cloud SQL connection is slow or misconfigured.
+    httpd = create_health_server()
     threading.Thread(target=run_worker_loop, daemon=True).start()
-    serve_health_forever()
+    serve_health_forever(httpd)
