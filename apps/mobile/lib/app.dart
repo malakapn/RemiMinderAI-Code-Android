@@ -6,7 +6,6 @@ import 'core/config/theme.dart';
 import 'core/providers/locale_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/data/models/auth_state.dart';
-import 'features/splash/splash_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'router/app_router.dart';
 
@@ -35,16 +34,8 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
       });
     });
 
-    final showAuthSplash = authState.status == AuthStatus.loading ||
-        authState.status == AuthStatus.initial;
-
-    if (showAuthSplash) {
-      return const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: SplashScreen(),
-      );
-    }
-
+    // First launch and auth bootstrap: always use GoRouter so `/welcome` is the
+    // first screen (no separate splash MaterialApp).
     return MaterialApp.router(
       title:
           'RemiMinder', // TODO: Use AppLocalizations.of(context)?.appTitle ?? 'RemiMinder',

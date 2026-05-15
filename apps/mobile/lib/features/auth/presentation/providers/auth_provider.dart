@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -269,24 +269,32 @@ class AuthNotifier extends Notifier<AuthState> {
   /// Sign in with Google OAuth (Firebase + Web client ID; see ENV_SETUP.md).
   Future<void> signInWithGoogle({UserRole? selectedRole}) async {
     try {
-      state = AuthState.loading();
+      // Intentionally do NOT set [AuthState.loading] here: global loading used to
+      // replace the router tree during Google sign-in and broke post-login navigation.
 
       final user =
           await _authRepository
               .signInWithGoogle(selectedRole: selectedRole)
               .timeout(_authOperationTimeout);
 
+      final storage = SecureStorage();
       try {
         await _backendApiService.bootstrapUser(
           fullName: user.fullName,
           role: user.role,
         );
         final profile = await _backendApiService.getMyProfile();
+        await storage.saveUserRole(profile.role);
+        final fn = profile.fullName;
+        if (fn != null && fn.trim().isNotEmpty) {
+          await storage.saveFullName(fn.trim());
+        }
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
         await _tryLinkPendingCareTeamInvite(user);
       } catch (_) {
         // Same as email sign-in: backend optional when Firebase session is valid
+        await storage.saveUserRole(user.role.name);
         state = AuthState.authenticated(user);
         await _tryLinkPendingCareTeamInvite(user);
       }
