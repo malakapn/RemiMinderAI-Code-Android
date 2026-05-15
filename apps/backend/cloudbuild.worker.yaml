@@ -6,5 +6,19 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     dir: 'apps/backend'
     args: ['build', '-f', 'Dockerfile.worker', '-t', 'gcr.io/stunning-ripsaw-480402-i4/remiminder-stt-worker', '.']
+
+  # Push a new digest, then roll Cloud Run to that image (console deploy alone reuses old digest).
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - services
+      - update
+      - remiminder-stt-worker
+      - '--image=gcr.io/stunning-ripsaw-480402-i4/remiminder-stt-worker'
+      - '--region=us-central1'
+      - '--project=stunning-ripsaw-480402-i4'
+      - '--quiet'
+
 images:
   - 'gcr.io/stunning-ripsaw-480402-i4/remiminder-stt-worker'
