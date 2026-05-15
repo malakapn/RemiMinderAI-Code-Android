@@ -1,3 +1,6 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
   # GitHub triggers clone repo root; Dockerfile.worker and requirements.txt live here.
   - name: 'gcr.io/cloud-builders/docker'
