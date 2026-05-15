@@ -1,5 +1,7 @@
 steps:
+  # GitHub triggers clone repo root; Dockerfile.worker and requirements.txt live here.
   - name: 'gcr.io/cloud-builders/docker'
+    dir: 'apps/backend'
     args: ['build', '-f', 'Dockerfile.worker', '-t', 'gcr.io/stunning-ripsaw-480402-i4/remiminder-stt-worker', '.']
 images:
   - 'gcr.io/stunning-ripsaw-480402-i4/remiminder-stt-worker'
