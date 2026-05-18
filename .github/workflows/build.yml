@@ -83,8 +83,13 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: flutter build appbundle --release
         working-directory: apps/mobile
+      # Skip on PRs — each AAB is large and fills the org artifact quota quickly.
       - name: Upload App Bundle artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: remiminderai-release-aab
           path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 7
+          overwrite: true
+          compression-level: 6
