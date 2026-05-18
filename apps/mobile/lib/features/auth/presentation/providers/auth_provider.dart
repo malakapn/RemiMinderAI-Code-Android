@@ -74,7 +74,8 @@ class AuthNotifier extends Notifier<AuthState> {
   /// determined → force unauthenticated so user must re-login.
   Future<void> _checkAuthStatus() async {
     print("🔥 AuthNotifier._checkAuthStatus() started");
-    state = AuthState.loading();
+    // Do not set global loading here — it used to swap the app to a splash-style
+    // screen and delay the welcome route on cold start.
 
     try {
       final user = await _authRepository
