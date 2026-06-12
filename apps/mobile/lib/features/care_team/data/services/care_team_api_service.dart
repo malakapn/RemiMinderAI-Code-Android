@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/config/environment.dart';
@@ -263,9 +265,70 @@ class CareTeamApiService {
     });
   }
 
-  /// Active care team members for the signed-in **patient** (Cloud SQL API).
+  /// Active care team members for the signed-in **patient**.
+  ///
+  /// Firestore (`patients/{uid}/careTeam`) is primary; Cloud SQL is a quiet
+  /// fallback when Firestore is empty or unavailable.
   Future<List<CareTeamMember>> getCareTeam() async {
-    _requireUid();
+    final patientId = _requireUid();
+
+    try {
+      final firestoreMembers = await _getCareTeamFromFirestore(patientId);
+      if (firestoreMembers.isNotEmpty) {
+        return firestoreMembers;
+      }
+    } catch (e) {
+      debugPrint('care team Firestore list failed (non-fatal): $e');
+    }
+
+    try {
+      return await _getCareTeamFromSql();
+    } catch (e) {
+      debugPrint('care team SQL list failed: $e');
+      return [];
+    }
+  }
+
+  Future<List<CareTeamMember>> _getCareTeamFromFirestore(String patientId) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('patients')
+        .doc(patientId)
+        .collection('careTeam')
+        .get();
+    if (snap.docs.isEmpty) return [];
+
+    final members = <CareTeamMember>[];
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final caregiverId = data['caregiverId']?.toString() ?? doc.id;
+      String? fullName;
+      String? email;
+      try {
+        final userSnap =
+            await FirebaseFirestore.instance.collection('users').doc(caregiverId).get();
+        if (userSnap.exists) {
+          final userData = userSnap.data();
+          fullName = userData?['fullName'] as String? ??
+              userData?['displayName'] as String?;
+          email = userData?['email'] as String?;
+        }
+      } catch (_) {}
+
+      members.add(CareTeamMember(
+        id: doc.id,
+        patientId: patientId,
+        memberUserId: caregiverId,
+        fullName: fullName,
+        email: email,
+        role: data['role']?.toString() ?? '',
+        permission: data['permission']?.toString() ?? 'view',
+        status: 'active',
+      ));
+    }
+    return members;
+  }
+
+  Future<List<CareTeamMember>> _getCareTeamFromSql() async {
     final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team');
     final resp = await http.get(uri, headers: await _headers());
     if (resp.statusCode != 200) {
@@ -340,21 +403,27 @@ class CareTeamApiService {
         .toList();
   }
 
-  /// Pending invites created by the signed-in **patient**.
+  /// Pending invites created by the signed-in **patient** (SQL API; fails quietly).
   Future<List<CareTeamInvitation>> getPendingInvitations() async {
     _requireUid();
-    final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/pending');
-    final resp = await http.get(uri, headers: await _headers());
-    if (resp.statusCode != 200) {
-      throw Exception(
-          'getPendingInvitations failed: ${resp.statusCode} ${resp.body}');
+    try {
+      final uri = Uri.parse('${Environment.apiBaseUrl}/api/care-team/pending');
+      final resp = await http.get(uri, headers: await _headers());
+      if (resp.statusCode != 200) {
+        debugPrint(
+            'care team SQL pending list failed: ${resp.statusCode} ${resp.body}');
+        return [];
+      }
+      final decoded = json.decode(resp.body);
+      if (decoded is! List) return [];
+      return decoded
+          .whereType<Map>()
+          .map((e) => _invitationFromApiMap(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e) {
+      debugPrint('care team SQL pending list failed: $e');
+      return [];
     }
-    final decoded = json.decode(resp.body);
-    if (decoded is! List) return [];
-    return decoded
-        .whereType<Map>()
-        .map((e) => _invitationFromApiMap(Map<String, dynamic>.from(e)))
-        .toList();
   }
 
   Future<void> cancelPendingInvitation({required String invitationId}) async {

@@ -55,6 +55,9 @@ NavigationItem getCurrentNavigationItem(String location) {
     return NavigationItem.home;
   } else if (location.startsWith('/patient/overview')) {
     return NavigationItem.overview;
+  } else if (location.startsWith('/patient/history') ||
+      location.startsWith('/patient/visits')) {
+    return NavigationItem.visits;
   } else if (location.startsWith('/patient/care-team')) {
     return NavigationItem.careTeam;
   } else if (location.startsWith('/patient/profile')) {

@@ -98,6 +98,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loggedIn = authState.isAuthenticated;
       final user = authState.user;
 
+      // Root and legacy paths (saved state / pre-rename routes).
+      if (path == '/' || path.isEmpty) {
+        if (authState.status == AuthStatus.initial ||
+            authState.status == AuthStatus.loading) {
+          return '/welcome';
+        }
+        if (!loggedIn) return '/welcome';
+        return (user?.isCaregiver ?? false)
+            ? '/caregiver/home'
+            : '/patient/home';
+      }
+      if (path == '/patient/visits' || path == '/patient/history-list') {
+        return '/patient/history';
+      }
+
       // Auth still resolving — stay on public auth stack (Welcome is first paint).
       if (authState.status == AuthStatus.initial ||
           authState.status == AuthStatus.loading) {
@@ -128,6 +143,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (context, state) {
+          final auth = notifier.authState;
+          if (auth.status == AuthStatus.initial ||
+              auth.status == AuthStatus.loading) {
+            return '/welcome';
+          }
+          if (!auth.isAuthenticated) return '/welcome';
+          return (auth.user?.isCaregiver ?? false)
+              ? '/caregiver/home'
+              : '/patient/home';
+        },
+      ),
+      GoRoute(
+        path: '/patient/visits',
+        redirect: (context, state) => '/patient/history',
+      ),
+      GoRoute(
+        path: '/patient/history-list',
+        redirect: (context, state) => '/patient/history',
+      ),
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
