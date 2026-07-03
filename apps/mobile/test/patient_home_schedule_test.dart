@@ -4,18 +4,24 @@ import 'package:flutter_test/flutter_test.dart';
 List<Map<String, dynamic>> mergeScheduleReminders({
   required List<Map<String, dynamic>> today,
   required List<Map<String, dynamic>> upcoming,
+  List<Map<String, dynamic>> past = const [],
 }) {
   bool isActive(Map<String, dynamic> reminder) {
-    final status = (reminder['status'] ?? '').toString().toLowerCase();
-    if (status == 'completed' ||
-        status == 'skipped' ||
-        status == 'cancelled') {
-      return false;
-    }
-    return status == 'pending' ||
-        status == 'active' ||
-        status == 'snoozed' ||
-        status.isEmpty;
+    final status =
+        (reminder['display_status'] ?? reminder['status'] ?? 'pending')
+            .toString()
+            .toLowerCase();
+    return status != 'completed' &&
+        status != 'complete' &&
+        status != 'skipped' &&
+        status != 'cancelled';
+  }
+
+  bool isSchedule(Map<String, dynamic> reminder) {
+    final type = (reminder['reminder_type'] ?? reminder['type'] ?? '')
+        .toString()
+        .toLowerCase();
+    return type.isEmpty || type == 'medication' || type == 'appointment';
   }
 
   int sortKey(Map<String, dynamic> reminder) {
@@ -28,8 +34,8 @@ List<Map<String, dynamic>> mergeScheduleReminders({
 
   final seen = <String>{};
   final merged = <Map<String, dynamic>>[];
-  for (final reminder in [...today, ...upcoming]) {
-    if (!isActive(reminder)) continue;
+  for (final reminder in [...today, ...upcoming, ...past]) {
+    if (!isSchedule(reminder) || !isActive(reminder)) continue;
     final id = reminder['id']?.toString() ?? '';
     if (id.isNotEmpty) {
       if (seen.contains(id)) continue;
@@ -82,6 +88,26 @@ void main() {
     final merged = mergeScheduleReminders(today: today, upcoming: upcoming);
 
     expect(merged.map((r) => r['id']).toList(), ['future-1']);
+  });
+
+  test('includes active medication reminders from past bucket', () {
+    final past = [
+      {
+        'id': 'missed-1',
+        'status': 'pending',
+        'display_status': 'Missed',
+        'reminder_type': 'medication',
+        'scheduled_time': '2026-06-14T10:00:00Z',
+      },
+    ];
+
+    final merged = mergeScheduleReminders(
+      today: const [],
+      upcoming: const [],
+      past: past,
+    );
+
+    expect(merged.map((r) => r['id']).toList(), ['missed-1']);
   });
 
   test('dedupes reminders that appear in both buckets', () {

@@ -29,21 +29,35 @@ class PatientHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
-class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
+class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
+    with WidgetsBindingObserver {
   final AuthService _authService = AuthService();
   final PatientTasksApiService _tasksApiService = PatientTasksApiService();
   List<PatientTask> _tasks = [];
   List<Map<String, dynamic>> _taskReminders = [];
   bool _isLoadingTasks = true;
   bool _isLoadingUpNext = true;
-  List<Map<String, dynamic>> _upNextReminders = [];
-  List<Map<String, dynamic>> _todayReminders = [];
+  List<Map<String, dynamic>> _scheduleReminders = [];
   bool _remindersError = false;
 
   @override
   void initState() {
     super.initState();
-    _refreshHomeData();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshHomeData());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshHomeData();
+    }
   }
 
   Future<void> _refreshHomeData() async {
@@ -56,17 +70,23 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     return type == 'task';
   }
 
+  bool _isScheduleReminder(Map<String, dynamic> reminder) {
+    if (_isTaskReminder(reminder)) return false;
+    final type = (reminder['reminder_type'] ?? reminder['type'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    return type.isEmpty || type == 'medication' || type == 'appointment';
+  }
+
   bool _isActiveReminder(Map<String, dynamic> reminder) {
-    final status = (reminder['status'] ?? '').toString().toLowerCase();
-    if (status == 'completed' ||
-        status == 'skipped' ||
-        status == 'cancelled') {
-      return false;
-    }
-    return status == 'pending' ||
-        status == 'active' ||
-        status == 'snoozed' ||
-        status.isEmpty;
+    final status = (reminder['display_status'] ?? reminder['status'] ?? 'pending')
+        .toString()
+        .toLowerCase();
+    return status != 'completed' &&
+        status != 'complete' &&
+        status != 'skipped' &&
+        status != 'cancelled';
   }
 
   int _scheduledSortKey(Map<String, dynamic> reminder) {
@@ -114,7 +134,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
   Future<void> _fetchUpNextReminder() async {
     try {
-      final accessToken = await _authService.getAccessToken();
+      var accessToken = await _authService.getAccessToken();
+      if (accessToken == null) {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        accessToken = await _authService.getAccessToken();
+      }
       if (accessToken == null) {
         throw Exception('Authentication required');
       }
@@ -136,10 +160,14 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
         final today = (data['today'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .toList();
+        final past = (data['past'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        final merged = [...today, ...upcoming, ...past];
 
         final taskReminders = <Map<String, dynamic>>[];
         final seenTaskIds = <String>{};
-        for (final reminder in [...today, ...upcoming]) {
+        for (final reminder in merged) {
           if (!_isTaskReminder(reminder) || !_isActiveReminder(reminder)) {
             continue;
           }
@@ -149,17 +177,13 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
           taskReminders.add(reminder);
         }
 
-        final upNextList = _dedupeReminders(
-          upcoming.whereType<Map<String, dynamic>>().toList(),
-        );
-        final todaySchedule = _dedupeReminders(
-          today.whereType<Map<String, dynamic>>().toList(),
+        final scheduleList = _dedupeReminders(
+          merged.where(_isScheduleReminder).toList(),
         );
 
         if (!mounted) return;
         setState(() {
-          _upNextReminders = upNextList;
-          _todayReminders = todaySchedule;
+          _scheduleReminders = scheduleList;
           _taskReminders = taskReminders;
           _isLoadingUpNext = false;
           _remindersError = false;
@@ -168,8 +192,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
       }
       if (!mounted) return;
       setState(() {
-        _upNextReminders = [];
-        _todayReminders = [];
+        _scheduleReminders = [];
         _taskReminders = [];
         _isLoadingUpNext = false;
         _remindersError = true;
@@ -177,8 +200,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _upNextReminders = [];
-        _todayReminders = [];
+        _scheduleReminders = [];
         _taskReminders = [];
         _isLoadingUpNext = false;
         _remindersError = true;
@@ -218,14 +240,32 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     return _goldLight;
   }
 
-  /// Active reminders for the schedule section: today's plus upcoming future dates.
+  /// Active medication/appointment reminders from today onward (local calendar).
   List<Map<String, dynamic>> get _displayScheduleReminders =>
-      _dedupeReminders([..._todayReminders, ..._upNextReminders]);
+      _scheduleReminders.where((reminder) {
+        final scheduled =
+            _parseScheduledTimeLocal(reminder['scheduled_time']?.toString());
+        if (scheduled == null) return true;
+        return _isTodayOrFuture(scheduled);
+      }).toList();
 
-  int get _todayDoneCount =>
-      _todayReminders.where(_isReminderDone).length;
+  int get _todayDoneCount => _scheduleReminders
+      .where((reminder) {
+        final scheduled =
+            _parseScheduledTimeLocal(reminder['scheduled_time']?.toString());
+        return scheduled != null &&
+            _isScheduledToday(scheduled) &&
+            _isReminderDone(reminder);
+      })
+      .length;
 
-  int get _todayTotalCount => _todayReminders.length;
+  int get _todayTotalCount => _scheduleReminders
+      .where((reminder) {
+        final scheduled =
+            _parseScheduledTimeLocal(reminder['scheduled_time']?.toString());
+        return scheduled != null && _isScheduledToday(scheduled);
+      })
+      .length;
 
   double get _todayProgressValue {
     if (_todayTotalCount == 0) return 0;
@@ -255,6 +295,12 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authNotifierProvider, (previous, next) {
+      if (next.isAuthenticated && previous?.isAuthenticated != true) {
+        _refreshHomeData();
+      }
+    });
+
     final authState = ref.watch(authNotifierProvider);
     final l10n = AppLocalizations.of(context)!;
     final userName = LocaleFormat.displayName(
@@ -899,5 +945,13 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
     return scheduled.year == now.year &&
         scheduled.month == now.month &&
         scheduled.day == now.day;
+  }
+
+  bool _isTodayOrFuture(DateTime scheduled) {
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final scheduledDay =
+        DateTime(scheduled.year, scheduled.month, scheduled.day);
+    return !scheduledDay.isBefore(startOfToday);
   }
 }
