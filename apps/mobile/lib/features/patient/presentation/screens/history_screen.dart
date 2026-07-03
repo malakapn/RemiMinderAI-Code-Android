@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/visit_context.dart';
+import '../widgets/bottom_nav_safe_wrapper.dart';
 import '../widgets/widgets.dart';
 
 class HistoryScreen extends StatefulWidget {

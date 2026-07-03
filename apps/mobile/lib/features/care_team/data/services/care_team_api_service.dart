@@ -374,6 +374,93 @@ class CareTeamApiService {
         .doc(memberId)
         .delete();
   }
+
+  /// Patients linked to the signed-in caregiver (`connectedPatients` subcollection).
+  Future<List<Map<String, dynamic>>> getMyPatients() async {
+    final uid = _requireUid();
+    final snap = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('connectedPatients')
+        .get();
+    return snap.docs.map((doc) {
+      final data = doc.data();
+      return <String, dynamic>{
+        'patient_id': data['patientId'] ?? doc.id,
+        'full_name': data['fullName'] ?? data['name'] ?? '',
+        'email': data['email'] ?? '',
+      };
+    }).toList();
+  }
+
+  /// Reminder rows for a patient (caregiver roster API).
+  Future<List<Map<String, dynamic>>> getPatientReminderList(
+    String patientId,
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('Not authenticated');
+    }
+    final token = await user.getIdToken();
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+    final response = await http.get(
+      Uri.parse(
+        '${Environment.apiBaseUrl}/api/caregivers/patients/$patientId/reminders',
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to load patient reminders: ${response.statusCode}',
+      );
+    }
+    final decoded = json.decode(response.body);
+    return _flattenReminderResponse(decoded);
+  }
+
+  List<Map<String, dynamic>> _flattenReminderResponse(dynamic decoded) {
+    final rows = <Map<String, dynamic>>[];
+    void addItem(dynamic item) {
+      if (item is! Map) return;
+      final map = Map<String, dynamic>.from(item);
+      final scheduled = map['scheduled_time'] ??
+          map['scheduledTime'] ??
+          map['scheduled_at'];
+      if (scheduled != null) {
+        map['scheduled_time'] = scheduled.toString();
+      }
+      map['reminder_type'] ??=
+          map['type'] ?? map['reminderType'] ?? 'task';
+      rows.add(map);
+    }
+
+    if (decoded is List) {
+      for (final item in decoded) {
+        addItem(item);
+      }
+      return rows;
+    }
+    if (decoded is Map) {
+      final map = Map<String, dynamic>.from(decoded);
+      for (final key in ['today', 'upcoming', 'past', 'reminders', 'data']) {
+        final bucket = map[key];
+        if (bucket is List) {
+          for (final item in bucket) {
+            addItem(item);
+          }
+        }
+      }
+      if (rows.isEmpty) {
+        addItem(map);
+      }
+    }
+    return rows;
+  }
 }
 
 class CacheEntry<T> {
