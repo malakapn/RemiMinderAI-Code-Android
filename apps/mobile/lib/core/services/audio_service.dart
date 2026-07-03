@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
@@ -30,18 +32,24 @@ class AudioService {
   /// Uses record package's hasPermission() as source of truth on iOS
   Future<bool> initialize(BuildContext context) async {
     try {
-      print('🎙️ Initializing audio service...');
+      if (kDebugMode) {
+        print('🎙️ Initializing audio service...');
+      }
 
       // Initialize record package first
       _audioRecorder ??= AudioRecorder();
 
       // 🔥 iOS-safe: Use record package's hasPermission() as authoritative source
       final hasPermission = await _audioRecorder!.hasPermission();
-      print(
-          '🎙️ Recorder hasPermission (authoritative on iOS): $hasPermission');
+      if (kDebugMode) {
+        print(
+            '🎙️ Recorder hasPermission (authoritative on iOS): $hasPermission');
+      }
 
       if (!hasPermission) {
-        print('🎙️ Microphone permission not granted by hardware API');
+        if (kDebugMode) {
+          print('🎙️ Microphone permission not granted by hardware API');
+        }
 
         // Show dialog to open settings
         if (context.mounted) {
@@ -53,7 +61,9 @@ class AudioService {
         return false;
       }
 
-      print('✅ Microphone permission granted! Audio recorder ready.');
+      if (kDebugMode) {
+        print('✅ Microphone permission granted! Audio recorder ready.');
+      }
 
       return true;
     } catch (e) {
@@ -149,36 +159,56 @@ class AudioService {
 
   /// Stop recording audio
   Future<String?> stopRecording() async {
-    try {
-      if (!_isRecording || _audioRecorder == null) return null;
+    if (_audioRecorder == null) {
+      return null;
+    }
 
-      final path = await _audioRecorder!.stop();
+    try {
+      final recorderActive =
+          _isRecording || await _audioRecorder!.isRecording();
+      if (!recorderActive) {
+        return null;
+      }
+
+      // iOS: brief pause avoids AVAudioSession race when stopping.
+      if (Platform.isIOS) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
+      final path = await _audioRecorder!.stop().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException('Timed out while stopping the recorder');
+        },
+      );
       _isRecording = false;
       _recordingTimer?.cancel();
       _recordingTimer = null;
 
-      // Verify the file was created and has content
-      if (path != null) {
-        final file = File(path);
+      final resolvedPath = path ?? _currentRecordingPath;
+      if (resolvedPath != null) {
+        final file = File(resolvedPath);
         final exists = await file.exists();
         final size = exists ? await file.length() : 0;
 
         if (exists && size > 0) {
-          debugPrint('Recording saved successfully: $path ($size bytes)');
-          return path;
-        } else {
-          debugPrint('Recording file is empty or missing');
-          return null;
+          debugPrint(
+            'Recording saved successfully: $resolvedPath ($size bytes)',
+          );
+          return resolvedPath;
         }
+
+        debugPrint('Recording file is empty or missing');
+        return null;
       }
 
-      return _currentRecordingPath;
+      return null;
     } catch (e) {
       debugPrint('Error stopping recording: $e');
       _isRecording = false;
       _recordingTimer?.cancel();
       _recordingTimer = null;
-      return null;
+      rethrow;
     }
   }
 
@@ -211,7 +241,17 @@ class AudioService {
   /// Cancel recording (delete the file)
   Future<void> cancelRecording() async {
     try {
-      // await _audioRecorder.stop();  // Temporarily disabled
+      if (_audioRecorder != null) {
+        final recorderActive =
+            _isRecording || await _audioRecorder!.isRecording();
+        if (recorderActive) {
+          if (Platform.isIOS) {
+            await Future.delayed(const Duration(milliseconds: 100));
+          }
+          await _audioRecorder!.stop();
+        }
+      }
+
       _isRecording = false;
       _recordingTimer?.cancel();
       _recordingTimer = null;
@@ -226,14 +266,19 @@ class AudioService {
       _recordingDuration = Duration.zero;
     } catch (e) {
       debugPrint('Error canceling recording: $e');
+      _isRecording = false;
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
     }
   }
 
   /// Get recording duration as formatted string
-  String getFormattedDuration() {
-    final minutes = _recordingDuration.inMinutes;
-    final seconds = _recordingDuration.inSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  String getFormattedDuration([String? localeCode]) {
+    final loc = localeCode ?? Intl.defaultLocale ?? 'en';
+    final minutes = _recordingDuration.inMinutes.remainder(60);
+    final seconds = _recordingDuration.inSeconds.remainder(60);
+    return '${NumberFormat('00', loc).format(minutes)}:'
+        '${NumberFormat('00', loc).format(seconds)}';
   }
 
   /// Check if recording is paused
@@ -298,10 +343,33 @@ class AudioService {
     });
   }
 
-  /// Dispose resources
+  /// Release native recorder resources. Stops an active recording first when possible.
   void dispose() {
     _recordingTimer?.cancel();
-    _audioRecorder?.dispose();
+    _recordingTimer = null;
+
+    final recorder = _audioRecorder;
     _audioRecorder = null;
+    _isRecording = false;
+
+    if (recorder == null) {
+      return;
+    }
+
+    unawaited(() async {
+      try {
+        if (await recorder.isRecording()) {
+          await recorder.stop();
+        }
+      } catch (e) {
+        debugPrint('Error stopping recorder during dispose: $e');
+      }
+
+      try {
+        await recorder.dispose();
+      } catch (e) {
+        debugPrint('Error disposing recorder: $e');
+      }
+    }());
   }
 }

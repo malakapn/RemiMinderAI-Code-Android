@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/theme.dart';
+import '../../core/utils/locale_format.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/connected_patient.dart';
 import '../../providers/my_patients_provider.dart';
 import 'widgets/patient_card.dart';
@@ -48,6 +50,7 @@ class _MyPatientsTabState extends ConsumerState<MyPatientsTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final asyncPatients = ref.watch(myPatientsProvider);
 
     return Scaffold(
@@ -57,21 +60,21 @@ class _MyPatientsTabState extends ConsumerState<MyPatientsTab> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'My Patients',
-              style: TextStyle(
+              l10n.myPatientsTitle,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
-              'Patients connected to you',
-              style: TextStyle(
+              l10n.patientsConnectedSubtitle,
+              style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
@@ -100,7 +103,7 @@ class _MyPatientsTabState extends ConsumerState<MyPatientsTab> {
         ),
         data: (patients) {
           if (patients.isEmpty) {
-            return const _EmptyState();
+            return _EmptyState(l10n: l10n);
           }
 
           final filtered = _filterByName(patients);
@@ -113,9 +116,9 @@ class _MyPatientsTabState extends ConsumerState<MyPatientsTab> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: Row(
                   children: [
-                    const Text(
-                      'My patients',
-                      style: TextStyle(
+                    Text(
+                      l10n.myPatientsSection,
+                      style: const TextStyle(
                         color: RemiCareUiColors.sectionHeaderText,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -132,7 +135,10 @@ class _MyPatientsTabState extends ConsumerState<MyPatientsTab> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '${patients.length} connected',
+                        LocaleFormat.localizeDigitsInText(
+                          context,
+                          l10n.connectedCount(patients.length),
+                        ),
                         style: const TextStyle(
                           color: RemiCareUiColors.subtitleSecondary,
                           fontSize: 12,
@@ -155,7 +161,7 @@ class _MyPatientsTabState extends ConsumerState<MyPatientsTab> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: RemiCareUiColors.searchBarBg,
-                    hintText: 'Search patients...',
+                    hintText: l10n.searchPatientsHint,
                     hintStyle: const TextStyle(
                       color: RemiCareUiColors.confidenceText,
                       fontSize: 13,
@@ -186,10 +192,10 @@ class _MyPatientsTabState extends ConsumerState<MyPatientsTab> {
               const SizedBox(height: 16),
               Expanded(
                 child: showNoResults
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'No patients match your search.',
-                          style: TextStyle(
+                          l10n.noPatientsMatchSearch,
+                          style: const TextStyle(
                             color: RemiCareUiColors.confidenceText,
                             fontSize: 14,
                           ),
@@ -214,35 +220,37 @@ class _MyPatientsTabState extends ConsumerState<MyPatientsTab> {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({required this.l10n});
+
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.people_outline,
               size: 44,
               color: RemiCareUiColors.declineBorder,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
-              'No patients connected yet',
-              style: TextStyle(
+              l10n.noPatientsConnectedYet,
+              style: const TextStyle(
                 color: RemiCareUiColors.subtitleSecondary,
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Accept an invitation to see a patient here.',
-              style: TextStyle(
+              l10n.acceptInvitationToSeePatient,
+              style: const TextStyle(
                 color: RemiCareUiColors.confidenceText,
                 fontSize: 13,
               ),

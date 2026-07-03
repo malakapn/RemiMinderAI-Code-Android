@@ -4,14 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
-import '../../../care_team/data/services/care_team_api_service.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key, this.inviteToken});
-
-  /// Optional invite token from email deep link (stronger signup validation).
-  final String? inviteToken;
+  const RegisterScreen({super.key});
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -29,40 +25,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
 
-  /// Shows the exact exception text on screen when registration fails.
-  void _showFullRegistrationErrorDialog(Object error) {
-    final text = error.toString();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Registration error'),
-        content: SingleChildScrollView(
-          child: Container(
-            width: double.maxFinite,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade700, width: 1.5),
-            ),
-            child: SelectableText(
-              text,
-              style: TextStyle(
-                color: Colors.red.shade900,
-                fontSize: 13,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  /// Convert technical errors to user-friendly messages
+  String _getUserFriendlyErrorMessage(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    // Authentication errors
+    if (errorString.contains('user already registered') ||
+        errorString.contains('account with this email already exists')) {
+      return 'An account with this email already exists. Please sign in instead.';
+    }
+
+    if (errorString.contains('weak password') ||
+        errorString.contains('password')) {
+      return 'Password is too weak. Please use at least 8 characters with letters and numbers.';
+    }
+
+    if (errorString.contains('invalid email')) {
+      return 'Please enter a valid email address.';
+    }
+
+    // Network/API errors
+    if (errorString.contains('connection refused') ||
+        errorString.contains('network')) {
+      return 'Connection error. Please check your internet connection and try again.';
+    }
+
+    if (errorString.contains('timeout')) {
+      return 'Request timed out. Please try again.';
+    }
+
+    // Generic fallback
+    return 'Registration failed. Please try again or contact support if the problem persists.';
   }
 
   @override
@@ -113,9 +106,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // Subtitle
                 Text(
-                  ref.watch(selectedRoleProvider) == UserRole.caregiver
-                      ? 'Caregivers need a pending patient invitation for this email before you can register.'
-                      : 'Join RemiMinder to get started',
+                  'Join RemiMinder to get started',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(context).colorScheme.secondary,
                         fontSize: 18,
@@ -285,9 +276,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             fontSize: 14,
                           ),
                           children: [
-                            const TextSpan(
-                                text:
-                                    'By creating an account, you agree to our '),
+                            const TextSpan(text: 'By creating an account, you agree to our '),
                             TextSpan(
                               text: 'Terms of Service',
                               style: TextStyle(
@@ -322,35 +311,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _acceptTerms && !ref.watch(isAuthLoadingProvider)
-                        ? _registerWithEmail
-                        : null,
+                    onPressed: _acceptTerms ? _registerWithEmail : null,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      backgroundColor:
-                          _acceptTerms && !ref.watch(isAuthLoadingProvider)
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).disabledColor,
+                      backgroundColor: _acceptTerms
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).disabledColor,
                     ),
-                    child: ref.watch(isAuthLoadingProvider)
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Create Account',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                    child: const Text(
+                      'Create Account',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
 
@@ -403,6 +380,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
     );
   }
+
 
   void _showTermsOfService() {
     showDialog(
@@ -470,30 +448,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  UserRole? _effectiveRoleForSignup() => ref.read(selectedRoleProvider);
-
-  String _caregiverInviteMessage(String reason) {
-    switch (reason) {
-      case 'no_pending_invite':
-        return 'No pending invitation found for this email. Ask your patient to send a care-team invite first.';
-      case 'invalid_token':
-        return 'That invitation link is invalid.';
-      case 'email_mismatch':
-        return 'This invitation is for a different email address.';
-      case 'not_pending':
-        return 'This invitation is no longer pending.';
-      case 'expired':
-        return 'This invitation has expired.';
-      case 'email_required':
-        return 'Please enter your email address.';
-      default:
-        if (reason.startsWith('network_')) {
-          return 'Could not verify your invitation. Check your connection and try again.';
-        }
-        return 'Caregiver signup is not available: $reason';
-    }
-  }
-
   Future<void> _registerWithEmail() async {
     if (_formKey.currentState?.validate() ?? false) {
       if (!_acceptTerms) {
@@ -510,32 +464,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final lastName = _lastNameController.text.trim();
       final fullName = '$firstName $lastName'.trim();
 
-      final selectedRole = _effectiveRoleForSignup();
+      // Get selected role from provider
+      final selectedRole = ref.read(selectedRoleProvider);
       if (selectedRole == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select a role first')),
         );
         return;
-      }
-
-      if (selectedRole == UserRole.caregiver) {
-        final v = await CareTeamApiService().validateCaregiverSignup({
-          'email': email,
-          if (widget.inviteToken != null &&
-              widget.inviteToken!.trim().isNotEmpty)
-            'token': widget.inviteToken,
-        });
-        if (v['ok'] != true) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    _caregiverInviteMessage(v['reason']?.toString() ?? '')),
-              ),
-            );
-          }
-          return;
-        }
       }
 
       try {
@@ -577,7 +512,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         }
       } catch (e) {
         if (mounted) {
-          _showFullRegistrationErrorDialog(e);
+          final errorMessage = _getUserFriendlyErrorMessage(e);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
         }
       }
     }

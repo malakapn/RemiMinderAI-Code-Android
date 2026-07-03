@@ -13,6 +13,13 @@ class RoleSelectionScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedRole = ref.watch(selectedRoleProvider);
 
+    final compactLayout = MediaQuery.sizeOf(context).height < 700;
+    final gapAfterHeader = compactLayout ? 24.0 : 48.0;
+    final gapBetweenCards = compactLayout ? 16.0 : 24.0;
+    final gapBeforeContinue = compactLayout ? 16.0 : 32.0;
+    final gapBeforeDots = compactLayout ? 16.0 : 24.0;
+    final gapBottom = compactLayout ? 12.0 : 16.0;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -32,11 +39,11 @@ class RoleSelectionScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
+              SizedBox(height: compactLayout ? 12 : 20),
               Text(
                 'Choose Your Role',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontSize: 32,
+                      fontSize: compactLayout ? 28 : 32,
                       fontWeight: FontWeight
                           .w700, // Explicit bold weight for Merriweather
                     ),
@@ -49,35 +56,39 @@ class RoleSelectionScreen extends ConsumerWidget {
                       fontSize: 18,
                     ),
               ),
-              const SizedBox(height: 48),
+              SizedBox(height: gapAfterHeader),
               Expanded(
-                child: Column(
-                  children: [
-                    _RoleCard(
-                      title: 'Patient',
-                      description:
-                          'Manage your own medications, appointments, and health records',
-                      iconPath: 'assets/images/patient_icon.svg',
-                      isSelected: selectedRole == UserRole.patient,
-                      onTap: () => ref
-                          .read(selectedRoleProvider.notifier)
-                          .selectRole(UserRole.patient),
-                    ),
-                    const SizedBox(height: 24),
-                    _RoleCard(
-                      title: 'Caregiver',
-                      description:
-                          'Help manage medications and care for family members or patients',
-                      iconPath: 'assets/images/caregiver_icon.svg',
-                      isSelected: selectedRole == UserRole.caregiver,
-                      onTap: () => ref
-                          .read(selectedRoleProvider.notifier)
-                          .selectRole(UserRole.caregiver),
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _RoleCard(
+                        title: 'Patient',
+                        description:
+                            'Manage your own medications, appointments, and health records',
+                        iconPath: 'assets/images/patient_icon.svg',
+                        isSelected: selectedRole == UserRole.patient,
+                        compactLayout: compactLayout,
+                        onTap: () => ref
+                            .read(selectedRoleProvider.notifier)
+                            .selectRole(UserRole.patient),
+                      ),
+                      SizedBox(height: gapBetweenCards),
+                      _RoleCard(
+                        title: 'Caregiver',
+                        description:
+                            'Help manage medications and care for family members or patients',
+                        iconPath: 'assets/images/caregiver_icon.svg',
+                        isSelected: selectedRole == UserRole.caregiver,
+                        compactLayout: compactLayout,
+                        onTap: () => ref
+                            .read(selectedRoleProvider.notifier)
+                            .selectRole(UserRole.caregiver),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 32),
+              SizedBox(height: gapBeforeContinue),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -102,7 +113,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: gapBeforeDots),
               const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -113,7 +124,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                   _IndicatorDot(isActive: false),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: gapBottom),
             ],
           ),
         ),
@@ -130,10 +141,14 @@ class RoleSelectionScreen extends ConsumerWidget {
 }
 
 class _RoleCard extends StatelessWidget {
+  static const Color _cream = Color(0xFFF8F4E8);
+  static const Color _teal = Color(0xFF1B4E59);
+
   final String title;
   final String description;
   final String iconPath;
   final bool isSelected;
+  final bool compactLayout;
   final VoidCallback onTap;
 
   const _RoleCard({
@@ -141,120 +156,34 @@ class _RoleCard extends StatelessWidget {
     required this.description,
     required this.iconPath,
     required this.isSelected,
+    this.compactLayout = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final textColor = isSelected ? _cream : _teal;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        transform: Matrix4.identity()..scale(isSelected ? 1.02 : 1.0),
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(compactLayout ? 16 : 24),
         decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [
-                    Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                    Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : LinearGradient(
-                  colors: [
-                    Colors.white,
-                    const Color(0xffF8F4E8).withOpacity(0.8),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+          color: isSelected ? _teal : _cream,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary.withOpacity(0.8)
-                : Theme.of(context).colorScheme.primary.withOpacity(0.3),
-            width: isSelected ? 2.5 : 1.5,
+            color: _teal,
+            width: 2,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                    spreadRadius: 1,
-                  ),
-                  BoxShadow(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .secondary
-                        .withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? LinearGradient(
-                        colors: [
-                          Theme.of(context).colorScheme.primary,
-                          Theme.of(context)
-                              .colorScheme
-                              .secondary
-                              .withOpacity(0.8),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : LinearGradient(
-                        colors: [
-                          Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.15),
-                          Theme.of(context)
-                              .colorScheme
-                              .secondary
-                              .withOpacity(0.08),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: SvgPicture.asset(
-                iconPath,
-                width: 32,
-                height: 32,
-              ),
+            SvgPicture.asset(
+              iconPath,
+              width: 32,
+              height: 32,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -267,7 +196,7 @@ class _RoleCard extends StatelessWidget {
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       fontFamily: 'Merriweather',
-                      color: Theme.of(context).colorScheme.primary,
+                      color: textColor,
                       letterSpacing: -0.3,
                     ),
                   ),
@@ -278,12 +207,7 @@ class _RoleCard extends StatelessWidget {
                       fontSize: 15,
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w400,
-                      color: isSelected
-                          ? Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.8)
-                          : Theme.of(context).colorScheme.secondary,
+                      color: textColor,
                       height: 1.5,
                     ),
                   ),
@@ -291,9 +215,9 @@ class _RoleCard extends StatelessWidget {
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: Theme.of(context).colorScheme.primary,
+              const Icon(
+                Icons.check,
+                color: _cream,
                 size: 24,
               ),
           ],
@@ -316,7 +240,7 @@ class _IndicatorDot extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive
             ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            : Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
         shape: BoxShape.circle,
       ),
     );

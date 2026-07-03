@@ -79,6 +79,12 @@ jobs:
           FLUTTER_ENV=development
           EOF
 
+          {
+            echo "GOOGLE_WEB_CLIENT_ID=575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com"
+            echo "API_BASE_URL=https://remiminder-backend-575820802106.us-central1.run.app"
+            echo "MOBILE_API_BASE_URL=https://remiminder-backend-575820802106.us-central1.run.app"
+            echo "FLUTTER_ENV=production"
+          } > apps/mobile/.env
       - name: Get Flutter dependencies
         run: flutter pub get
         working-directory: apps/mobile
@@ -91,7 +97,9 @@ jobs:
         run: flutter build appbundle --release
         working-directory: apps/mobile
 
+      # Skip on PRs — each AAB is large and fills the org artifact quota quickly.
       - name: Upload App Bundle artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: remiminderai-release-aab
@@ -105,3 +113,6 @@ jobs:
           releaseFiles: apps/mobile/build/app/outputs/bundle/release/app-release.aab
           track: internal
           status: completed
+          retention-days: 7
+          overwrite: true
+          compression-level: 6

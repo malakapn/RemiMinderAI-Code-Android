@@ -56,14 +56,15 @@ class FCMService {
     }
 
     _onMessageSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      final id = message.hashCode;
+      final id = message.hashCode & 0x7fffffff;
       final title = message.notification?.title ?? 'Reminder';
       final body = message.notification?.body ?? '';
-      await NotificationService().scheduleReminder(
-        id: id,
+      final notif = NotificationService();
+      await notif.initialize();
+      await notif.showInstantNotification(
+        notificationId: id == 0 ? 1 : id,
         title: title,
-        body: body,
-        scheduledTime: DateTime.now(),
+        body: body.isEmpty ? ' ' : body,
       );
     });
 

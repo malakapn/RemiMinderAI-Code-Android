@@ -121,6 +121,8 @@ async def create_reminder(data: ReminderCreate, user_id: str = Depends(get_curre
         invalidate_prefix("caregiver_dashboard:")
         return reminder
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in create_reminder endpoint: {str(e)}")
         raise HTTPException(
@@ -143,6 +145,8 @@ async def get_patient_reminders(user_id: str = Depends(get_current_user)):
         set(cache_key, reminders, 30)
         return reminders
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in get_patient_reminders: {str(e)}")
         raise HTTPException(
@@ -380,6 +384,8 @@ async def get_reminder(reminder_id: str, user_id: str = Depends(get_current_user
         
         return reminder
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in get_reminder: {str(e)}")
         raise HTTPException(
@@ -406,6 +412,8 @@ async def update_reminder(reminder_id: str, user_id: str = Depends(get_current_u
         invalidate_prefix("caregiver_dashboard:")
         return reminder
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in update_reminder: {str(e)}")
         raise HTTPException(
@@ -432,6 +440,8 @@ async def delete_reminder(reminder_id: str, user_id: str = Depends(get_current_u
         invalidate_prefix("caregiver_dashboard:")
         return None
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in delete_reminder: {str(e)}")
         raise HTTPException(
@@ -462,6 +472,8 @@ async def mark_complete(
         invalidate_prefix("caregiver_dashboard:")
         return reminder
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in mark_complete: {str(e)}")
         raise HTTPException(
@@ -491,6 +503,8 @@ async def snooze_reminder_post(
         invalidate_prefix("caregiver_dashboard:")
         return reminder
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in snooze_reminder: {str(e)}")
         raise HTTPException(
@@ -521,6 +535,8 @@ async def skip_reminder_post(
         invalidate_prefix("caregiver_dashboard:")
         return reminder
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in skip_reminder: {str(e)}")
         raise HTTPException(
@@ -548,6 +564,8 @@ async def get_caregiver_activity(caregiver_id: str, user_id: str = Depends(get_c
         set(cache_key, dashboard_data, 30)
         return dashboard_data
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in get_caregiver_activity: {str(e)}")
         raise HTTPException(
@@ -608,6 +626,8 @@ async def get_alerts(
         set(cache_key, alerts, 30)
         return alerts
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in get_alerts: {str(e)}")
         raise HTTPException(
@@ -644,6 +664,8 @@ async def mark_alert_read(
             invalidate_prefix(f"caregiver_dashboard:{caregiver_id}:")
         return alert
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in mark_alert_read: {str(e)}")
         raise HTTPException(

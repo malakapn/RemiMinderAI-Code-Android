@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/utils/locale_format.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../widgets/widgets.dart';
 import '../../../../core/services/visit_context.dart';
 
@@ -112,15 +114,7 @@ class _VisitsScreenState extends State<VisitsScreen> {
           ),
 
           // Rounded Navigation Bar
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomNavSafeWrapper(
-              child: const RoundedNavigationBar(
-                  currentItem: NavigationItem.visits),
-            ),
-          ),
+          const RoundedNavigationBar(currentItem: NavigationItem.visits),
         ],
       ),
     );
@@ -144,6 +138,7 @@ class _VisitsScreenState extends State<VisitsScreen> {
             .limit(10)
             .snapshots(),
         builder: (context, snapshot) {
+          final l10n = AppLocalizations.of(context)!;
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
@@ -177,7 +172,7 @@ class _VisitsScreenState extends State<VisitsScreen> {
                 visitId,
                 doctor,
                 type,
-                _formatRelativeDate(dateIso),
+                _formatRelativeDate(dateIso, l10n),
                 location,
                 hasRecording,
               );
@@ -290,20 +285,15 @@ class _VisitsScreenState extends State<VisitsScreen> {
     );
   }
 
-  String _formatRelativeDate(String? dateIso) {
+  String _formatRelativeDate(String? dateIso, AppLocalizations l10n) {
     if (dateIso == null || dateIso.trim().isEmpty) {
-      return 'Recently';
+      return l10n.timeNow;
     }
     final date = DateTime.tryParse(dateIso);
     if (date == null) {
-      return 'Recently';
+      return l10n.timeNow;
     }
-    final diff = DateTime.now().difference(date);
-    if (diff.inMinutes < 60) return '${diff.inMinutes.clamp(1, 59)} min ago';
-    if (diff.inHours < 24) return '${diff.inHours} hours ago';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} weeks ago';
-    return '${date.month}/${date.day}/${date.year}';
+    return LocaleFormat.relativePastOrDate(context, date.toLocal(), l10n);
   }
 
   Widget _buildUpcomingAppointments() {

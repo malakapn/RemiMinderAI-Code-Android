@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import '../../../../l10n/app_localizations.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -30,21 +31,21 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color(0xFF1A4D4D), // Dark teal-green
-                    Color(0xFF051818), // Very dark green/black
+                    Color(0xFF1A4D4D),
+                    Color(0xFF051818),
                   ],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
@@ -59,10 +60,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Change Password',
-                      style: TextStyle(
+                      l10n.changePassword,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
@@ -70,12 +71,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 48), // Balance the back button
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
-
-            // Form Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -84,25 +83,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Update your password to keep your account secure.',
-                        style: TextStyle(
+                      Text(
+                        l10n.changePasswordIntro,
+                        style: const TextStyle(
                           fontSize: 16,
                           color: Color(0xFF5A5A5A),
                           height: 1.4,
                         ),
                       ),
-
                       const SizedBox(height: 32),
-
-                      // Current Password Field
                       TextFormField(
                         controller: _currentPasswordController,
                         obscureText: _obscureCurrentPassword,
                         enabled: !_isLoading,
                         decoration: InputDecoration(
-                          labelText: 'Current Password',
-                          hintText: 'Enter your current password',
+                          labelText: l10n.currentPassword,
+                          hintText: l10n.currentPasswordHint,
                           prefixIcon: Icon(
                             Icons.lock_outline,
                             color: theme.colorScheme.primary,
@@ -124,22 +120,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter your current password';
+                            return l10n.enterCurrentPassword;
                           }
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 16),
-
-                      // New Password Field
                       TextFormField(
                         controller: _newPasswordController,
                         obscureText: _obscureNewPassword,
                         enabled: !_isLoading,
                         decoration: InputDecoration(
-                          labelText: 'New Password',
-                          hintText: 'Enter your new password',
+                          labelText: l10n.newPassword,
+                          hintText: l10n.newPasswordHint,
                           prefixIcon: Icon(
                             Icons.lock_outline,
                             color: theme.colorScheme.primary,
@@ -160,25 +153,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter a new password';
+                            return l10n.enterNewPassword;
                           }
                           if (value.length < 8) {
-                            return 'Password must be at least 8 characters';
+                            return l10n.passwordMinLength;
                           }
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 16),
-
-                      // Confirm Password Field
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
                         enabled: !_isLoading,
                         decoration: InputDecoration(
-                          labelText: 'Confirm New Password',
-                          hintText: 'Re-enter your new password',
+                          labelText: l10n.confirmNewPassword,
+                          hintText: l10n.confirmNewPasswordHint,
                           prefixIcon: Icon(
                             Icons.lock_outline,
                             color: theme.colorScheme.primary,
@@ -200,18 +190,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please confirm your new password';
+                            return l10n.confirmNewPasswordRequired;
                           }
                           if (value != _newPasswordController.text) {
-                            return 'Passwords do not match';
+                            return l10n.passwordsDoNotMatch;
                           }
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 32),
-
-                      // Update Password Button
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -233,16 +220,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                     ),
                                   ),
                                 )
-                              : const Text(
-                                  'Update Password',
-                                  style: TextStyle(
+                              : Text(
+                                  l10n.updatePassword,
+                                  style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                         ),
                       ),
-
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -258,6 +244,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Future<void> _updatePassword() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoading = true);
 
     try {
@@ -266,48 +253,45 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         throw Exception('User not authenticated');
       }
 
-      // Re-authenticate user with current password
       final credential = firebase_auth.EmailAuthProvider.credential(
         email: user.email!,
         password: _currentPasswordController.text,
       );
 
       await user.reauthenticateWithCredential(credential);
-
-      // Update password
       await user.updatePassword(_newPasswordController.text);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password updated successfully'),
+          SnackBar(
+            content: Text(l10n.passwordUpdatedSuccess),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop(); // Go back to previous screen
+        Navigator.of(context).pop();
       }
     } catch (e) {
       setState(() => _isLoading = false);
 
-      String errorMessage = 'Failed to update password';
+      String errorMessage = l10n.passwordUpdateFailed;
 
       if (e is firebase_auth.FirebaseAuthException) {
         switch (e.code) {
           case 'wrong-password':
-            errorMessage = 'Current password is incorrect';
+            errorMessage = l10n.wrongPassword;
             break;
           case 'weak-password':
-            errorMessage = 'Password is too weak';
+            errorMessage = l10n.weakPassword;
             break;
           case 'requires-recent-login':
-            errorMessage = 'Please log in again and try';
+            errorMessage = l10n.requiresRecentLogin;
             break;
           default:
-            errorMessage = 'Failed to update password';
+            errorMessage = l10n.passwordUpdateFailed;
         }
       } else if (e.toString().contains('network') ||
           e.toString().contains('connection')) {
-        errorMessage = 'Check your internet connection';
+        errorMessage = l10n.checkInternetConnection;
       }
 
       if (mounted) {

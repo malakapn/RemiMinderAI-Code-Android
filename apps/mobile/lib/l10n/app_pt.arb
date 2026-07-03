@@ -1,0 +1,482 @@
+{
+  "appTitle": "RemiMinder",
+  "login": "Entrar",
+  "logout": "Sair",
+  "settings": "Configurações",
+  "language": "Idioma",
+  "profileSettings": "Configurações do perfil",
+  "languageSettings": "Idioma",
+  "languageUpdated": "Idioma atualizado. O app agora será exibido em {language}.",
+  "navHome": "Início",
+  "navVisits": "Visitas",
+  "navOverview": "Resumo",
+  "navCareTeam": "Equipe",
+  "navProfile": "Perfil",
+  "navPatients": "Pacientes",
+  "goodMorning": "Bom dia",
+  "goodAfternoon": "Boa tarde",
+  "goodEvening": "Boa noite",
+  "goodNight": "Boa noite",
+  "howAreYouFeeling": "Como você está se sentindo hoje?",
+  "todaysProgress": "Progresso de hoje",
+  "doneCount": "{done}/{total} concluídos",
+  "yourSchedule": "Sua agenda",
+  "seeAll": "Ver tudo →",
+  "nothingScheduledYet": "Nada agendado ainda",
+  "unableToLoadReminders": "Não foi possível carregar os lembretes",
+  "addReminder": "Adicionar lembrete",
+  "myTasks": "Minhas tarefas",
+  "pendingCount": "{count} pendentes",
+  "noTasksYet": "Nenhuma tarefa ainda",
+  "addTask": "Adicionar tarefa",
+  "statusUpcoming": "Em breve",
+  "statusScheduled": "Agendado",
+  "statusDone": "Concluído",
+  "reminder": "Lembrete",
+  "task": "Tarefa",
+  "careTeamTitle": "Equipe de cuidados",
+  "careTeamSubtitle": "Você está no controle. Revise suas permissões de compartilhamento abaixo.",
+  "sectionPending": "PENDENTE",
+  "sectionAddNew": "ADICIONAR",
+  "inviteCaregiver": "Convidar um cuidador",
+  "inviteCaregiverSubtitle": "Compartilhar acesso às suas informações de saúde",
+  "invitationPending": "Convite pendente",
+  "resend": "Reenviar",
+  "cancel": "Cancelar",
+  "activeCaregivers": "Cuidadores ativos",
+  "noCaregiversYet": "Nenhum cuidador adicionado",
+  "english": "Inglês",
+  "spanish": "Espanhol",
+  "hindi": "Hindi",
+  "french": "Francês",
+  "portuguese": "Português",
+  "german": "Alemão",
+  "bangla": "Bengali",
+  "tamil": "Tâmil",
+  "gujarati": "Guzerate",
+  "punjabi": "Punjabi",
+  "accountDetails": "Detalhes da conta",
+  "accountDetailsSubtitle": "Ver informações do seu perfil",
+  "accountSecurity": "Segurança da conta",
+  "accountSecuritySubtitle": "Gerenciar senha e privacidade",
+  "notificationsLabel": "Notificações",
+  "mobileLabel": "Celular",
+  "emailLabel": "E-mail",
+  "upgrade": "Atualizar",
+  "signOut": "Sair",
+  "deleteAccount": "Excluir conta",
+  "deleteAccountTitle": "Excluir conta",
+  "deleteAccountMessage": "Isso excluirá permanentemente sua conta e todos os seus dados. Esta ação não pode ser desfeita. Tem certeza?",
+  "delete": "Excluir",
+  "searchSummariesHint": "Buscar resumos...",
+  "tabSummaries": "RESUMOS",
+  "tabLabResults": "LABORATÓRIO",
+  "tabScannedDocs": "DIGITALIZADOS",
+  "noSummariesYet": "Nenhum resumo ainda",
+  "summariesWillAppearHere": "Seus resumos de visita aparecerão aqui",
+  "failedToLoadSummaries": "Falha ao carregar resumos",
+  "retry": "Tentar novamente",
+  "shareLabel": "Compartilhar",
+  "doctorVisit": "Consulta médica",
+  "timeToday": "Hoje, {time}",
+  "timeYesterday": "Ontem, {time}",
+  "summaryProcessingHint": "Puxe para baixo para atualizar. Geralmente leva 30–60 segundos.",
+  "summaryCouldNotGenerate": "Não foi possível gerar o resumo",
+  "retrySummary": "Tentar resumo novamente",
+  "stuckRetrySummary": "Travou? Tentar novamente",
+  "scannedDocument": "Documento digitalizado",
+  "scannedOn": "Digitalizado em {date}",
+  "visitDetails": "Detalhes da visita",
+  "healthVisitSummary": "Resumo da consulta médica",
+  "refreshSummaryTooltip": "Atualizar resumo",
+  "preparingVisitSummary": "Preparando resumo da visita...",
+  "preparingVisitSubtitle": "Isso pode levar um minuto.",
+  "unableToLoadVisitSummary": "Não foi possível carregar o resumo",
+  "visitSummaryUnavailable": "Resumo da visita indisponível",
+  "visitSummary": "Resumo da visita",
+  "visitProcessingTitle": "Sua visita está sendo processada",
+  "visitProcessingBody": "Isso pode levar 30–60 segundos.\nVocê pode continuar usando o app. Abra Resumo para ver o progresso.",
+  "viewOverviewAction": "Ver resumo",
+  "goToHome": "Ir para o início",
+  "medication": "Medicamento",
+  "nextToDo": "Próximos passos",
+  "conditionsDiscussed": "Condições discutidas",
+  "followUp": "Acompanhamento",
+  "nameLabel": "Nome",
+  "notSet": "Não definido",
+  "appleIdHidden": "ID Apple (oculto)",
+  "accountType": "Tipo de conta",
+  "patientRole": "Paciente",
+  "caregiverRole": "Cuidador",
+  "phoneLabel": "Telefone",
+  "edit": "Editar",
+  "add": "Adicionar",
+  "planLabel": "Plano",
+  "planFree": "Gratuito",
+  "planPremium": "Premium",
+  "usageLabel": "Uso",
+  "freePlanUsage": "Plano gratuito — {used} / {limit} resumos usados",
+  "unlimited": "Ilimitado",
+  "editPhoneNumber": "Editar número de telefone",
+  "phoneNumber": "Número de telefone",
+  "save": "Salvar",
+  "phoneMinLength": "O número deve ter pelo menos 8 caracteres",
+  "phoneUpdatedSuccess": "Número atualizado com sucesso",
+  "phoneUpdateFailed": "Falha ao atualizar o telefone: {error}",
+  "changePassword": "Alterar senha",
+  "changePasswordSubtitle": "Atualize sua senha para maior segurança",
+  "privacySettings": "Configurações de privacidade",
+  "privacySettingsSubtitle": "Gerenciar preferências de compartilhamento de dados",
+  "managePrivacy": "Gerenciar privacidade",
+  "changePasswordProviderMessage": "Você entrou com {provider}. Altere sua senha na sua conta {provider}.",
+  "ok": "OK",
+  "changePasswordIntro": "Atualize sua senha para manter sua conta segura.",
+  "currentPassword": "Senha atual",
+  "currentPasswordHint": "Digite sua senha atual",
+  "enterCurrentPassword": "Digite sua senha atual",
+  "newPassword": "Nova senha",
+  "newPasswordHint": "Digite sua nova senha",
+  "enterNewPassword": "Digite uma nova senha",
+  "passwordMinLength": "A senha deve ter pelo menos 8 caracteres",
+  "confirmNewPassword": "Confirmar nova senha",
+  "confirmNewPasswordHint": "Digite novamente sua nova senha",
+  "confirmNewPasswordRequired": "Confirme sua nova senha",
+  "passwordsDoNotMatch": "As senhas não coincidem",
+  "updatePassword": "Atualizar senha",
+  "passwordUpdatedSuccess": "Senha atualizada com sucesso",
+  "passwordUpdateFailed": "Falha ao atualizar a senha",
+  "wrongPassword": "A senha atual está incorreta",
+  "weakPassword": "A senha é muito fraca",
+  "requiresRecentLogin": "Faça login novamente e tente",
+  "checkInternetConnection": "Verifique sua conexão com a internet",
+  "dataSharing": "Compartilhamento de dados",
+  "allowCaregiverSummaries": "Permitir que o cuidador veja resumos",
+  "allowCaregiverMedications": "Permitir que o cuidador veja medicamentos",
+  "allowCaregiverReminders": "Permitir que o cuidador veja lembretes",
+  "allowAiImprovement": "Permitir que a IA use meus dados para melhorar o produto",
+  "communicationAndConsent": "Comunicação e consentimento",
+  "allowEmailNotifications": "Permitir notificações por e-mail",
+  "allowSmsNotifications": "Permitir notificações por SMS",
+  "allowPushNotifications": "Permitir notificações push",
+  "dataControl": "Controle de dados",
+  "exportMyData": "Exportar meus dados",
+  "deleteAllMedicalRecords": "Excluir todos os meus registros médicos",
+  "deleteMedicalRecordsTitle": "Excluir registros médicos",
+  "deleteMedicalRecordsMessage": "Isso excluirá permanentemente todos os seus registros médicos. Esta ação não pode ser desfeita.",
+  "deleteRecords": "Excluir registros",
+  "deleteMyAccount": "Excluir minha conta",
+  "legal": "Legal",
+  "viewPrivacyPolicy": "Ver política de privacidade",
+  "viewTermsOfService": "Ver termos de serviço",
+  "termsOfService": "Termos de serviço",
+  "termsOfServiceBody": "Termos de serviço do RemiMinder\n\n1. Aceitação dos termos\nAo usar o RemiMinder, você concorda com estes termos.\n\n2. Uso do serviço\nO RemiMinder foi projetado para ajudar a gerenciar cuidados de saúde e lembretes de medicamentos.\n\n3. Privacidade\nSua privacidade é importante. Todos os dados de saúde são tratados com segurança.\n\nPara os termos completos, visite nosso site.",
+  "privacyPolicy": "Política de privacidade",
+  "privacyPolicyBody": "Política de privacidade do RemiMinder\n\n1. Informações que coletamos\nColetamos as informações que você fornece e dados de uso para melhorar o serviço.\n\n2. Como usamos as informações\nAs informações são usadas para fornecer serviços de gestão de saúde.\n\n3. Compartilhamento de informações\nNão vendemos suas informações pessoais.\n\nPara a política completa, visite nosso site.",
+  "close": "Fechar",
+  "featureComingSoon": "{feature} em breve",
+  "caregiverSharingEnabled": "Compartilhamento com cuidador ativado",
+  "caregiverSharingDisabled": "Compartilhamento com cuidador desativado",
+  "dataExport": "Exportação de dados",
+  "remindersTitle": "Lembretes",
+  "tabAll": "Todos",
+  "tabToday": "Hoje",
+  "tabPending": "Pendentes",
+  "tabCompleted": "Concluídos",
+  "searchRemindersHint": "Buscar lembretes...",
+  "failedToLoadRemindersRetry": "Falha ao carregar. Tentar novamente",
+  "deleteReminderTitle": "Excluir lembrete",
+  "deleteReminderMessage": "Tem certeza de que deseja excluir este lembrete?",
+  "markDone": "Marcar feito",
+  "snooze": "Adiar",
+  "snoozedUntil": "Adiado até {time}",
+  "@snoozedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "statusDueNow": "Vence agora",
+  "statusActive": "Ativo",
+  "statusMissed": "Perdido",
+  "statusSnoozed": "Adiado",
+  "statusSkipped": "Ignorado",
+  "statusPending": "Pendente",
+  "noRemindersFound": "Nenhum lembrete",
+  "noRemindersMatchSearch": "Nenhum lembrete corresponde",
+  "createFirstReminder": "Crie seu primeiro lembrete para começar",
+  "tryAdjustSearch": "Tente outros termos de busca",
+  "createReminder": "Criar lembrete",
+  "newReminder": "Novo lembrete",
+  "editReminder": "Editar lembrete",
+  "reminderTitleLabel": "Título",
+  "dosageOptional": "Dosagem (opcional)",
+  "dosageHint": "ex. 10 mg uma vez ao dia",
+  "reminderTypeLabel": "Tipo",
+  "appointment": "Consulta",
+  "repeatLabel": "Repetir",
+  "once": "Uma vez",
+  "daily": "Diário",
+  "weekly": "Semanal",
+  "pleaseEnterTitle": "Digite um título",
+  "reminderCreated": "Lembrete criado!",
+  "failedToCreateReminder": "Falha ao criar: {error}",
+  "@failedToCreateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "saveChanges": "Salvar alterações",
+  "cannotRescheduleMissingType": "Não é possível reagendar: tipo ausente",
+  "reminderUpdated": "Lembrete atualizado!",
+  "failedToUpdateReminder": "Falha ao atualizar: {error}",
+  "@failedToUpdateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderMarkedCompleted": "Lembrete concluído!",
+  "reminderSnoozed30": "Lembrete adiado por 30 minutos",
+  "timeInHours": "Em {hours} h ({time})",
+  "@timeInHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeInMinutes": "Em {minutes} min ({time})",
+  "@timeInMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeNow": "Agora",
+  "timeHoursAgo": "Há {hours} h",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMinutesAgo": "Há {minutes} min",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInDays": "em {days} dias",
+  "@timeInDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInHoursShort": "em {hours} h",
+  "@timeInHoursShort": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInMinutesShort": "em {minutes} min",
+  "@timeInMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "selectTime": "Selecionar horário",
+  "presetMorning": "Manhã (8:00)",
+  "presetNoon": "Meio-dia (12:00)",
+  "presetEvening": "Tarde (18:00)",
+  "presetNight": "Noite (20:00)",
+  "hourLabel": "Hora",
+  "minuteLabel": "Min",
+  "amPmLabel": "AM / PM",
+  "amLabel": "AM",
+  "pmLabel": "PM",
+  "selectedTimeLabel": "Horário selecionado: {time}",
+  "@selectedTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "setForTime": "Definir {time} ✓",
+  "@setForTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "medicationAdherence": "Adesão à medicação",
+  "thisWeek": "Esta semana",
+  "thisMonth": "Este mês",
+  "overall": "Geral",
+  "dosesCount": "{done}/{total} doses",
+  "@dosesCount": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "byMedication": "Por medicamento",
+  "noPastRemindersAnalyze": "Sem lembretes passados",
+  "adherenceTips": "Dicas de adesão",
+  "adherenceTipsBody": "• Configure lembretes no telefone\n• Mantenha medicamentos visíveis\n• Use um organizador de pílulas\n• Acompanhe seu progresso",
+  "actionFailed": "Ação falhou",
+  "reminderDeleted": "Lembrete excluído",
+  "deleteFailed": "Falha ao excluir",
+  "selectDate": "Selecionar data",
+  "snoozeAlreadyUsed": "Este lembrete já foi adiado uma vez",
+  "sectionRecentAlerts": "Alertas recentes",
+  "viewAll": "Ver tudo",
+  "sectionInvitations": "Convites",
+  "summaryPatients": "Pacientes",
+  "summaryAlerts": "Alertas",
+  "summaryPending": "Pendente",
+  "noAlertsAtThisTime": "Nenhum alerta no momento",
+  "noPendingInvitations": "Nenhum convite pendente",
+  "pendingInvitationsTitle": "Convites pendentes",
+  "invitationsWaiting": "{count} convite(s) aguardando",
+  "reviewAcceptInvitations": "Revise e aceite convites de cuidadores.",
+  "viewInvitations": "Ver convites",
+  "defaultPatient": "Paciente",
+  "defaultCaregiver": "Cuidador",
+  "caregiverPatientTime": "Paciente: {name} • {time}",
+  "timeDaysAgo": "há {days} dias",
+  "alertsTitle": "Alertas",
+  "filterUnread": "Não lidas",
+  "filterRead": "Lidas",
+  "filterHighPriority": "Alta prioridade",
+  "filterActionRequired": "Ação necessária",
+  "alertSingular": "Alerta",
+  "alertsPlural": "Alertas",
+  "clearFilter": "Limpar filtro",
+  "noAlertsMatchFilter": "Nenhum alerta corresponde a este filtro",
+  "allPatientActivitiesSmooth": "Todas as atividades dos pacientes estão normais",
+  "tryAdjustingFilter": "Tente ajustar o filtro para ver mais alertas",
+  "viewAllAlerts": "Ver todos os alertas",
+  "alertMarkedAsRead": "Alerta marcado como lido",
+  "alertsMarkedAsRead": "{count} alertas marcados como lidos",
+  "allAlertsAlreadyRead": "Todos os alertas já foram lidos",
+  "myPatientsTitle": "Meus pacientes",
+  "patientsConnectedSubtitle": "Pacientes conectados a você",
+  "myPatientsSection": "Meus pacientes",
+  "connectedCount": "{count} conectados",
+  "searchPatientsHint": "Buscar pacientes...",
+  "noPatientsMatchSearch": "Nenhum paciente corresponde à sua busca.",
+  "noPatientsConnectedYet": "Nenhum paciente conectado ainda",
+  "acceptInvitationToSeePatient": "Aceite um convite para ver um paciente aqui.",
+  "badgeNew": "Novo",
+  "joinedOn": "Entrou em {date}",
+  "neverSynced": "Ainda não carregado",
+  "privacyDataRequestMessage": "Entre em contato com privacy@remiminder.ai para exportar ou excluir seus dados.",
+  "syncMinutesAgo": "há {minutes} min",
+  "syncHoursAgo": "há {hours} h",
+  "syncDaysAgo": "há {days} d",
+  "primaryCondition": "Condição principal",
+  "lastSynced": "Última sincronização",
+  "allergiesLabel": "Alergias",
+  "dateOfBirth": "Data de nascimento",
+  "currentMedications": "Medicamentos atuais",
+  "viewCarePlan": "Ver plano de cuidado",
+  "remindersButton": "Lembretes",
+  "caregiverCareTeamSubtitle": "Convide família ou equipe médica",
+  "invitationsReceived": "Convites recebidos",
+  "pendingBadge": "{count} pendentes",
+  "patientOverviewTitle": "Visão geral do paciente",
+  "patientOverviewTabReminders": "Lembretes",
+  "patientOverviewTabVisits": "Consultas",
+  "patientOverviewNoVisits": "Nenhuma consulta disponível",
+  "patientOverviewNoReminders": "Nenhum lembrete disponível",
+  "patientOverviewMissingPatientId": "Informações do paciente ausentes",
+  "patientOverviewLastVisit": "Última consulta",
+  "patientOverviewCareTeam": "Membro da equipe de cuidados",
+  "patientOverviewScheduledReminder": "Lembrete agendado",
+  "patientOverviewNever": "Nunca",
+  "patientOverviewYesterday": "Ontem",
+  "statusViewed": "Visualizado",
+  "statusExpired": "Expirado",
+  "statusJoined": "Entrou",
+  "noInvitationsToShow": "Nenhum convite para mostrar",
+  "invitedByLabel": "Convidado por: {name}",
+  "@invitedByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptInvitation": "Aceitar",
+  "declineInvitation": "Recusar",
+  "invitationDeclined": "Convite recusado",
+  "joinedCareTeamSnackbar": "Entrou na equipe de {patientName} como {role}",
+  "@joinedCareTeamSnackbar": {
+    "placeholders": {
+      "patientName": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "manageAccess": "Gerenciar acesso",
+  "manageAccessDescription": "Atualize a permissão do cuidador ou remova o acesso.",
+  "manage": "Gerenciar",
+  "accessUpdatedSuccess": "Acesso atualizado com sucesso",
+  "accessUpdateFailed": "Falha ao atualizar o acesso. Tente novamente.",
+  "removeCaregiverTitle": "Remover cuidador?",
+  "removeCaregiverMessage": "Tem certeza de que deseja remover este cuidador? O acesso será revogado imediatamente.",
+  "remove": "Remover",
+  "updatingAccess": "Atualizando acesso...",
+  "removingCaregiver": "Removendo cuidador...",
+  "removeCaregiverFailed": "Falha ao remover cuidador. Tente novamente.",
+  "viewAccess": "Acesso de visualização",
+  "fullAccess": "Acesso total",
+  "viewOnly": "Somente visualização",
+  "resendingInvitation": "Reenviando convite...",
+  "invitationResent": "Convite reenviado",
+  "failedToResendInvitation": "Falha ao reenviar convite",
+  "cancelingInvitation": "Cancelando convite...",
+  "invitationCanceled": "Convite cancelado",
+  "failedToCancelInvitation": "Falha ao cancelar convite",
+  "relationshipSon": "Filho",
+  "relationshipDaughter": "Filha",
+  "relationshipFriend": "Amigo(a)",
+  "relationshipSpousePartner": "Cônjuge/Parceiro(a)",
+  "relationshipParent": "Pai/Mãe",
+  "relationshipChild": "Filho(a)",
+  "relationshipFamilyMember": "Membro da família",
+  "relationshipHealthcareProfessional": "Profissional de saúde",
+  "relationshipCaregiver": "Cuidador",
+  "relationshipSister": "Irmã",
+  "relationshipBrother": "Irmão",
+  "relationshipOther": "Outro"
+}

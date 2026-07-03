@@ -12,6 +12,33 @@ SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "team@remiminderai.com")
 SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "RemiMinderAI")
 
 
+def _resolve_public_api_base_url() -> str:
+    """
+    Base URL of this API as reachable from the public internet (email links).
+
+    Ops often set MOBILE_API_BASE_URL or API_BASE_URL but omit BACKEND_URL;
+    without a public base URL we cannot build /api/invitations/accept links.
+    """
+    keys = (
+        "BACKEND_URL",
+        "PUBLIC_BACKEND_URL",
+        "API_PUBLIC_URL",
+        "MOBILE_API_BASE_URL",
+        "API_BASE_URL",
+    )
+    for key in keys:
+        raw = os.getenv(key)
+        if not raw or not str(raw).strip():
+            continue
+        base = str(raw).strip().rstrip("/")
+        if base.endswith("/api"):
+            base = base[:-4].rstrip("/")
+        if base.startswith("http://") or base.startswith("https://"):
+            logger.debug("invite email: using %s from env %s", base, key)
+            return base
+    return ""
+
+
 def _get_brevo_api() -> Optional[Any]:
     """Lazy-init Brevo client; returns None if API key is not configured."""
     global _brevo_api_instance
@@ -38,17 +65,19 @@ def send_invite_email(
     """
     Send caregiver invitation email via Brevo.
 
-    patient_name is accepted for API compatibility; message body stays generic.
+    patient_name is shown in the subject/body when provided.
 
-    Returns False if Brevo is not configured, BACKEND_URL is missing/invalid,
-    or the provider returns an error.
+    Returns False if Brevo is not configured, no public API base URL can be
+    resolved, or the provider returns an error.
     """
-    _ = patient_name  # intentionally unused (privacy)
+    display_name = (patient_name or "").strip() or "A patient"
 
-    backend_url = (os.getenv("BACKEND_URL") or "").strip().rstrip("/")
+    backend_url = _resolve_public_api_base_url()
     if not backend_url:
         logger.error(
-            "invite email skipped: BACKEND_URL is not set; cannot build invitation link"
+            "invite email skipped: set one of BACKEND_URL, PUBLIC_BACKEND_URL, "
+            "API_PUBLIC_URL, MOBILE_API_BASE_URL, or API_BASE_URL so invitation "
+            "links can point to this API"
         )
         return False
 
@@ -59,13 +88,16 @@ def send_invite_email(
         )
         return False
 
+    # GET care_team.invitations_router /accept — expects query param `token`
     invite_link = f"{backend_url}/api/invitations/accept?token={invite_token}"
 
     plain_content = f"""Hi,
 
-You have been invited to join as a caregiver on RemiMinderAI.
+{display_name} has invited you to join their care team on RemiMinderAI.
 
-Click the link below to accept:
+Open this link on your phone or computer to continue. Then open the RemiMinderAI app (or create an account in the app), choose Caregiver, and sign in with this same email address ({to_email.strip()}) — you will be connected to your patient automatically after you sign in.
+
+Invitation link:
 {invite_link}
 
 If you didn't expect this, you can safely ignore this email.
@@ -73,21 +105,30 @@ If you didn't expect this, you can safely ignore this email.
 
     html_content = f"""<html>
         <body style="font-family: Arial, sans-serif; line-height:1.6;">
-            <h2 style="color: #333;">You're invited!</h2>
-            <p>You have been invited to join as a caregiver on <strong>RemiMinderAI</strong>.</p>
+            <h2 style="color: #333;">Care team invitation</h2>
+            <p><strong>{display_name}</strong> invited you to join their care team on <strong>RemiMinderAI</strong>.</p>
             <p>
             <a href="{invite_link}"
                 style="
                 display:inline-block;
-                background-color:#4CAF50;
+                background-color:#1a4d4d;
                 color:white;
-                padding:10px 20px;
+                padding:12px 24px;
                 text-decoration:none;
-                border-radius:6px;
+                border-radius:8px;
                 font-weight:bold;
                 ">
-                Accept Invitation
+                Accept invitation
             </a>
+            </p>
+            <p style="font-size:0.95em; color:#444;">
+            If the button does not work, copy and paste this link into your browser:<br/>
+            <span style="word-break:break-all;">{invite_link}</span>
+            </p>
+            <p style="font-size:0.95em; color:#333;">
+            <strong>Using the app:</strong> After you open the link, install or open <strong>RemiMinderAI</strong>,
+            select <strong>Caregiver</strong>, and sign in with <strong>Google or email using this same address</strong>
+            ({to_email.strip()}). Your account will link to your patient once you are signed in.
             </p>
             <hr style="border:none; border-top:1px solid #eee;" />
             <p style="font-size:0.9em; color:#555;">
@@ -101,10 +142,11 @@ If you didn't expect this, you can safely ignore this email.
         import sib_api_v3_sdk
         from sib_api_v3_sdk.rest import ApiException
 
+        subject = f"{display_name[:80]} invited you to RemiMinderAI"
         send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
             sender={"name": SENDER_NAME, "email": SENDER_EMAIL},
             to=[{"email": to_email}],
-            subject="Invite to join RemiMinderAI",
+            subject=subject,
             html_content=html_content,
             text_content=plain_content,
         )

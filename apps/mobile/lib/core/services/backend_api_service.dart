@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 import '../config/environment.dart';
 import '../models/user.dart';
@@ -9,7 +9,6 @@ import '../models/user.dart';
 /// Service for making authenticated API calls to the backend
 class BackendApiService {
   final AuthService _authService;
-  static const Duration _apiTimeout = Duration(seconds: 8);
 
   BackendApiService({AuthService? authService})
       : _authService = authService ?? AuthService();
@@ -47,8 +46,8 @@ class BackendApiService {
     }
   }
 
-  /// Upload image file to backend
-  Future<void> uploadImage({
+  /// Upload image file to backend, returns GCS file path
+  Future<String> uploadImage({
     required String visitId,
     required File imageFile,
   }) async {
@@ -72,16 +71,19 @@ class BackendApiService {
     );
 
     final response = await request.send();
+    final responseBody = await response.stream.bytesToString();
 
     if (response.statusCode != 200) {
-      final responseBody = await response.stream.bytesToString();
       throw Exception(
           'Image upload failed: ${response.statusCode} - $responseBody');
     }
+
+    final data = json.decode(responseBody) as Map<String, dynamic>;
+    return data['gcs_file_path'] as String;
   }
 
   /// Trigger OCR processing for uploaded image
-  Future<Map<String, dynamic>> triggerOcr({required String visitId}) async {
+  Future<void> triggerOcr({required String visitId}) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
@@ -101,26 +103,18 @@ class BackendApiService {
       throw Exception(
           'OCR trigger failed: ${response.statusCode} - ${response.body}');
     }
-    return json.decode(response.body) as Map<String, dynamic>;
   }
 
   /// Bootstrap user in backend after Firebase authentication
-  Future<void> bootstrapUser({String? fullName, UserRole? role}) async {
+  Future<void> bootstrapUser({String? fullName}) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
     }
 
     final uri = Uri.parse('${Environment.apiBaseUrl}/api/users/bootstrap');
-    final body = <String, dynamic>{};
-    if (fullName != null && fullName.trim().isNotEmpty) {
-      body['full_name'] = fullName.trim();
-    }
-    if (role != null) {
-      body['app_role'] =
-          role == UserRole.caregiver ? 'caregiver' : 'patient';
-    }
-    final requestBody = body.isEmpty ? null : json.encode(body);
+    final requestBody =
+        fullName != null ? json.encode({'full_name': fullName}) : null;
 
     final response = await http.post(
       uri,
@@ -129,7 +123,7 @@ class BackendApiService {
         'Content-Type': 'application/json',
       },
       body: requestBody,
-    ).timeout(_apiTimeout);
+    );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
@@ -151,7 +145,7 @@ class BackendApiService {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
       },
-    ).timeout(_apiTimeout);
+    );
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -160,39 +154,6 @@ class BackendApiService {
 
     final jsonData = json.decode(response.body) as Map<String, dynamic>;
     return UserProfile.fromJson(jsonData);
-  }
-
-  /// Update the current user's full name
-  Future<void> updateName(String fullName) async {
-    final accessToken = await _authService.getAccessToken();
-    if (accessToken == null) throw Exception('Authentication required');
-    final response = await http.put(
-      Uri.parse('${Environment.apiBaseUrl}/api/users/me/name'),
-      headers: {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'full_name': fullName}),
-    ).timeout(_apiTimeout);
-    if (response.statusCode != 200) {
-      throw Exception('Update name failed: ${response.statusCode}');
-    }
-  }
-
-  /// Update user role in backend
-  Future<void> updateUserRole(String firebaseUid, String role) async {
-    final accessToken = await _authService.getAccessToken();
-    if (accessToken == null) return;
-
-    final uri = Uri.parse('${Environment.apiBaseUrl}/api/users/$firebaseUid/role');
-    await http.put(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $accessToken',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'role': role}),
-    ).timeout(_apiTimeout);
   }
 
   /// Update current user's phone number
@@ -261,17 +222,17 @@ class BackendApiService {
     return url;
   }
 
-  /// Register FCM token for the authenticated user (`device_type` ios vs android).
-  Future<void> registerFcmToken(String token) async {
+  /// Register or refresh this device's FCM token for server push notifications.
+  Future<void> registerFcmToken({
+    required String fcmToken,
+    String deviceType = 'android',
+  }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
     }
 
-    final uri = Uri.parse('${Environment.apiBaseUrl}/api/reminders/fcm/token');
-    final normalizedType =
-        defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
-
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/fcm/token');
     final response = await http.post(
       uri,
       headers: {
@@ -279,15 +240,51 @@ class BackendApiService {
         'Content-Type': 'application/json',
       },
       body: json.encode({
-        'fcm_token': token,
-        'device_type': normalizedType,
+        'fcm_token': fcmToken,
+        'device_type': deviceType,
       }),
-    ).timeout(_apiTimeout);
+    );
 
-    if (response.statusCode != 200 && response.statusCode != 201) {
+    if (response.statusCode != 200) {
       throw Exception(
-        'registerFcmToken failed: ${response.statusCode} - ${response.body}',
+        'FCM token registration failed: ${response.statusCode} - ${response.body}',
       );
     }
+  }
+  Future<Map<String, dynamic>> scanDocument({required String gcsFilePath}) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) throw Exception('Authentication required');
+    final uri = Uri.parse('${Environment.apiBaseUrl}/api/scan-document');
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'gcs_file_path': gcsFilePath}),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Scan failed: ${response.statusCode}');
+  }
+
+  Future<List<Map<String, dynamic>>> getCaregiverAlerts(String caregiverId) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) return [];
+    try {
+      final uri = Uri.parse('${Environment.apiBaseUrl}/api/caregivers/$caregiverId/alerts');
+      final response = await http.get(uri, headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      });
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data is List) return List<Map<String, dynamic>>.from(data);
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch caregiver alerts: $e');
+    }
+    return [];
   }
 }

@@ -4,5 +4,479 @@
   "logout": "लॉग आउट",
   "settings": "सेटिंग्स",
   "language": "भाषा",
-  "profileSettings": "प्रोफ़ाइल सेटिंग्स"
+  "profileSettings": "प्रोफ़ाइल सेटिंग्स",
+  "languageSettings": "भाषा",
+  "languageUpdated": "भाषा अपडेट हो गई। अब ऐप {language} में दिखेगा।",
+  "navHome": "होम",
+  "navVisits": "विज़िट",
+  "navOverview": "अवलोकन",
+  "navCareTeam": "केयर टीम",
+  "navProfile": "प्रोफ़ाइल",
+  "navPatients": "मरीज़",
+  "goodMorning": "सुप्रभात",
+  "goodAfternoon": "नमस्कार",
+  "goodEvening": "शुभ संध्या",
+  "goodNight": "शुभ रात्रि",
+  "howAreYouFeeling": "आज आप कैसा महसूस कर रहे हैं?",
+  "todaysProgress": "आज की प्रगति",
+  "doneCount": "{done}/{total} पूर्ण",
+  "yourSchedule": "आपका शेड्यूल",
+  "seeAll": "सभी देखें →",
+  "nothingScheduledYet": "अभी कुछ निर्धारित नहीं",
+  "unableToLoadReminders": "रिमाइंडर लोड नहीं हो सके",
+  "addReminder": "रिमाइंडर जोड़ें",
+  "myTasks": "मेरे कार्य",
+  "pendingCount": "{count} लंबित",
+  "noTasksYet": "अभी कोई कार्य नहीं",
+  "addTask": "कार्य जोड़ें",
+  "statusUpcoming": "आगामी",
+  "statusScheduled": "निर्धारित",
+  "statusDone": "पूर्ण",
+  "reminder": "रिमाइंडर",
+  "task": "कार्य",
+  "careTeamTitle": "केयर टीम",
+  "careTeamSubtitle": "नियंत्रण आपके पास है। नीचे अपनी साझा अनुमतियाँ देखें।",
+  "sectionPending": "लंबित",
+  "sectionAddNew": "नया जोड़ें",
+  "inviteCaregiver": "केयरगिवर को आमंत्रित करें",
+  "inviteCaregiverSubtitle": "अपनी स्वास्थ्य जानकारी तक पहुँच साझा करें",
+  "invitationPending": "आमंत्रण लंबित",
+  "resend": "पुनः भेजें",
+  "cancel": "रद्द करें",
+  "activeCaregivers": "सक्रिय केयरगिवर",
+  "noCaregiversYet": "अभी कोई केयरगिवर नहीं जोड़ा गया",
+  "english": "अंग्रेज़ी",
+  "spanish": "स्पेनिश",
+  "hindi": "हिन्दी",
+  "french": "फ़्रेंच",
+  "portuguese": "पुर्तगाली",
+  "german": "जर्मन",
+  "bangla": "बांग्ला",
+  "tamil": "तमिल",
+  "gujarati": "ગુજરાતી",
+  "punjabi": "ਪੰਜਾਬੀ",
+  "accountDetails": "खाता विवरण",
+  "accountDetailsSubtitle": "अपनी प्रोफ़ाइल जानकारी देखें",
+  "accountSecurity": "खाता सुरक्षा",
+  "accountSecuritySubtitle": "पासवर्ड और गोपनीयता प्रबंधित करें",
+  "notificationsLabel": "सूचनाएँ",
+  "mobileLabel": "मोबाइल",
+  "emailLabel": "ईमेल",
+  "upgrade": "अपग्रेड",
+  "signOut": "साइन आउट",
+  "deleteAccount": "खाता हटाएँ",
+  "deleteAccountTitle": "खाता हटाएँ",
+  "deleteAccountMessage": "यह आपका खाता और सभी डेटा स्थायी रूप से हटा देगा। यह पूर्ववत नहीं हो सकता। क्या आप सुनिश्चित हैं?",
+  "delete": "हटाएँ",
+  "searchSummariesHint": "सारांश खोजें...",
+  "tabSummaries": "सारांश",
+  "tabLabResults": "लैब परिणाम",
+  "tabScannedDocs": "स्कैन किए",
+  "noSummariesYet": "अभी कोई सारांश नहीं",
+  "summariesWillAppearHere": "आपके विज़िट सारांश यहाँ दिखेंगे",
+  "failedToLoadSummaries": "सारांश लोड नहीं हो सके",
+  "retry": "पुनः प्रयास",
+  "shareLabel": "साझा करें",
+  "doctorVisit": "डॉक्टर विज़िट",
+  "timeToday": "आज, {time}",
+  "timeYesterday": "कल, {time}",
+  "summaryProcessingHint": "रिफ्रेश करने के लिए नीचे खींचें। आमतौर पर 30–60 सेकंड लगते हैं।",
+  "summaryCouldNotGenerate": "सारांश नहीं बनाया जा सका",
+  "retrySummary": "सारांश पुनः प्रयास",
+  "stuckRetrySummary": "अटका? पुनः प्रयास",
+  "scannedDocument": "स्कैन किया दस्तावेज़",
+  "scannedOn": "स्कैन {date}",
+  "visitDetails": "विज़िट विवरण",
+  "healthVisitSummary": "स्वास्थ्य विज़िट सारांश",
+  "refreshSummaryTooltip": "सारांश रिफ्रेश करें",
+  "preparingVisitSummary": "विज़िट सारांश तैयार हो रहा है...",
+  "preparingVisitSubtitle": "इसमें एक मिनट लग सकता है।",
+  "unableToLoadVisitSummary": "विज़िट सारांश लोड नहीं हो सका",
+  "visitSummaryUnavailable": "विज़िट सारांश उपलब्ध नहीं",
+  "visitSummary": "विज़िट सारांश",
+  "visitProcessingTitle": "आपकी यात्रा संसाधित हो रही है",
+  "visitProcessingBody": "इसमें 30–60 सेकंड लग सकते हैं।\nआप ऐप का उपयोग जारी रख सकते हैं। प्रगति देखने के लिए अवलोकन खोलें।",
+  "viewOverviewAction": "अवलोकन देखें",
+  "goToHome": "होम पर जाएँ",
+  "medication": "दवा",
+  "nextToDo": "अगले कार्य",
+  "conditionsDiscussed": "चर्चित स्थितियाँ",
+  "followUp": "फ़ॉलो-अप",
+  "nameLabel": "नाम",
+  "notSet": "सेट नहीं",
+  "appleIdHidden": "Apple ID (छुपा हुआ)",
+  "accountType": "खाता प्रकार",
+  "patientRole": "मरीज़",
+  "caregiverRole": "केयरगिवर",
+  "phoneLabel": "फ़ोन",
+  "edit": "संपादित करें",
+  "add": "जोड़ें",
+  "planLabel": "योजना",
+  "planFree": "मुफ़्त",
+  "planPremium": "प्रीमियम",
+  "usageLabel": "उपयोग",
+  "freePlanUsage": "मुफ़्त योजना — {used} / {limit} सारांश उपयोग",
+  "unlimited": "असीमित",
+  "editPhoneNumber": "फ़ोन नंबर संपादित करें",
+  "phoneNumber": "फ़ोन नंबर",
+  "save": "सहेजें",
+  "phoneMinLength": "फ़ोन नंबर कम से कम 8 अक्षर का होना चाहिए",
+  "phoneUpdatedSuccess": "फ़ोन नंबर सफलतापूर्वक अपडेट हुआ",
+  "phoneUpdateFailed": "फ़ोन अपडेट विफल: {error}",
+  "changePassword": "पासवर्ड बदलें",
+  "changePasswordSubtitle": "सुरक्षा के लिए अपना पासवर्ड अपडेट करें",
+  "privacySettings": "गोपनीयता सेटिंग्स",
+  "privacySettingsSubtitle": "डेटा साझाकरण प्राथमिकताएँ प्रबंधित करें",
+  "managePrivacy": "गोपनीयता प्रबंधित करें",
+  "changePasswordProviderMessage": "आपने {provider} से साइन इन किया है। कृपया अपने {provider} खाते में पासवर्ड बदलें।",
+  "ok": "ठीक है",
+  "changePasswordIntro": "अपना खाता सुरक्षित रखने के लिए पासवर्ड अपडेट करें।",
+  "currentPassword": "वर्तमान पासवर्ड",
+  "currentPasswordHint": "अपना वर्तमान पासवर्ड दर्ज करें",
+  "enterCurrentPassword": "कृपया अपना वर्तमान पासवर्ड दर्ज करें",
+  "newPassword": "नया पासवर्ड",
+  "newPasswordHint": "अपना नया पासवर्ड दर्ज करें",
+  "enterNewPassword": "कृपया नया पासवर्ड दर्ज करें",
+  "passwordMinLength": "पासवर्ड कम से कम 8 अक्षर का होना चाहिए",
+  "confirmNewPassword": "नया पासवर्ड पुष्टि करें",
+  "confirmNewPasswordHint": "अपना नया पासवर्ड फिर से दर्ज करें",
+  "confirmNewPasswordRequired": "कृपया अपना नया पासवर्ड पुष्टि करें",
+  "passwordsDoNotMatch": "पासवर्ड मेल नहीं खाते",
+  "updatePassword": "पासवर्ड अपडेट करें",
+  "passwordUpdatedSuccess": "पासवर्ड सफलतापूर्वक अपडेट हुआ",
+  "passwordUpdateFailed": "पासवर्ड अपडेट विफल",
+  "wrongPassword": "वर्तमान पासवर्ड गलत है",
+  "weakPassword": "पासवर्ड बहुत कमज़ोर है",
+  "requiresRecentLogin": "कृपया फिर से लॉग इन करें और प्रयास करें",
+  "checkInternetConnection": "अपना इंटरनेट कनेक्शन जाँचें",
+  "dataSharing": "डेटा साझाकरण",
+  "allowCaregiverSummaries": "केयरगिवर को सारांश देखने की अनुमति दें",
+  "allowCaregiverMedications": "केयरगिवर को दवाएँ देखने की अनुमति दें",
+  "allowCaregiverReminders": "केयरगिवर को रिमाइंडर देखने की अनुमति दें",
+  "allowAiImprovement": "उत्पाद सुधार के लिए AI को मेरा डेटा उपयोग करने दें",
+  "communicationAndConsent": "संचार और सहमति",
+  "allowEmailNotifications": "ईमेल सूचनाएँ अनुमति दें",
+  "allowSmsNotifications": "SMS सूचनाएँ अनुमति दें",
+  "allowPushNotifications": "पुश सूचनाएँ अनुमति दें",
+  "dataControl": "डेटा नियंत्रण",
+  "exportMyData": "मेरा डेटा निर्यात करें",
+  "deleteAllMedicalRecords": "सभी चिकित्सा रिकॉर्ड हटाएँ",
+  "deleteMedicalRecordsTitle": "चिकित्सा रिकॉर्ड हटाएँ",
+  "deleteMedicalRecordsMessage": "यह आपके सभी चिकित्सा रिकॉर्ड स्थायी रूप से हटा देगा। यह पूर्ववत नहीं हो सकता।",
+  "deleteRecords": "रिकॉर्ड हटाएँ",
+  "deleteMyAccount": "मेरा खाता हटाएँ",
+  "legal": "कानूनी",
+  "viewPrivacyPolicy": "गोपनीयता नीति देखें",
+  "viewTermsOfService": "सेवा की शर्तें देखें",
+  "termsOfService": "सेवा की शर्तें",
+  "termsOfServiceBody": "RemiMinder की सेवा की शर्तें\n\n1. शर्तों की स्वीकृति\nRemiMinder का उपयोग करके, आप इन शर्तों से सहमत होते हैं।\n\n2. सेवा का उपयोग\nRemiMinder स्वास्थ्य और दवा रिमाइंडर प्रबंधन में मदद के लिए बनाया गया है।\n\n3. गोपनीयता\nआपकी गोपनीयता महत्वपूर्ण है। सभी स्वास्थ्य डेटा सुरक्षित रूप से संभाला जाता है।\n\nपूर्ण शर्तों के लिए, कृपया हमारी वेबसाइट देखें।",
+  "privacyPolicy": "गोपनीयता नीति",
+  "privacyPolicyBody": "RemiMinder की गोपनीयता नीति\n\n1. हम कौन सी जानकारी एकत्र करते हैं\nहम आपकी दी गई जानकारी और उपयोग डेटा एकत्र करते हैं।\n\n2. जानकारी का उपयोग\nजानकारी स्वास्थ्य प्रबंधन सेवाएँ प्रदान करने के लिए उपयोग होती है।\n\n3. जानकारी साझाकरण\nहम आपकी व्यक्तिगत जानकारी नहीं बेचते।\n\nपूर्ण नीति के लिए, कृपया हमारी वेबसाइट देखें।",
+  "close": "बंद करें",
+  "featureComingSoon": "{feature} जल्द आ रहा है",
+  "caregiverSharingEnabled": "केयरगिवर साझाकरण सक्षम",
+  "caregiverSharingDisabled": "केयरगिवर साझाकरण अक्षम",
+  "dataExport": "डेटा निर्यात",
+  "remindersTitle": "रिमाइंडर",
+  "tabAll": "सभी",
+  "tabToday": "आज",
+  "tabPending": "लंबित",
+  "tabCompleted": "पूर्ण",
+  "searchRemindersHint": "रिमाइंडर खोजें...",
+  "failedToLoadRemindersRetry": "लोड नहीं हो सके। पुनः प्रयास",
+  "deleteReminderTitle": "रिमाइंडर हटाएँ",
+  "deleteReminderMessage": "क्या आप इस रिमाइंडर को हटाना चाहते हैं?",
+  "markDone": "पूर्ण करें",
+  "snooze": "स्नूज़",
+  "snoozedUntil": "{time} तक स्नूज़",
+  "@snoozedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "statusDueNow": "अभी देय",
+  "statusActive": "सक्रिय",
+  "statusMissed": "छूटा",
+  "statusSnoozed": "स्नूज़",
+  "statusSkipped": "छोड़ा",
+  "statusPending": "लंबित",
+  "noRemindersFound": "कोई रिमाइंडर नहीं",
+  "noRemindersMatchSearch": "कोई मेल नहीं",
+  "createFirstReminder": "शुरू करने के लिए पहला रिमाइंडर बनाएँ",
+  "tryAdjustSearch": "खोज बदलकर देखें",
+  "createReminder": "रिमाइंडर बनाएँ",
+  "newReminder": "नया रिमाइंडर",
+  "editReminder": "रिमाइंडर संपादित करें",
+  "reminderTitleLabel": "शीर्षक",
+  "dosageOptional": "खुराक (वैकल्पिक)",
+  "dosageHint": "जैसे 10 mg दिन में एक बार",
+  "reminderTypeLabel": "प्रकार",
+  "appointment": "अपॉइंटमेंट",
+  "repeatLabel": "दोहराएँ",
+  "once": "एक बार",
+  "daily": "दैनिक",
+  "weekly": "साप्ताहिक",
+  "pleaseEnterTitle": "कृपया शीर्षक दर्ज करें",
+  "reminderCreated": "रिमाइंडर बन गया!",
+  "failedToCreateReminder": "बनाने में विफल: {error}",
+  "@failedToCreateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "saveChanges": "बदलाव सहेजें",
+  "cannotRescheduleMissingType": "पुनर्निर्धारण नहीं: प्रकार गायब",
+  "reminderUpdated": "रिमाइंडर अपडेट!",
+  "failedToUpdateReminder": "अपडेट विफल: {error}",
+  "@failedToUpdateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderMarkedCompleted": "रिमाइंडर पूर्ण!",
+  "reminderSnoozed30": "30 मिनट के लिए स्नूज़",
+  "timeInHours": "{hours} घंटे में ({time})",
+  "@timeInHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeInMinutes": "{minutes} मिनट में ({time})",
+  "@timeInMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeNow": "अभी",
+  "timeHoursAgo": "{hours} घंटे पहले",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMinutesAgo": "{minutes} मिनट पहले",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInDays": "{days} दिन में",
+  "@timeInDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInHoursShort": "{hours} घंटे में",
+  "@timeInHoursShort": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInMinutesShort": "{minutes} मिनट में",
+  "@timeInMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "selectTime": "समय चुनें",
+  "presetMorning": "सुबह (8:00 AM)",
+  "presetNoon": "दोपहर (12:00 PM)",
+  "presetEvening": "शाम (6:00 PM)",
+  "presetNight": "रात (8:00 PM)",
+  "hourLabel": "घंटा",
+  "minuteLabel": "मिन",
+  "amPmLabel": "AM / PM",
+  "amLabel": "AM",
+  "pmLabel": "PM",
+  "selectedTimeLabel": "चयनित समय: {time}",
+  "@selectedTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "setForTime": "{time} पर सेट ✓",
+  "@setForTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "medicationAdherence": "दवा अनुपालन",
+  "thisWeek": "इस सप्ताह",
+  "thisMonth": "इस महीने",
+  "overall": "कुल मिलाकर",
+  "dosesCount": "{done}/{total} खुराक",
+  "@dosesCount": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "byMedication": "दवा के अनुसार",
+  "noPastRemindersAnalyze": "विश्लेषण के लिए कोई पिछला रिमाइंडर नहीं",
+  "adherenceTips": "अनुपालन सुझाव",
+  "adherenceTipsBody": "• दवा समय के लिए फोन रिमाइंडर सेट करें\n• दवाएँ दृश्य स्थान पर रखें\n• पिल ऑर्गनाइज़र का उपयोग करें\n• प्रगति ट्रैक करें",
+  "actionFailed": "कार्रवाई विफल",
+  "reminderDeleted": "रिमाइंडर हटाया गया",
+  "deleteFailed": "हटाना विफल",
+  "selectDate": "तारीख चुनें",
+  "snoozeAlreadyUsed": "यह रिमाइंडर पहले ही एक बार स्नूज़ हो चुका है",
+  "sectionRecentAlerts": "हाल की अलर्ट",
+  "viewAll": "सभी देखें",
+  "sectionInvitations": "आमंत्रण",
+  "summaryPatients": "मरीज़",
+  "summaryAlerts": "अलर्ट",
+  "summaryPending": "लंबित",
+  "noAlertsAtThisTime": "इस समय कोई अलर्ट नहीं",
+  "noPendingInvitations": "कोई लंबित आमंत्रण नहीं",
+  "pendingInvitationsTitle": "लंबित आमंत्रण",
+  "invitationsWaiting": "{count} आमंत्रण लंबित",
+  "reviewAcceptInvitations": "केयरगिवर आमंत्रणों की समीक्षा करें और स्वीकार करें।",
+  "viewInvitations": "आमंत्रण देखें",
+  "defaultPatient": "मरीज़",
+  "defaultCaregiver": "केयरगिवर",
+  "caregiverPatientTime": "मरीज़: {name} • {time}",
+  "timeDaysAgo": "{days} दिन पहले",
+  "alertsTitle": "अलर्ट",
+  "filterUnread": "अपठित",
+  "filterRead": "पढ़ा हुआ",
+  "filterHighPriority": "उच्च प्राथमिकता",
+  "filterActionRequired": "कार्रवाई आवश्यक",
+  "alertSingular": "अलर्ट",
+  "alertsPlural": "अलर्ट",
+  "clearFilter": "फ़िल्टर हटाएँ",
+  "noAlertsMatchFilter": "इस फ़िल्टर से कोई अलर्ट मेल नहीं खाता",
+  "allPatientActivitiesSmooth": "सभी मरीज़ गतिविधियाँ सुचारू रूप से चल रही हैं",
+  "tryAdjustingFilter": "अधिक अलर्ट देखने के लिए फ़िल्टर समायोजित करें",
+  "viewAllAlerts": "सभी अलर्ट देखें",
+  "alertMarkedAsRead": "अलर्ट पढ़ा हुआ चिह्नित",
+  "alertsMarkedAsRead": "{count} अलर्ट पढ़े हुए चिह्नित",
+  "allAlertsAlreadyRead": "सभी अलर्ट पहले से पढ़े हुए हैं",
+  "myPatientsTitle": "मेरे मरीज़",
+  "patientsConnectedSubtitle": "आपसे जुड़े मरीज़",
+  "myPatientsSection": "मेरे मरीज़",
+  "connectedCount": "{count} जुड़े",
+  "searchPatientsHint": "मरीज़ खोजें...",
+  "noPatientsMatchSearch": "आपकी खोज से कोई मरीज़ मेल नहीं खाता।",
+  "noPatientsConnectedYet": "अभी कोई मरीज़ जुड़ा नहीं",
+  "acceptInvitationToSeePatient": "मरीज़ देखने के लिए आमंत्रण स्वीकार करें।",
+  "badgeNew": "नया",
+  "joinedOn": "जुड़े {date}",
+  "neverSynced": "अभी लोड नहीं हुआ",
+  "privacyDataRequestMessage": "अपना डेटा निर्यात या हटाने के लिए privacy@remiminder.ai से संपर्क करें।",
+  "syncMinutesAgo": "{minutes} मि० पहले",
+  "syncHoursAgo": "{hours} घं० पहले",
+  "syncDaysAgo": "{days} दि० पहले",
+  "primaryCondition": "प्राथमिक स्थिति",
+  "lastSynced": "अंतिम सिंक",
+  "allergiesLabel": "एलर्जी",
+  "dateOfBirth": "जन्म तिथि",
+  "currentMedications": "वर्तमान दवाएँ",
+  "viewCarePlan": "केयर प्लान देखें",
+  "remindersButton": "रिमाइंडर",
+  "caregiverCareTeamSubtitle": "परिवार या चिकित्सा कर्मचारी को आमंत्रित करें",
+  "invitationsReceived": "प्राप्त आमंत्रण",
+  "pendingBadge": "{count} लंबित",
+  "patientOverviewTitle": "रोगी अवलोकन",
+  "patientOverviewTabVisits": "विज़िट",
+  "patientOverviewTabReminders": "अनुस्मारक",
+  "patientOverviewNoVisits": "कोई विज़िट उपलब्ध नहीं",
+  "patientOverviewNoReminders": "कोई अनुस्मारक उपलब्ध नहीं",
+  "patientOverviewMissingPatientId": "रोगी की जानकारी अनुपलब्ध",
+  "patientOverviewLastVisit": "अंतिम विज़िट",
+  "patientOverviewCareTeam": "केयर टीम सदस्य",
+  "patientOverviewScheduledReminder": "निर्धारित अनुस्मारक",
+  "patientOverviewNever": "कभी नहीं",
+  "patientOverviewYesterday": "कल",
+  "statusViewed": "देखा गया",
+  "statusExpired": "समाप्त",
+  "statusJoined": "शामिल",
+  "noInvitationsToShow": "दिखाने के लिए कोई आमंत्रण नहीं",
+  "invitedByLabel": "आमंत्रित: {name}",
+  "@invitedByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptInvitation": "स्वीकारें",
+  "declineInvitation": "अस्वीकार",
+  "invitationDeclined": "आमंत्रण अस्वीकार किया",
+  "joinedCareTeamSnackbar": "{patientName} की केयर टीम में {role} के रूप में शामिल",
+  "@joinedCareTeamSnackbar": {
+    "placeholders": {
+      "patientName": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "manageAccess": "एक्सेस प्रबंधित करें",
+  "manageAccessDescription": "केयरगिवर की अनुमति अपडेट करें या एक्सेस हटाएं.",
+  "manage": "प्रबंधित करें",
+  "accessUpdatedSuccess": "एक्सेस सफलतापूर्वक अपडेट हुआ",
+  "accessUpdateFailed": "एक्सेस अपडेट करने में विफल. कृपया पुनः प्रयास करें.",
+  "removeCaregiverTitle": "केयरगिवर हटाएं?",
+  "removeCaregiverMessage": "क्या आप वाकई इस केयरगिवर को हटाना चाहते हैं? उनकी एक्सेस तुरंत समाप्त हो जाएगी.",
+  "remove": "हटाएं",
+  "updatingAccess": "एक्सेस अपडेट हो रहा है...",
+  "removingCaregiver": "केयरगिवर हटाया जा रहा है...",
+  "removeCaregiverFailed": "केयरगिवर हटाने में विफल. कृपया पुनः प्रयास करें.",
+  "viewAccess": "देखने की अनुमति",
+  "fullAccess": "पूर्ण एक्सेस",
+  "viewOnly": "केवल देखें",
+  "resendingInvitation": "आमंत्रण पुनः भेजा जा रहा है...",
+  "invitationResent": "आमंत्रण पुनः भेजा गया",
+  "failedToResendInvitation": "आमंत्रण पुनः भेजने में विफल",
+  "cancelingInvitation": "आमंत्रण रद्द किया जा रहा है...",
+  "invitationCanceled": "आमंत्रण रद्द",
+  "failedToCancelInvitation": "आमंत्रण रद्द करने में विफल",
+  "relationshipSon": "पुत्र",
+  "relationshipDaughter": "पुत्री",
+  "relationshipFriend": "मित्र",
+  "relationshipSpousePartner": "जीवनसाथी/साथी",
+  "relationshipParent": "अभिभावक",
+  "relationshipChild": "बच्चा",
+  "relationshipFamilyMember": "परिवार का सदस्य",
+  "relationshipHealthcareProfessional": "स्वास्थ्य पेशेवर",
+  "relationshipCaregiver": "केयरगिवर",
+  "relationshipSister": "बहन",
+  "relationshipBrother": "भाई",
+  "relationshipOther": "अन्य"
 }

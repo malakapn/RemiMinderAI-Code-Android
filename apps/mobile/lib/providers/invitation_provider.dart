@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/auth/data/models/auth_state.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
 import '../models/caregiver_invitation.dart';
 import '../services/invitation_service.dart';
 
@@ -8,7 +10,11 @@ final invitationServiceProvider = Provider<InvitationService>((ref) {
 });
 
 final receivedInvitationsProvider =
-    StreamProvider.autoDispose<List<CaregiverInvitation>>((ref) {
+    StreamProvider<List<CaregiverInvitation>>((ref) {
+  final auth = ref.watch(authNotifierProvider);
+  if (auth.status != AuthStatus.authenticated) {
+    return Stream<List<CaregiverInvitation>>.value([]);
+  }
   final service = ref.watch(invitationServiceProvider);
   return service.watchReceivedInvitations();
 });

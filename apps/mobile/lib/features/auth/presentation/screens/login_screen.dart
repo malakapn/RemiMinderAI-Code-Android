@@ -1,10 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
 import '../../../../core/services/secure_storage.dart';
-import '../../data/models/auth_state.dart';
+import '../../../../core/widgets/brand_logo.dart';
+import '../../../../services/post_auth_navigation.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -22,40 +24,77 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberMe = false; // Remember me checkbox state
   String? _userRole;
 
-  /// Shows the exact exception text on screen for debugging failed sign-in.
-  void _showFullAuthErrorDialog(Object error) {
-    final text = error.toString();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign-in error'),
-        content: SingleChildScrollView(
-          child: Container(
-            width: double.maxFinite,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade700, width: 1.5),
-            ),
-            child: SelectableText(
-              text,
-              style: TextStyle(
-                color: Colors.red.shade900,
-                fontSize: 13,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  /// Convert technical errors to user-friendly messages
+  String _getUserFriendlyErrorMessage(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('account created, but we could not finish setup')) {
+      return 'Your account was created, but setup did not finish. Please sign in with your email and password.';
+    }
+
+    if (errorString.contains('signed in, but we could not load your profile')) {
+      return 'We could not load your profile. Please check your connection and try signing in again.';
+    }
+
+    // Authentication errors (Firebase + repository messages)
+    if (errorString.contains('incorrect password') ||
+        errorString.contains('wrong-password')) {
+      return 'Incorrect password. Please try again or use Forgot password.';
+    }
+
+    if (errorString.contains('no account found with this email') ||
+        errorString.contains('user-not-found')) {
+      return 'No account found with this email address.';
+    }
+
+    if (errorString.contains('invalid email address') ||
+        errorString.contains('invalid-email')) {
+      return 'That email address does not look valid. Please check and try again.';
+    }
+
+    if (errorString.contains('too many failed attempts') ||
+        errorString.contains('too-many-requests')) {
+      return 'Too many sign-in attempts. Please wait a few minutes and try again.';
+    }
+
+    if (errorString.contains('invalid email or password') ||
+        errorString.contains('invalid_credentials') ||
+        errorString.contains('invalid-credential')) {
+      return 'Invalid email or password. Please check your credentials and try again.';
+    }
+
+    if (errorString.contains('email not confirmed') ||
+        errorString.contains('email_not_confirmed')) {
+      return 'Please verify your email before logging in. Check your inbox.';
+    }
+
+    if (errorString.contains('user not found')) {
+      return 'No account found with this email address.';
+    }
+
+    // Network/API errors
+    if (errorString.contains('connection refused') ||
+        errorString.contains('network') ||
+        errorString.contains('failed to get user profile')) {
+      return 'Connection error. Please check your internet connection and try again.';
+    }
+
+    if (errorString.contains('timeout')) {
+      return 'Request timed out. Please try again.';
+    }
+
+    if (errorString.contains('google sign-in failed. please ensure') ||
+        errorString.contains('sign_in_failed')) {
+      return 'Google Sign-In failed. Please ensure your Google account is configured correctly.';
+    }
+
+    if (errorString.contains('google sign-in was cancelled') ||
+        errorString.contains('google sign-in cancelled')) {
+      return 'Google sign-in was cancelled.';
+    }
+
+    // Generic fallback
+    return 'Sign in failed. Please try again or contact support if the problem persists.';
   }
 
   @override
@@ -66,13 +105,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _userRole = uri.queryParameters['role'];
     // Load remember me preference
     _loadRememberMePreference();
-  }
-
-  /// Role intent from `/login?role=…`, normalized via [UserRole.tryFromString].
-  UserRole? get _intentRole {
-    final raw = _userRole?.trim();
-    if (raw == null || raw.isEmpty) return null;
-    return UserRole.tryFromString(raw) ?? UserRole.patient;
   }
 
   Future<void> _loadRememberMePreference() async {
@@ -103,16 +135,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     try {
-      await ref.read(authNotifierProvider.notifier).signIn(
-            email,
-            password,
-            selectedRole: _intentRole,
-          );
+      // Convert string role to UserRole enum
+      UserRole? selectedRole;
+      if (_userRole != null) {
+        selectedRole =
+            _userRole == 'caregiver' ? UserRole.caregiver : UserRole.patient;
+      }
+      await ref
+          .read(authNotifierProvider.notifier)
+          .signIn(email, password, selectedRole: selectedRole);
 
       // Check auth state after login attempt
       final authState = ref.read(authNotifierProvider);
 
       if (authState.hasError) {
+        if (mounted) {
+          final errorMessage = _getUserFriendlyErrorMessage(
+              authState.errorMessage ?? 'Authentication failed');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
+        }
         return;
       }
 
@@ -124,23 +167,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         if (user?.isPatient ?? false) {
           if (mounted) {
-            context.go('/patient/home');
+            await navigateAfterAuth(GoRouter.of(context), isCaregiver: false);
           }
         } else if (user?.isCaregiver ?? false) {
           if (mounted) {
-            context.go('/caregiver/home');
+            await navigateAfterAuth(GoRouter.of(context), isCaregiver: true);
           }
         }
       } else {
         if (mounted) {
-          _showFullAuthErrorDialog(
-            Exception('Authentication failed. Please try again.'),
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Authentication failed. Please try again.')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        _showFullAuthErrorDialog(e);
+        final errorMessage = _getUserFriendlyErrorMessage(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
       }
     }
   }
@@ -179,8 +226,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: () {
                       setState(() {
                         _isPasswordVisible = !_isPasswordVisible;
-                        print(
-                            '🔐 Password visibility toggled: $_isPasswordVisible');
+                        if (kDebugMode) {
+                          print(
+                              '🔐 Password visibility toggled: $_isPasswordVisible');
+                        }
                       });
                     },
                   ),
@@ -228,15 +277,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-      if (!next.hasError || !mounted) return;
-      final message = next.errorMessage ?? '';
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _showFullAuthErrorDialog(message);
-      });
-    });
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -247,7 +287,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Icons.arrow_back,
             color: Theme.of(context).colorScheme.primary,
           ),
-          onPressed: () => context.go('/welcome'),
+          onPressed: () => context.go('/role-selection'),
         ),
       ),
       body: SafeArea(
@@ -258,18 +298,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const SizedBox(height: 40),
 
-              // Logo Section - No circular container, bigger logo
-              Image.asset(
-                'assets/images/RemiMinder_logo.png',
-                width: 140, // Made bigger without container
-                height: 140,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.medical_services,
-                  color: Color(0xff1B4E59),
-                  size: 80, // Larger fallback icon
-                ),
-              ),
+              const BrandLogo(size: 140),
 
               const SizedBox(height: 24),
 
@@ -289,7 +318,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               // Tagline
               const Text(
-                'Smart AI for Health & Care Coordination',
+                "Capture what matters. Remember what's next.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Poppins', // Poppins-Regular
@@ -382,61 +411,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 16),
 
-              // Apple Button
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.black, // Black background
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  onPressed: _signInWithApple,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    elevation:
-                        0, // Remove default elevation since we have shadow
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Apple logo placeholder (add SVG file for real logo)
-                      Container(
-                        width: 20,
-                        height: 24,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.apple,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Continue with Apple',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w500,
-                          fontSize: 16,
-                        ),
+              // Apple Sign-In is iOS-only (ASC); hidden on Android.
+              if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
+                  child: ElevatedButton(
+                    onPressed: _signInWithApple,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 24,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.apple,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Continue with Apple',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
 
               // Email Button
               Container(
@@ -496,11 +524,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // Create Account Link
               Center(
                 child: TextButton(
-                  onPressed: () {
-                    final r = _userRole;
-                    final q = (r != null && r.isNotEmpty) ? '?role=$r' : '';
-                    context.go('/register$q');
-                  },
+                  onPressed: () => context.go('/register'),
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     minimumSize: Size.zero,
@@ -555,14 +579,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _signInWithGoogle() async {
     try {
+      // Convert string role to UserRole enum
+      UserRole? selectedRole;
+      if (_userRole != null) {
+        selectedRole =
+            _userRole == 'caregiver' ? UserRole.caregiver : UserRole.patient;
+      }
+
       await ref.read(authNotifierProvider.notifier).signInWithGoogle(
-            selectedRole: _intentRole,
+            selectedRole: selectedRole,
           );
 
       // Check auth state after login attempt
       final authState = ref.read(authNotifierProvider);
 
       if (authState.hasError) {
+        if (mounted) {
+          final errorMessage = _getUserFriendlyErrorMessage(
+            authState.errorMessage ?? 'Google Sign-In failed',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
+        }
         return;
       }
 
@@ -572,11 +611,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         if (user?.isPatient ?? false) {
           if (mounted) {
-            context.go('/patient/home');
+            await navigateAfterAuth(GoRouter.of(context), isCaregiver: false);
           }
         } else if (user?.isCaregiver ?? false) {
           if (mounted) {
-            context.go('/caregiver/home');
+            await navigateAfterAuth(GoRouter.of(context), isCaregiver: true);
           }
         } else {
           if (mounted) {
@@ -585,20 +624,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } else {
         if (mounted) {
-          _showFullAuthErrorDialog(Exception('Google Sign-In failed'));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _getUserFriendlyErrorMessage('Google Sign-In failed'),
+              ),
+            ),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        _showFullAuthErrorDialog(e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_getUserFriendlyErrorMessage(e))),
+        );
       }
     }
   }
 
-  void _signInWithApple() {
-    // TODO: Implement Apple Sign In with Firebase
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Apple Sign In - Coming Soon!')),
-    );
+  Future<void> _signInWithApple() async {
+    final selectedRole = ref.read(selectedRoleProvider);
+    try {
+      await ref.read(authNotifierProvider.notifier).signInWithApple(selectedRole: selectedRole);
+      final authState = ref.read(authNotifierProvider);
+      if (authState.isAuthenticated) {
+        final user = authState.user;
+        if (mounted) {
+          final isCaregiver =
+              selectedRole == UserRole.caregiver || (user?.isCaregiver ?? false);
+          await navigateAfterAuth(GoRouter.of(context), isCaregiver: isCaregiver);
+        }
+      } else if (authState.hasError) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(authState.errorMessage ?? 'Apple Sign-In failed')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
   }
 }

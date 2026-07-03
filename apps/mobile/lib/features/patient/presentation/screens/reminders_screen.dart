@@ -1,92 +1,31 @@
-import 'dart:convert';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../../../../core/config/environment.dart';
+import '../../../../core/utils/locale_format.dart';
+import '../../../../core/l10n/localized_pickers.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/reminder_notification_sync.dart';
-import '../../../../shared/widgets/twelve_hour_time_picker.dart';
-import '../../../reminders/data/reminder_repository.dart';
+import '../../../shared/widgets/custom_time_picker_sheet.dart';
+import '../../../shared/widgets/scroll_bottom_fade.dart';
 
-/// Normalizes API `status` / `display_status` values to stable lowercase keys.
-String _reminderCanonicalStatus(String? raw, DateTime scheduledTime) {
-  var key = raw?.toLowerCase().trim() ?? '';
-  key = key.replaceAll(' ', '_').replaceAll('-', '_');
-  if (key.contains('unknown')) {
-    key = 'unknown';
-  }
+class RemindersScreen extends StatefulWidget {
+  const RemindersScreen({super.key, this.openAddOnLaunch = false});
 
-  switch (key) {
-    case 'completed':
-    case 'complete':
-    case 'done':
-    case 'taken':
-      return 'completed';
-    case 'snoozed':
-    case 'snooze':
-      return 'snoozed';
-    case 'missed':
-    case 'overdue':
-    case 'late':
-    case 'skipped':
-      return 'missed';
-    case 'upcoming':
-    case 'future':
-    case 'scheduled':
-      return 'upcoming';
-    case 'pending':
-    case 'active':
-    case 'in_progress':
-      return 'pending';
-    case 'due_now':
-      return 'pending';
-    default:
-      if (key.isEmpty || key == 'unknown' || key == 'null') {
-        final now = DateTime.now();
-        if (scheduledTime.isAfter(now)) return 'upcoming';
-        return 'missed';
-      }
-      return 'pending';
-  }
-}
-
-String _reminderStatusDisplayLabel(String canonical) {
-  switch (canonical) {
-    case 'completed':
-      return 'Completed';
-    case 'snoozed':
-      return 'Snoozed';
-    case 'missed':
-      return 'Missed';
-    case 'upcoming':
-      return 'Upcoming';
-    case 'pending':
-      return 'Pending';
-    default:
-      return 'Pending';
-  }
-}
-
-class RemindersScreen extends ConsumerStatefulWidget {
-  const RemindersScreen({
-    super.key,
-    this.openAddOnLaunch = false,
-    this.prefillReminderTitle,
-  });
-
+  /// When true (e.g. `/patient/reminders?add=1`), opens the new-reminder sheet once after first frame.
   final bool openAddOnLaunch;
-  final String? prefillReminderTitle;
 
   @override
-  ConsumerState<RemindersScreen> createState() => _RemindersScreenState();
+  State<RemindersScreen> createState() => _RemindersScreenState();
 }
 
-class _RemindersScreenState extends ConsumerState<RemindersScreen>
+class _RemindersScreenState extends State<RemindersScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
@@ -95,32 +34,47 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
   bool _isLoading = true;
   bool _hasError = false;
   bool _consumedOpenAddIntent = false;
+
   final List<Map<String, dynamic>> _allReminders = [];
 
-  List<Reminder> _filterReminders(List<Reminder> all) {
-    var reminders = List<Reminder>.from(all);
+  List<Map<String, dynamic>> get _filteredReminders {
+    var reminders = _allReminders;
 
-    if (_searchQuery.trim().isNotEmpty) {
-      final query = _searchQuery.toLowerCase().trim();
-      reminders = reminders.where((r) {
-        return r.title.toLowerCase().contains(query) ||
-            r.description.toLowerCase().contains(query);
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      reminders = reminders.where((reminder) {
+        final title = reminder['title'].toLowerCase();
+        final description = reminder['description'].toLowerCase();
+        final query = _searchQuery.toLowerCase();
+        return title.contains(query) || description.contains(query);
       }).toList();
     }
 
+    // Apply tab filter
     switch (_tabController.index) {
-      case 0:
+      case 0: // All
         return reminders;
-      case 1:
-        final today = DateTime.now();
-        return reminders.where((r) {
-          final t = r.scheduledTime;
-          return t.year == today.year && t.month == today.month && t.day == today.day;
+      case 1: // Today
+        return reminders.where((reminder) {
+          final scheduledTime = reminder['scheduledTime'] as DateTime;
+          final today = DateTime.now();
+          return scheduledTime.year == today.year &&
+              scheduledTime.month == today.month &&
+              scheduledTime.day == today.day;
         }).toList();
-      case 2:
-        return reminders.where((r) => r.status == 'pending').toList();
-      case 3:
-        return reminders.where((r) => r.status == 'completed').toList();
+      case 2: // Pending / active
+        return reminders.where((reminder) {
+          final s = reminder['status']?.toString().toLowerCase() ?? '';
+          return s == 'pending' ||
+              s == 'upcoming' ||
+              s == 'due now' ||
+              s == 'snoozed';
+        }).toList();
+      case 3: // Completed / done
+        return reminders.where((reminder) {
+          final s = reminder['status']?.toString().toLowerCase() ?? '';
+          return s == 'completed' || s == 'skipped' || s == 'missed';
+        }).toList();
       default:
         return reminders;
     }
@@ -142,9 +96,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
     if (widget.openAddOnLaunch && !_consumedOpenAddIntent) {
       _consumedOpenAddIntent = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _addNewReminder(titlePrefill: widget.prefillReminderTitle);
-        }
+        if (mounted) _addNewReminder();
       });
     }
   }
@@ -158,8 +110,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -172,9 +123,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
           ),
           onPressed: () => context.go('/patient/home'),
         ),
-        title: const Text(
-          'Reminders',
-          style: TextStyle(
+        title: Text(
+          l10n.remindersTitle,
+          style: const TextStyle(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -198,101 +149,89 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
             ? TabBar(
                 controller: _tabController,
                 isScrollable: false,
-                tabs: const [
-                  Tab(text: 'All'),
-                  Tab(text: 'Today'),
-                  Tab(text: 'Pending'),
-                  Tab(text: 'Completed'),
+                tabs: [
+                  Tab(text: l10n.tabAll),
+                  Tab(text: l10n.tabToday),
+                  Tab(text: l10n.tabPending),
+                  Tab(text: l10n.tabCompleted),
                 ],
               )
             : null,
       ),
-      body: uid == null
-          ? Center(
-              child: Text(
-                'Sign in to view reminders',
-                style: TextStyle(color: Theme.of(context).colorScheme.secondary),
-              ),
-            )
-          : Column(
-              children: [
-                if (_searchQuery.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: TextField(
-                      controller: _searchController,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: 'Search reminders...',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: _clearSearch,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
-                    ),
+      body: Column(
+        children: [
+          // Search Bar (when active)
+          if (_searchQuery.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: l10n.searchRemindersHint,
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: _clearSearch,
                   ),
-                Expanded(
-                  child: StreamBuilder<List<Reminder>>(
-                    stream: ref.read(reminderRepositoryProvider).getReminders(uid),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting &&
-                          !snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              'Could not load reminders\n${snapshot.error}',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                      final filtered = _filterReminders(snapshot.data ?? []);
-                      if (filtered.isEmpty) {
-                        return _buildEmptyState();
-                      }
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          return _buildReminderCard(filtered[index], uid);
-                        },
-                      );
-                    },
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ],
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
             ),
+
+          // Reminders List
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _hasError
+                    ? Center(
+                        child: TextButton(
+                          onPressed: _loadReminders,
+                          child: Text(l10n.failedToLoadRemindersRetry),
+                        ),
+                      )
+                    : _filteredReminders.isEmpty
+                        ? _buildEmptyState()
+                        : ScrollBottomFade.builder(
+                            fadeColor:
+                                Theme.of(context).scaffoldBackgroundColor,
+                            builder: (context, controller) => ListView.builder(
+                              controller: controller,
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 16, 16, 88),
+                              itemCount: _filteredReminders.length,
+                              itemBuilder: (context, index) {
+                                final reminder = _filteredReminders[index];
+                                return _buildReminderCard(reminder);
+                              },
+                            ),
+                          ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: uid == null ? null : _addNewReminder,
+        onPressed: _addNewReminder,
         backgroundColor: Theme.of(context).colorScheme.primary,
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildReminderCard(Reminder reminder, String uid) {
-    final scheduledTime = reminder.scheduledTime;
-    final status = reminder.status;
-    final type = reminder.type;
+  Widget _buildReminderCard(Map<String, dynamic> reminder) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheduledTime = reminder['scheduledTime'] as DateTime;
+    final status = reminder['status'] as String;
+    final type = reminder['type'] as String;
 
     return Dismissible(
-      key: ValueKey(reminder.id),
+      key: Key(reminder['id']),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
@@ -307,29 +246,27 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
         ),
       ),
       confirmDismiss: (direction) async {
-        return await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Delete Reminder'),
-                content:
-                    const Text('Are you sure you want to delete this reminder?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
-                    child: const Text('Delete'),
-                  ),
-                ],
+        return await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(l10n.deleteReminderTitle),
+            content: Text(l10n.deleteReminderMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(l10n.cancel),
               ),
-            ) ??
-            false;
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text(l10n.delete),
+              ),
+            ],
+          ),
+        );
       },
       onDismissed: (direction) {
-        _deleteReminder(uid, reminder.id);
+        _deleteReminder(reminder['id']);
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
@@ -344,6 +281,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header with type icon and status
                 Row(
                   children: [
                     Container(
@@ -364,7 +302,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            reminder.title,
+                            reminder['title'],
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -375,7 +313,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                             ),
                           ),
                           Text(
-                            reminder.description,
+                            reminder['description'],
                             style: TextStyle(
                               fontSize: 14,
                               color: Theme.of(context).colorScheme.secondary,
@@ -388,8 +326,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                     const SizedBox(width: 8),
                     InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      onTap: () =>
-                          context.push('/patient/reminder/${reminder.id}'),
+                      onTap: () => _showEditReminderDialog(reminder),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
@@ -409,7 +346,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                                     Theme.of(context).colorScheme.primary),
                             const SizedBox(width: 3),
                             Text(
-                              'Edit',
+                              l10n.edit,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Theme.of(context).colorScheme.primary,
@@ -422,7 +359,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 12),
+
+                // Time and dosage info
                 Row(
                   children: [
                     Icon(
@@ -438,7 +378,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                         color: Theme.of(context).colorScheme.secondary,
                       ),
                     ),
-                    if (reminder.dosage != null && reminder.dosage!.isNotEmpty) ...[
+                    if (reminder['dosage'] != null) ...[
                       const SizedBox(width: 16),
                       Icon(
                         Icons.medication,
@@ -447,7 +387,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        reminder.dosage!,
+                        reminder['dosage'],
                         style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context).colorScheme.secondary,
@@ -456,7 +396,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                     ],
                   ],
                 ),
-                if (status == 'snoozed' && reminder.snoozeUntil != null) ...[
+
+                if (status == 'snoozed' && reminder['snoozeUntil'] != null) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding:
@@ -466,7 +407,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Snoozed until ${_formatTime(reminder.snoozeUntil!)}',
+                      l10n.snoozedUntil(_formatTime(reminder['snoozeUntil'])),
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.orange,
@@ -474,28 +415,33 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                     ),
                   ),
                 ],
-                if (status == 'pending' || status == 'snoozed') ...[
+
+                // Action buttons
+                if (['pending', 'snoozed', 'upcoming', 'due now', 'missed']
+                    .contains(status.toLowerCase())) ...[
                   const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => _markAsCompleted(uid, reminder.id),
+                          onPressed: () => _markAsCompleted(reminder['id']),
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(
                               color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                          child: const Text('Mark Done'),
+                          child: Text(l10n.markDone),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _snoozeReminder(uid, reminder.id),
-                          child: const Text('Snooze'),
+                      if (status.toLowerCase() != 'snoozed') ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _snoozeReminder(reminder['id']),
+                            child: Text(l10n.snooze),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ],
@@ -508,40 +454,56 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
   }
 
   Widget _buildStatusBadge(String status) {
+    final l10n = AppLocalizations.of(context)!;
     Color color;
     String text;
     IconData icon;
 
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'completed':
         color = Colors.green;
-        text = _reminderStatusDisplayLabel('completed');
+        text = l10n.statusDone;
         icon = Icons.check_circle;
         break;
+      case 'due now':
+        color = Colors.red;
+        text = l10n.statusDueNow;
+        icon = Icons.alarm;
+        break;
       case 'upcoming':
-        color = Colors.indigo;
-        text = _reminderStatusDisplayLabel('upcoming');
+        color = Colors.blue;
+        text = l10n.statusUpcoming;
         icon = Icons.schedule;
         break;
       case 'pending':
         color = Colors.blue;
-        text = _reminderStatusDisplayLabel('pending');
-        icon = Icons.pending_actions;
+        text = l10n.statusPending;
+        icon = Icons.schedule;
+        break;
+      case 'active':
+        color = Colors.blue;
+        text = l10n.statusActive;
+        icon = Icons.schedule;
         break;
       case 'missed':
         color = Colors.red;
-        text = _reminderStatusDisplayLabel('missed');
+        text = l10n.statusMissed;
         icon = Icons.warning_amber;
         break;
       case 'snoozed':
         color = Colors.orange;
-        text = _reminderStatusDisplayLabel('snoozed');
+        text = l10n.statusSnoozed;
         icon = Icons.snooze;
         break;
+      case 'skipped':
+        color = Colors.grey;
+        text = l10n.statusSkipped;
+        icon = Icons.skip_next;
+        break;
       default:
-        color = Colors.blue;
-        text = _reminderStatusDisplayLabel('pending');
-        icon = Icons.help_outline;
+        color = Colors.grey;
+        text = status;
+        icon = Icons.help;
     }
 
     return Container(
@@ -569,6 +531,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
   }
 
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -580,9 +543,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.trim().isEmpty
-                ? 'No reminders found'
-                : 'No reminders match your search',
+            _searchQuery.isEmpty
+                ? l10n.noRemindersFound
+                : l10n.noRemindersMatchSearch,
             style: TextStyle(
               fontSize: 18,
               color: Theme.of(context).colorScheme.secondary,
@@ -591,21 +554,21 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.trim().isEmpty
-                ? 'Create your first reminder to get started'
-                : 'Try adjusting your search terms',
+            _searchQuery.isEmpty
+                ? l10n.createFirstReminder
+                : l10n.tryAdjustSearch,
             style: TextStyle(
               fontSize: 14,
               color: Theme.of(context).colorScheme.secondary.withOpacity(0.7),
             ),
             textAlign: TextAlign.center,
           ),
-          if (_searchQuery.trim().isEmpty) ...[
+          if (_searchQuery.isEmpty) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _addNewReminder,
               icon: const Icon(Icons.add),
-              label: const Text('Create Reminder'),
+              label: Text(l10n.createReminder),
               style: ElevatedButton.styleFrom(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -644,6 +607,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
   }
 
   String _formatTime(DateTime dateTime) {
+    final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
     final difference = dateTime.difference(now);
 
@@ -652,39 +616,60 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
       final minutes = difference.inMinutes.abs() % 60;
 
       if (hours > 24) {
-        return '${dateTime.day}/${dateTime.month} ${_toAmPm(dateTime)}';
-      } else if (hours > 0) {
-        return '$hours hours ago';
-      } else {
-        return '$minutes minutes ago';
+        return LocaleFormat.dateTimeMedium(context, dateTime);
       }
-    } else {
-      final hours = difference.inHours;
-      final minutes = difference.inMinutes % 60;
-
-      if (hours > 24) {
-        return '${dateTime.day}/${dateTime.month} ${_toAmPm(dateTime)}';
-      } else if (hours > 0) {
-        return 'In $hours hours (${_toAmPm(dateTime)})';
-      } else if (minutes > 0) {
-        return 'In $minutes minutes (${_toAmPm(dateTime)})';
-      } else {
-        return 'Now';
+      if (hours > 0) {
+        return LocaleFormat.localizeDigitsInText(
+          context,
+          l10n.timeHoursAgo(hours),
+        );
       }
+      return LocaleFormat.localizeDigitsInText(
+        context,
+        l10n.timeMinutesAgo(minutes),
+      );
     }
+
+    final hours = difference.inHours;
+    final minutes = difference.inMinutes % 60;
+    final timeStr = LocaleFormat.time(context, dateTime);
+
+    if (hours > 24) {
+      return LocaleFormat.dateTimeMedium(context, dateTime);
+    }
+    if (hours > 0) {
+      return LocaleFormat.localizeDigitsInText(
+        context,
+        l10n.timeInHours(hours, timeStr),
+      );
+    }
+    if (minutes > 0) {
+      return LocaleFormat.localizeDigitsInText(
+        context,
+        l10n.timeInMinutes(minutes, timeStr),
+      );
+    }
+    return l10n.timeNow;
   }
 
-  String _toAmPm(DateTime dt) {
-    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'PM' : 'AM';
-    return '$hour:$minute $period';
+  String _formatLocalizedDate(DateTime dateTime) {
+    return LocaleFormat.dateShort(context, dateTime);
+  }
+
+  Future<TimeOfDay?> _showCustomTimePicker(
+    BuildContext sheetContext, {
+    required TimeOfDay initialTime,
+  }) async {
+    return CustomTimePickerSheet.show(
+      sheetContext,
+      initialTime: initialTime,
+    );
   }
 
   void _toggleSearch() {
     setState(() {
       if (_searchQuery.isEmpty) {
-        _searchQuery = ' ';
+        _searchQuery = ' '; // Trigger search mode
       } else {
         _clearSearch();
       }
@@ -698,296 +683,478 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
     });
   }
 
-  Future<void> _addNewReminder({String? titlePrefill}) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+  void _addNewReminder() {
+    final l10n = AppLocalizations.of(context)!;
+    final appLocale = Localizations.localeOf(context);
+    final titleController = TextEditingController();
+    var dosageText = '';
+    String selectedType = 'medication';
+    String selectedRecurrence = 'once';
+    DateTime selectedDate = DateTime.now().add(const Duration(hours: 1));
+    TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
 
-    final titleCtrl = TextEditingController(text: titlePrefill ?? '');
-    final descCtrl = TextEditingController();
-    final dosageCtrl = TextEditingController();
-    final freqCtrl = TextEditingController();
-    String type = 'medication';
-    DateTime scheduled = DateTime.now().add(const Duration(hours: 1));
-
-    await showModalBottomSheet<void>(
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: StatefulBuilder(
-            builder: (ctx, setModal) {
-              Future<void> pickDate() async {
-                final d = await showDatePicker(
-                  context: ctx,
-                  initialDate: scheduled,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2100),
-                );
-                if (d != null) {
-                  setModal(() {
-                    scheduled = DateTime(
-                      d.year,
-                      d.month,
-                      d.day,
-                      scheduled.hour,
-                      scheduled.minute,
-                    );
-                  });
-                }
-              }
-
-              Future<void> pickTime() async {
-                final t = await showTimePicker(
-                  context: ctx,
-                  initialTime: TimeOfDay.fromDateTime(scheduled),
-                );
-                if (t != null) {
-                  setModal(() {
-                    scheduled = DateTime(
-                      scheduled.year,
-                      scheduled.month,
-                      scheduled.day,
-                      t.hour,
-                      t.minute,
-                    );
-                  });
-                }
-              }
-
-              return SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.newReminder,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                      labelText: l10n.reminderTitleLabel,
+                      border: const OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: l10n.dosageOptional,
+                    hintText: l10n.dosageHint,
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (v) => dosageText = v,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedType,
+                  decoration: InputDecoration(
+                      labelText: l10n.reminderTypeLabel,
+                      border: const OutlineInputBorder()),
+                  items: [
+                    DropdownMenuItem(
+                        value: 'medication', child: Text(l10n.medication)),
+                    DropdownMenuItem(value: 'task', child: Text(l10n.task)),
+                    DropdownMenuItem(
+                        value: 'appointment', child: Text(l10n.appointment)),
+                  ],
+                  onChanged: (v) => setModal(() => selectedType = v!),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedRecurrence,
+                  decoration: InputDecoration(
+                      labelText: l10n.repeatLabel,
+                      border: const OutlineInputBorder()),
+                  items: [
+                    DropdownMenuItem(value: 'once', child: Text(l10n.once)),
+                    DropdownMenuItem(value: 'daily', child: Text(l10n.daily)),
+                    DropdownMenuItem(value: 'weekly', child: Text(l10n.weekly)),
+                  ],
+                  onChanged: (v) => setModal(() => selectedRecurrence = v!),
+                ),
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    Text(
-                      'New reminder',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(ctx).colorScheme.primary,
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.calendar_today),
+                        label: Text(_formatLocalizedDate(selectedDate)),
+                        onPressed: () async {
+                          final d = await showLocalizedDatePicker(
+                            context,
+                            locale: appLocale,
+                            initialDate: selectedDate,
+                            firstDate: DateTime.now(),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (d != null)
+                            setModal(() => selectedDate = DateTime(
+                                d.year,
+                                d.month,
+                                d.day,
+                                selectedTime.hour,
+                                selectedTime.minute));
+                        },
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: titleCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Title',
-                        border: OutlineInputBorder(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.access_time),
+                        label: Text(selectedTime.format(context)),
+                        onPressed: () async {
+                          final t = await _showCustomTimePicker(
+                            ctx,
+                            initialTime: selectedTime,
+                          );
+                          if (t != null)
+                            setModal(() {
+                              selectedTime = t;
+                              selectedDate = DateTime(
+                                  selectedDate.year,
+                                  selectedDate.month,
+                                  selectedDate.day,
+                                  t.hour,
+                                  t.minute);
+                            });
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: descCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: type,
-                      decoration: const InputDecoration(
-                        labelText: 'Type',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'medication', child: Text('Medication')),
-                        DropdownMenuItem(value: 'appointment', child: Text('Appointment')),
-                        DropdownMenuItem(value: 'measurement', child: Text('Measurement')),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setModal(() => type = v);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: pickDate,
-                            child: Text(
-                              '${scheduled.year}-${scheduled.month.toString().padLeft(2, '0')}-${scheduled.day.toString().padLeft(2, '0')}',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: pickTime,
-                            child: Text(
-                              '${scheduled.hour.toString().padLeft(2, '0')}:${scheduled.minute.toString().padLeft(2, '0')}',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: dosageCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Dosage (optional)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: freqCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Frequency (optional)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('Cancel'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () async {
-                              final title = titleCtrl.text.trim();
-                              if (title.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Title is required'),
-                                  ),
-                                );
-                                return;
-                              }
-                              try {
-                                final created =
-                                    await ref.read(reminderRepositoryProvider).createReminder(
-                                  uid,
-                                  Reminder(
-                                    id: '',
-                                    title: title,
-                                    description: descCtrl.text.trim(),
-                                    type: type,
-                                    scheduledTime: scheduled,
-                                    status: 'pending',
-                                    dosage: dosageCtrl.text.trim().isEmpty
-                                        ? null
-                                        : dosageCtrl.text.trim(),
-                                    frequency: freqCtrl.text.trim().isEmpty
-                                        ? null
-                                        : freqCtrl.text.trim(),
-                                    snoozeCount: 0,
-                                    snoozeUntil: null,
-                                    createdAt: DateTime.now(),
-                                  ),
-                                );
-                                final notifId = created.id.hashCode & 0x7fffffff;
-                                await NotificationService().scheduleReminder(
-                                  id: notifId,
-                                  title: created.title,
-                                  body: created.description,
-                                  scheduledTime: created.scheduledTime,
-                                );
-                                if (ctx.mounted) Navigator.of(ctx).pop();
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Reminder created'),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Failed: $e')),
-                                  );
-                                }
-                              }
-                            },
-                            child: const Text('Save'),
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
-              );
-            },
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B4E59),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () async {
+                      final title = titleController.text.trim();
+                      if (title.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l10n.pleaseEnterTitle)));
+                        return;
+                      }
+                      final tzName = await FlutterTimezone.getLocalTimezone();
+                      if (!ctx.mounted) return;
+                      Navigator.of(ctx).pop();
+                      if (!mounted) return;
+                      await _createReminderApi(
+                        title: title,
+                        type: selectedType,
+                        scheduledTime: selectedDate,
+                        recurrence: selectedRecurrence,
+                        timezone: tzName,
+                        dosage: dosageText.trim(),
+                      );
+                    },
+                    child: Text(l10n.createReminder,
+                        style: const TextStyle(color: Colors.white, fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  void _editReminder(Reminder reminder) {
-    // TODO: Navigate to edit reminder screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Edit ${reminder.title} - Coming Soon!')),
+  Future<void> _createReminderApi({
+    required String title,
+    required String type,
+    required DateTime scheduledTime,
+    required String recurrence,
+    required String timezone,
+    String dosage = '',
+  }) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final token = await _authService.getAccessToken();
+      if (token == null) throw Exception('Authentication required');
+      final payload = <String, dynamic>{
+        'user_id': '',
+        'reminder_type': type,
+        'title': title,
+        'scheduled_time': scheduledTime.toUtc().toIso8601String(),
+        'timezone': timezone,
+        'recurrence': recurrence,
+      };
+      if (dosage.isNotEmpty) {
+        payload['context_data'] = {'dosage': dosage};
+      }
+      final response = await http.post(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json'
+        },
+        body: json.encode(payload),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final reminderId = data['id']?.toString() ??
+            DateTime.now().millisecondsSinceEpoch.toString();
+        final serverMessage = data['message']?.toString().trim();
+
+        // Schedule local notification immediately
+        try {
+          await NotificationService().scheduleFromReminderData(
+            reminderId: reminderId,
+            medicationName: title,
+            dosage: dosage,
+            scheduledTime: scheduledTime.toLocal(),
+            reminderType: type,
+            isRecurring: recurrence != 'once',
+            recurrencePattern: recurrence,
+            notificationBody: (serverMessage != null && serverMessage.isNotEmpty)
+                ? serverMessage
+                : null,
+          );
+        } catch (err) {
+          debugPrint('Failed to schedule notification: $err');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Local notification scheduling failed: $err')),
+            );
+          }
+        }
+
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(l10n.reminderCreated)));
+        _loadReminders();
+      } else {
+        throw Exception('Status ${response.statusCode}');
+      }
+    } catch (err) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.failedToCreateReminder('$err'))));
+    }
+  }
+
+  void _editReminder(Map<String, dynamic> reminder) {
+    final id = reminder['id']?.toString();
+    if (id == null || id.isEmpty) return;
+    context.push('/patient/reminder/$id');
+  }
+
+  void _showEditReminderDialog(Map<String, dynamic> reminder) {
+    final l10n = AppLocalizations.of(context)!;
+    final appLocale = Localizations.localeOf(context);
+    final id = reminder['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+
+    final titleController =
+        TextEditingController(text: reminder['title']?.toString() ?? '');
+    DateTime selectedDate =
+        (reminder['scheduledTime'] as DateTime?) ?? DateTime.now();
+    TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.editReminder,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                      labelText: l10n.reminderTitleLabel,
+                      border: const OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.calendar_today),
+                        label: Text(_formatLocalizedDate(selectedDate)),
+                        onPressed: () async {
+                          final d = await showLocalizedDatePicker(
+                            context,
+                            locale: appLocale,
+                            initialDate: selectedDate,
+                            firstDate: DateTime.now()
+                                .subtract(const Duration(days: 1)),
+                            lastDate: DateTime.now()
+                                .add(const Duration(days: 365)),
+                          );
+                          if (d != null) {
+                            setModal(() => selectedDate = DateTime(
+                                d.year,
+                                d.month,
+                                d.day,
+                                selectedTime.hour,
+                                selectedTime.minute));
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.access_time),
+                        label: Text(selectedTime.format(context)),
+                        onPressed: () async {
+                          final t = await _showCustomTimePicker(
+                            ctx,
+                            initialTime: selectedTime,
+                          );
+                          if (t != null) {
+                            setModal(() {
+                              selectedTime = t;
+                              selectedDate = DateTime(
+                                  selectedDate.year,
+                                  selectedDate.month,
+                                  selectedDate.day,
+                                  t.hour,
+                                  t.minute);
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1B4E59),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () async {
+                      final title = titleController.text.trim();
+                      if (title.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l10n.pleaseEnterTitle)));
+                        return;
+                      }
+                      if (!ctx.mounted) return;
+                      Navigator.of(ctx).pop();
+                      final reminderType =
+                          ReminderNotificationSync.readReminderType(reminder);
+                      if (reminderType == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.cannotRescheduleMissingType),
+                          ),
+                        );
+                        return;
+                      }
+                      await _updateReminderApi(
+                          id: id,
+                          title: title,
+                          type: reminderType,
+                          scheduledTime: selectedDate);
+                    },
+                    child: Text(l10n.saveChanges,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 16)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  Future<void> _markAsCompleted(String uid, String id) async {
+  Future<void> _updateReminderApi({
+    required String id,
+    required String title,
+    required String type,
+    required DateTime scheduledTime,
+  }) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
-      await ref.read(reminderRepositoryProvider).completeReminder(uid, id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reminder marked as completed!')),
-        );
+      final token = await _authService.getAccessToken();
+      if (token == null) throw Exception('Authentication required');
+      final response = await http.put(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json'
+        },
+        body: json.encode({
+          'title': title,
+          'scheduled_time': scheduledTime.toUtc().toIso8601String(),
+        }),
+      );
+      if (response.statusCode == 200) {
+        // Reschedule local notification with new time
+        try {
+          await NotificationService().cancelFromReminderId(id);
+          await NotificationService().scheduleFromReminderData(
+            reminderId: id,
+            medicationName: title,
+            dosage: '',
+            scheduledTime: scheduledTime.toLocal(),
+            reminderType: type,
+          );
+        } catch (err) {
+          debugPrint('Failed to reschedule notification: $err');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Reminder reschedule failed: $err')),
+            );
+          }
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.reminderUpdated)));
+          _loadReminders();
+        }
+      } else {
+        throw Exception('Status ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (err) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
+            SnackBar(content: Text(l10n.failedToUpdateReminder('$err'))));
       }
     }
   }
 
-  Future<void> _snoozeReminder(String uid, String id) async {
+  void _markAsCompleted(String id) {
+    _reminderAction(id, 'complete', success: AppLocalizations.of(context)!.reminderMarkedCompleted);
+    // Cancel local notification for this reminder
     try {
-      await ref.read(reminderRepositoryProvider).snoozeReminder(uid, id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reminder snoozed for 30 minutes')),
-        );
-      }
+      NotificationService().cancelFromReminderId(id);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
-      }
+      debugPrint('Failed to cancel notification for completed reminder: $e');
     }
   }
 
-  Future<void> _deleteReminder(String uid, String id) async {
+  void _snoozeReminder(String id) {
+    _reminderAction(id, 'snooze', success: AppLocalizations.of(context)!.reminderSnoozed30);
+    // Cancel local notification for this reminder (will be rescheduled in snooze action)
     try {
-      await ref.read(reminderRepositoryProvider).deleteReminder(uid, id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reminder deleted')),
-        );
-      }
+      NotificationService().cancelFromReminderId(id);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete: $e')),
-        );
-      }
+      debugPrint('Failed to cancel notification for snoozed reminder: $e');
     }
+  }
+
+  void _deleteReminder(String id) {
+    _deleteReminderApi(id);
   }
 
   void _showAdherenceStats() {
+    final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
     final weekAgo = now.subtract(const Duration(days: 7));
     final monthAgo = now.subtract(const Duration(days: 30));
@@ -1041,6 +1208,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
         ),
         child: Column(
           children: [
+            // Header
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -1056,9 +1224,9 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                     size: 28,
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Medication Adherence',
-                    style: TextStyle(
+                  Text(
+                    l10n.medicationAdherence,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1066,40 +1234,71 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                 ],
               ),
             ),
+
+            // Stats Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildAdherenceStat('This Week', 0.85, '6/7 days'),
+                    // Overall adherence
+                    _buildAdherenceStat(
+                      l10n.thisWeek,
+                      weekRate,
+                      l10n.dosesCount(weekDone, weekReminders.length),
+                    ),
                     const SizedBox(height: 16),
                     _buildAdherenceStat(
-                      'This Month',
+                      l10n.thisMonth,
                       monthRate,
-                      '$monthDone/${monthReminders.length} doses',
+                      l10n.dosesCount(monthDone, monthReminders.length),
                     ),
                     const SizedBox(height: 16),
-                    _buildAdherenceStat('Overall', 0.88, '89/101 doses'),
+                    _buildAdherenceStat(
+                      l10n.overall,
+                      overallRate,
+                      l10n.dosesCount(totalDone, past.length),
+                    ),
+
                     const SizedBox(height: 32),
-                    Text(
-                      'By Medication',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary,
+
+                    if (medicationMap.isNotEmpty) ...[
+                      Text(
+                        l10n.byMedication,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMedicationAdherence(
-                        'Lisinopril 10mg', 0.95, '19/20 doses'),
-                    const SizedBox(height: 12),
-                    _buildMedicationAdherence(
-                        'Metformin 500mg', 0.80, '16/20 doses'),
-                    const SizedBox(height: 12),
-                    _buildMedicationAdherence(
-                        'Atorvastatin 20mg', 0.90, '18/20 doses'),
+                      const SizedBox(height: 16),
+                      ...medicationMap.entries.map((entry) {
+                        final rate = entry.value['total']! > 0
+                            ? entry.value['done']! / entry.value['total']!
+                            : 0.0;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildMedicationAdherence(
+                            entry.key,
+                            rate,
+                            l10n.dosesCount(
+                                entry.value['done']!, entry.value['total']!),
+                          ),
+                        );
+                      }),
+                    ] else ...[
+                      Center(
+                        child: Text(
+                          l10n.noPastRemindersAnalyze,
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 32),
+
+                    // Tips
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1109,17 +1308,17 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(
+                          Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.lightbulb,
                                 color: Colors.blue,
                                 size: 20,
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Text(
-                                'Adherence Tips',
-                                style: TextStyle(
+                                l10n.adherenceTips,
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.blue,
@@ -1129,11 +1328,11 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            '• Set phone reminders for medication times\n• Keep medications in a visible location\n• Use a pill organizer for daily doses\n• Track your progress to stay motivated',
+                            l10n.adherenceTipsBody,
                             style: TextStyle(
                               fontSize: 14,
                               height: 1.5,
-                              color: Colors.blue,
+                              color: Colors.blue[700],
                             ),
                           ),
                         ],
@@ -1202,7 +1401,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
                 ),
               ),
               Text(
-                '${(adherence * 100).toInt()}%',
+                LocaleFormat.percent(context, adherence * 100),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -1257,7 +1456,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${(adherence * 100).toInt()}%',
+              LocaleFormat.percent(context, adherence * 100),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -1270,7 +1469,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
     );
   }
 
-  Future<void> _loadReminders({Map<String, dynamic>? mergeReminderForSync}) async {
+  Future<void> _loadReminders() async {
     try {
       setState(() {
         _isLoading = true;
@@ -1293,58 +1492,103 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen>
         ...(data['past'] as List<dynamic>? ?? []),
       ];
       final mapped = merged.whereType<Map<String, dynamic>>().map((r) {
-        final scheduledTime =
-            (DateTime.tryParse(r['scheduled_time']?.toString() ?? '') ??
-                    DateTime.now())
-                .toLocal();
-        final rawStatus =
-            (r['display_status'] ?? r['status'])?.toString();
-        final status =
-            _reminderCanonicalStatus(rawStatus, scheduledTime);
         return {
           'id': r['id']?.toString() ?? '',
           'title': r['title']?.toString() ?? 'Reminder',
           'description': r['message']?.toString() ?? '',
-          'scheduledTime': scheduledTime,
-          'status': status,
-          'type': r['reminder_type']?.toString() ?? 'task',
+          'scheduledTime':
+              (DateTime.tryParse(r['scheduled_time']?.toString() ?? '') ??
+                      DateTime.now())
+                  .toLocal(),
+          'status':
+              (r['display_status'] ?? r['status'])?.toString() ?? 'pending',
+          'type': r['reminder_type']?.toString(),
           'dosage': null,
-          'recurrence': r['recurrence']?.toString() ?? 'once',
           'snoozeUntil': r['snooze_until'] != null
               ? DateTime.tryParse(r['snooze_until'].toString())
               : null,
+          'snoozedCount': (r['snoozed_count'] as num?)?.toInt() ?? 0,
         };
       }).toList();
-
-      final forSync = List<Map<String, dynamic>>.from(mapped);
-      if (mergeReminderForSync != null) {
-        final mergeId = mergeReminderForSync['id']?.toString();
-        if (mergeId != null && mergeId.isNotEmpty) {
-          final idx = forSync.indexWhere((r) => r['id']?.toString() == mergeId);
-          if (idx >= 0) {
-            forSync[idx] = {...forSync[idx], ...mergeReminderForSync};
-          } else {
-            forSync.add(Map<String, dynamic>.from(mergeReminderForSync));
-          }
-        }
-      }
-
       if (!mounted) return;
       setState(() {
         _allReminders
           ..clear()
-          ..addAll(forSync);
+          ..addAll(mapped);
         _isLoading = false;
       });
 
       // Reschedule local notifications for all future pending reminders.
-      await ReminderNotificationSync.syncPatientFromMapped(forSync);
+      await ReminderNotificationSync.syncPatientFromMapped(mapped);
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _hasError = true;
       });
+    }
+  }
+
+  Future<void> _reminderAction(String id, String action,
+      {required String success}) async {
+    try {
+      final token = await _authService.getAccessToken();
+      if (token == null) throw Exception('Authentication required');
+      final uri = action == 'snooze'
+          ? Uri.parse(
+              '${Environment.apiBaseUrl}/api/reminders/$id/snooze?snooze_minutes=30')
+          : Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id/$action');
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({}),
+      );
+      if (response.statusCode != 200) {
+        if (action == 'snooze' && response.statusCode == 404 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.snoozeAlreadyUsed),
+            ),
+          );
+          return;
+        }
+        throw Exception('Failed (${response.statusCode})');
+      }
+      await _loadReminders();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(success)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.actionFailed)));
+    }
+  }
+
+  Future<void> _deleteReminderApi(String id) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final token = await _authService.getAccessToken();
+      if (token == null) throw Exception('Authentication required');
+      final response = await http.delete(
+        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json'
+        },
+      );
+      if (response.statusCode != 204) throw Exception('Failed');
+      await _loadReminders();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.reminderDeleted)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.deleteFailed)));
     }
   }
 }

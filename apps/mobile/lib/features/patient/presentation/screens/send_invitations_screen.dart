@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
+import '../../../../core/utils/locale_format.dart';
+import '../../../../l10n/app_localizations.dart';
 
 class SendInvitationsScreen extends StatefulWidget {
   const SendInvitationsScreen({super.key});
@@ -372,7 +374,10 @@ class _SendInvitationsScreenState extends State<SendInvitationsScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${(caregiver['permissions'] as List).length} perms',
+                              LocaleFormat.localizeDigitsInText(
+                                context,
+                                '${LocaleFormat.number(context, (caregiver['permissions'] as List).length)} perms',
+                              ),
                               style: const TextStyle(
                                 fontSize: 9,
                                 color: Colors.blue,
@@ -404,7 +409,10 @@ class _SendInvitationsScreenState extends State<SendInvitationsScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${caregiver['activityCount']} acts',
+                            LocaleFormat.localizeDigitsInText(
+                              context,
+                              '${LocaleFormat.number(context, caregiver['activityCount'] as int)} acts',
+                            ),
                             style: const TextStyle(
                               fontSize: 9,
                               color: Colors.purple,
@@ -887,17 +895,7 @@ class _SendInvitationsScreenState extends State<SendInvitationsScreen> {
   }
 
   String _formatLastActivity(DateTime lastActivity) {
-    final now = DateTime.now();
-    final difference = now.difference(lastActivity);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
+    final l10n = AppLocalizations.of(context)!;
+    return LocaleFormat.timeAgo(context, lastActivity, l10n);
   }
 }

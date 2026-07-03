@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/visit_context.dart';
 import '../widgets/widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -115,7 +116,8 @@ class _HistoryScreenState extends State<HistoryScreen>
             '3 days ago',
             Icons.receipt,
             Colors.green,
-            () => context.go('/patient/scan'),
+            () => context.go(
+                '/patient/scan/${VisitContext().getCurrentVisitId() ?? VisitContext().startNewVisit()}'),
           ),
           _buildHistoryItem(
             'Lab Results',
@@ -191,7 +193,8 @@ class _HistoryScreenState extends State<HistoryScreen>
             '3 days ago',
             Icons.receipt,
             Colors.green,
-            () => context.go('/patient/scan'),
+            () => context.go(
+                '/patient/scan/${VisitContext().getCurrentVisitId() ?? VisitContext().startNewVisit()}'),
           ),
           _buildHistoryItem(
             'Lab Results',

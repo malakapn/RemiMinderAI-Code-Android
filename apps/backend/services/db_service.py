@@ -203,23 +203,56 @@ async def get_user_by_email(email: str) -> Optional[dict]:
         raise
 
 
+def _new_user_db_role(app_role: Optional[str], role: Optional[str]) -> str:
+    """Map bootstrap app_role or explicit DB role to users.role column."""
+    if role is not None and str(role).strip():
+        return str(role).strip()
+    if (app_role or "").strip().lower() == "caregiver":
+        return "caregiver"
+    return "user"
+
+
+def _wants_caregiver_role(app_role: Optional[str], role: Optional[str]) -> bool:
+    if (role or "").strip().lower() == "caregiver":
+        return True
+    return (app_role or "").strip().lower() == "caregiver"
+
+
+def _maybe_upgrade_user_to_caregiver(
+    conn,
+    user_id: str,
+    current_db_role: str,
+    app_role: Optional[str],
+    role: Optional[str],
+) -> None:
+    if str(current_db_role).strip().lower() != "user":
+        return
+    if not _wants_caregiver_role(app_role, role):
+        return
+    conn.execute(
+        text("UPDATE users SET role = 'caregiver' WHERE id = :user_id"),
+        {"user_id": user_id},
+    )
+
+
 async def ensure_user_exists(
     firebase_uid: str,
     email: str,
     request_full_name: Optional[str] = None,
     firebase_name: Optional[str] = None,
-    role: str = "user",
+    app_role: Optional[str] = None,
+    role: Optional[str] = None,
 ) -> bool:
     """
     Ensure a user row exists in Cloud SQL.
     Returns True if created, False if already exists.
     Populates full_name if empty using request or Firebase token data.
 
-    If app_role is 'caregiver', new rows are created as caregiver; existing
-    rows with role 'user' are upgraded to 'caregiver' so OAuth sign-in matches
-    the in-app role selection.
+    app_role: 'patient' | 'caregiver' from /api/users/bootstrap.
+    role: explicit DB role (e.g. 'caregiver' when accepting a care-team invite).
+    If app_role is caregiver, existing rows with role 'user' upgrade to caregiver.
     """
-    initial_role = _initial_db_role_from_app_role(app_role)
+    insert_role = _new_user_db_role(app_role, role)
     engine = get_cloud_sql_engine()
     with engine.begin() as conn:
         # Check if user exists by firebase_uid
@@ -235,7 +268,7 @@ async def ensure_user_exists(
             # User exists - update full_name if empty; optional caregiver upgrade
             user_id, current_full_name, current_db_role = existing_user
             _maybe_upgrade_user_to_caregiver(
-                conn, str(user_id), firebase_uid, str(current_db_role), app_role
+                conn, str(user_id), str(current_db_role), app_role, role
             )
             if not current_full_name or current_full_name.strip() == "":
                 # Determine name to use
@@ -279,7 +312,7 @@ async def ensure_user_exists(
                 )
 
             _maybe_upgrade_user_to_caregiver(
-                conn, str(user_id), firebase_uid, str(current_db_role), app_role
+                conn, str(user_id), str(current_db_role), app_role, role
             )
 
             # Fill in a name if the existing row doesn't have one yet.
@@ -315,7 +348,7 @@ async def ensure_user_exists(
                 "firebase_uid": firebase_uid,
                 "email": email,
                 "full_name": full_name,
-                "role": role,
+                "role": insert_role,
             },
         )
         return True

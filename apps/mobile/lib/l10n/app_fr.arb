@@ -1,0 +1,482 @@
+{
+  "appTitle": "RemiMinder",
+  "login": "Connexion",
+  "logout": "Déconnexion",
+  "settings": "Paramètres",
+  "language": "Langue",
+  "profileSettings": "Paramètres du profil",
+  "languageSettings": "Langue",
+  "languageUpdated": "Langue mise à jour. L'application s'affichera désormais en {language}.",
+  "navHome": "Accueil",
+  "navVisits": "Visites",
+  "navOverview": "Aperçu",
+  "navCareTeam": "Équipe",
+  "navProfile": "Profil",
+  "navPatients": "Patients",
+  "goodMorning": "Bonjour",
+  "goodAfternoon": "Bon après-midi",
+  "goodEvening": "Bonsoir",
+  "goodNight": "Bonne nuit",
+  "howAreYouFeeling": "Comment vous sentez-vous aujourd'hui ?",
+  "todaysProgress": "Progrès du jour",
+  "doneCount": "{done}/{total} terminés",
+  "yourSchedule": "Votre planning",
+  "seeAll": "Tout voir →",
+  "nothingScheduledYet": "Rien de prévu pour l'instant",
+  "unableToLoadReminders": "Impossible de charger les rappels",
+  "addReminder": "Ajouter un rappel",
+  "myTasks": "Mes tâches",
+  "pendingCount": "{count} en attente",
+  "noTasksYet": "Aucune tâche pour l'instant",
+  "addTask": "Ajouter une tâche",
+  "statusUpcoming": "À venir",
+  "statusScheduled": "Planifié",
+  "statusDone": "Fait",
+  "reminder": "Rappel",
+  "task": "Tâche",
+  "careTeamTitle": "Équipe de soins",
+  "careTeamSubtitle": "Vous gardez le contrôle. Consultez vos autorisations de partage ci-dessous.",
+  "sectionPending": "EN ATTENTE",
+  "sectionAddNew": "AJOUTER",
+  "inviteCaregiver": "Inviter un aidant",
+  "inviteCaregiverSubtitle": "Partager l'accès à vos informations de santé",
+  "invitationPending": "Invitation en attente",
+  "resend": "Renvoyer",
+  "cancel": "Annuler",
+  "activeCaregivers": "Aidants actifs",
+  "noCaregiversYet": "Aucun aidant ajouté",
+  "english": "Anglais",
+  "spanish": "Espagnol",
+  "hindi": "Hindi",
+  "french": "Français",
+  "portuguese": "Portugais",
+  "german": "Allemand",
+  "bangla": "Bengali",
+  "tamil": "Tamoul",
+  "gujarati": "Gujarati",
+  "punjabi": "Pendjabi",
+  "accountDetails": "Détails du compte",
+  "accountDetailsSubtitle": "Voir les informations de votre profil",
+  "accountSecurity": "Sécurité du compte",
+  "accountSecuritySubtitle": "Gérer le mot de passe et la confidentialité",
+  "notificationsLabel": "Notifications",
+  "mobileLabel": "Mobile",
+  "emailLabel": "E-mail",
+  "upgrade": "Mettre à niveau",
+  "signOut": "Se déconnecter",
+  "deleteAccount": "Supprimer le compte",
+  "deleteAccountTitle": "Supprimer le compte",
+  "deleteAccountMessage": "Cela supprimera définitivement votre compte et toutes vos données. Cette action est irréversible. Êtes-vous sûr ?",
+  "delete": "Supprimer",
+  "searchSummariesHint": "Rechercher des résumés...",
+  "tabSummaries": "RÉSUMÉS",
+  "tabLabResults": "LABORATOIRE",
+  "tabScannedDocs": "NUMÉRISÉS",
+  "noSummariesYet": "Aucun résumé pour l'instant",
+  "summariesWillAppearHere": "Vos résumés de visite apparaîtront ici",
+  "failedToLoadSummaries": "Échec du chargement des résumés",
+  "retry": "Réessayer",
+  "shareLabel": "Partager",
+  "doctorVisit": "Visite médicale",
+  "timeToday": "Aujourd'hui, {time}",
+  "timeYesterday": "Hier, {time}",
+  "summaryProcessingHint": "Tirez vers le bas pour actualiser. Cela prend généralement 30 à 60 secondes.",
+  "summaryCouldNotGenerate": "Le résumé n'a pas pu être généré",
+  "retrySummary": "Réessayer le résumé",
+  "stuckRetrySummary": "Bloqué ? Réessayer",
+  "scannedDocument": "Document numérisé",
+  "scannedOn": "Numérisé le {date}",
+  "visitDetails": "Détails de la visite",
+  "healthVisitSummary": "Résumé de visite médicale",
+  "refreshSummaryTooltip": "Actualiser le résumé",
+  "preparingVisitSummary": "Préparation du résumé de visite...",
+  "preparingVisitSubtitle": "Cela peut prendre une minute.",
+  "unableToLoadVisitSummary": "Impossible de charger le résumé",
+  "visitSummaryUnavailable": "Résumé de visite indisponible",
+  "visitSummary": "Résumé de visite",
+  "visitProcessingTitle": "Votre visite est en cours de traitement",
+  "visitProcessingBody": "Cela peut prendre 30 à 60 secondes.\nVous pouvez continuer à utiliser l'application. Ouvrez Aperçu pour suivre la progression.",
+  "viewOverviewAction": "Voir l'aperçu",
+  "goToHome": "Aller à l'accueil",
+  "medication": "Médicament",
+  "nextToDo": "Prochaines étapes",
+  "conditionsDiscussed": "Conditions discutées",
+  "followUp": "Suivi",
+  "nameLabel": "Nom",
+  "notSet": "Non défini",
+  "appleIdHidden": "Identifiant Apple (masqué)",
+  "accountType": "Type de compte",
+  "patientRole": "Patient",
+  "caregiverRole": "Aidant",
+  "phoneLabel": "Téléphone",
+  "edit": "Modifier",
+  "add": "Ajouter",
+  "planLabel": "Forfait",
+  "planFree": "Gratuit",
+  "planPremium": "Premium",
+  "usageLabel": "Utilisation",
+  "freePlanUsage": "Forfait gratuit — {used} / {limit} résumés utilisés",
+  "unlimited": "Illimité",
+  "editPhoneNumber": "Modifier le numéro de téléphone",
+  "phoneNumber": "Numéro de téléphone",
+  "save": "Enregistrer",
+  "phoneMinLength": "Le numéro doit comporter au moins 8 caractères",
+  "phoneUpdatedSuccess": "Numéro de téléphone mis à jour",
+  "phoneUpdateFailed": "Échec de la mise à jour : {error}",
+  "changePassword": "Changer le mot de passe",
+  "changePasswordSubtitle": "Mettez à jour votre mot de passe pour plus de sécurité",
+  "privacySettings": "Paramètres de confidentialité",
+  "privacySettingsSubtitle": "Gérer vos préférences de partage de données",
+  "managePrivacy": "Gérer la confidentialité",
+  "changePasswordProviderMessage": "Vous vous êtes connecté avec {provider}. Modifiez votre mot de passe dans votre compte {provider}.",
+  "ok": "OK",
+  "changePasswordIntro": "Mettez à jour votre mot de passe pour sécuriser votre compte.",
+  "currentPassword": "Mot de passe actuel",
+  "currentPasswordHint": "Entrez votre mot de passe actuel",
+  "enterCurrentPassword": "Veuillez entrer votre mot de passe actuel",
+  "newPassword": "Nouveau mot de passe",
+  "newPasswordHint": "Entrez votre nouveau mot de passe",
+  "enterNewPassword": "Veuillez entrer un nouveau mot de passe",
+  "passwordMinLength": "Le mot de passe doit comporter au moins 8 caractères",
+  "confirmNewPassword": "Confirmer le nouveau mot de passe",
+  "confirmNewPasswordHint": "Saisissez à nouveau votre nouveau mot de passe",
+  "confirmNewPasswordRequired": "Veuillez confirmer votre nouveau mot de passe",
+  "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
+  "updatePassword": "Mettre à jour le mot de passe",
+  "passwordUpdatedSuccess": "Mot de passe mis à jour",
+  "passwordUpdateFailed": "Échec de la mise à jour du mot de passe",
+  "wrongPassword": "Le mot de passe actuel est incorrect",
+  "weakPassword": "Le mot de passe est trop faible",
+  "requiresRecentLogin": "Veuillez vous reconnecter et réessayer",
+  "checkInternetConnection": "Vérifiez votre connexion Internet",
+  "dataSharing": "Partage des données",
+  "allowCaregiverSummaries": "Autoriser l'aidant à voir les résumés",
+  "allowCaregiverMedications": "Autoriser l'aidant à voir les médicaments",
+  "allowCaregiverReminders": "Autoriser l'aidant à voir les rappels",
+  "allowAiImprovement": "Autoriser l'IA à utiliser mes données pour améliorer le produit",
+  "communicationAndConsent": "Communication et consentement",
+  "allowEmailNotifications": "Autoriser les notifications par e-mail",
+  "allowSmsNotifications": "Autoriser les notifications par SMS",
+  "allowPushNotifications": "Autoriser les notifications push",
+  "dataControl": "Contrôle des données",
+  "exportMyData": "Exporter mes données",
+  "deleteAllMedicalRecords": "Supprimer tous mes dossiers médicaux",
+  "deleteMedicalRecordsTitle": "Supprimer les dossiers médicaux",
+  "deleteMedicalRecordsMessage": "Cela supprimera définitivement tous vos dossiers médicaux. Cette action est irréversible.",
+  "deleteRecords": "Supprimer les dossiers",
+  "deleteMyAccount": "Supprimer mon compte",
+  "legal": "Mentions légales",
+  "viewPrivacyPolicy": "Voir la politique de confidentialité",
+  "viewTermsOfService": "Voir les conditions d'utilisation",
+  "termsOfService": "Conditions d'utilisation",
+  "termsOfServiceBody": "Conditions d'utilisation de RemiMinder\n\n1. Acceptation des conditions\nEn utilisant RemiMinder, vous acceptez ces conditions.\n\n2. Utilisation du service\nRemiMinder est conçu pour aider à gérer les soins de santé et les rappels de médicaments.\n\n3. Confidentialité\nVotre vie privée est importante. Toutes les données de santé sont traitées de manière sécurisée.\n\nPour les conditions complètes, visitez notre site web.",
+  "privacyPolicy": "Politique de confidentialité",
+  "privacyPolicyBody": "Politique de confidentialité de RemiMinder\n\n1. Informations collectées\nNous collectons les informations que vous fournissez et les données d'utilisation pour améliorer le service.\n\n2. Utilisation des informations\nLes informations sont utilisées pour fournir des services de gestion de santé.\n\n3. Partage des informations\nNous ne vendons pas vos informations personnelles.\n\nPour la politique complète, visitez notre site web.",
+  "close": "Fermer",
+  "featureComingSoon": "{feature} bientôt disponible",
+  "caregiverSharingEnabled": "Partage avec l'aidant activé",
+  "caregiverSharingDisabled": "Partage avec l'aidant désactivé",
+  "dataExport": "Exportation des données",
+  "remindersTitle": "Rappels",
+  "tabAll": "Tous",
+  "tabToday": "Aujourd'hui",
+  "tabPending": "En attente",
+  "tabCompleted": "Terminés",
+  "searchRemindersHint": "Rechercher des rappels...",
+  "failedToLoadRemindersRetry": "Échec du chargement. Réessayer",
+  "deleteReminderTitle": "Supprimer le rappel",
+  "deleteReminderMessage": "Voulez-vous vraiment supprimer ce rappel ?",
+  "markDone": "Marquer fait",
+  "snooze": "Reporter",
+  "snoozedUntil": "Reporté jusqu'à {time}",
+  "@snoozedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "statusDueNow": "À faire",
+  "statusActive": "Actif",
+  "statusMissed": "Manqué",
+  "statusSnoozed": "Reporté",
+  "statusSkipped": "Ignoré",
+  "statusPending": "En attente",
+  "noRemindersFound": "Aucun rappel",
+  "noRemindersMatchSearch": "Aucun rappel ne correspond",
+  "createFirstReminder": "Créez votre premier rappel pour commencer",
+  "tryAdjustSearch": "Essayez d'autres termes",
+  "createReminder": "Créer un rappel",
+  "newReminder": "Nouveau rappel",
+  "editReminder": "Modifier le rappel",
+  "reminderTitleLabel": "Titre",
+  "dosageOptional": "Dosage (optionnel)",
+  "dosageHint": "ex. 10 mg une fois par jour",
+  "reminderTypeLabel": "Type",
+  "appointment": "Rendez-vous",
+  "repeatLabel": "Répéter",
+  "once": "Une fois",
+  "daily": "Quotidien",
+  "weekly": "Hebdomadaire",
+  "pleaseEnterTitle": "Veuillez entrer un titre",
+  "reminderCreated": "Rappel créé !",
+  "failedToCreateReminder": "Échec de création : {error}",
+  "@failedToCreateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "saveChanges": "Enregistrer",
+  "cannotRescheduleMissingType": "Impossible de replanifier : type manquant",
+  "reminderUpdated": "Rappel mis à jour !",
+  "failedToUpdateReminder": "Échec de mise à jour : {error}",
+  "@failedToUpdateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderMarkedCompleted": "Rappel marqué comme terminé !",
+  "reminderSnoozed30": "Rappel reporté de 30 minutes",
+  "timeInHours": "Dans {hours} h ({time})",
+  "@timeInHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeInMinutes": "Dans {minutes} min ({time})",
+  "@timeInMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeNow": "Maintenant",
+  "timeHoursAgo": "Il y a {hours} h",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMinutesAgo": "Il y a {minutes} min",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInDays": "dans {days} jours",
+  "@timeInDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInHoursShort": "dans {hours} h",
+  "@timeInHoursShort": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInMinutesShort": "dans {minutes} min",
+  "@timeInMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "selectTime": "Choisir l'heure",
+  "presetMorning": "Matin (8:00)",
+  "presetNoon": "Midi (12:00)",
+  "presetEvening": "Soir (18:00)",
+  "presetNight": "Nuit (20:00)",
+  "hourLabel": "Heure",
+  "minuteLabel": "Min",
+  "amPmLabel": "AM / PM",
+  "amLabel": "AM",
+  "pmLabel": "PM",
+  "selectedTimeLabel": "Heure sélectionnée : {time}",
+  "@selectedTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "setForTime": "Définir {time} ✓",
+  "@setForTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "medicationAdherence": "Observance médicamenteuse",
+  "thisWeek": "Cette semaine",
+  "thisMonth": "Ce mois",
+  "overall": "Global",
+  "dosesCount": "{done}/{total} doses",
+  "@dosesCount": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "byMedication": "Par médicament",
+  "noPastRemindersAnalyze": "Aucun rappel passé à analyser",
+  "adherenceTips": "Conseils d'observance",
+  "adherenceTipsBody": "• Définissez des rappels sur le téléphone\n• Gardez les médicaments visibles\n• Utilisez un pilulier\n• Suivez vos progrès",
+  "actionFailed": "Action échouée",
+  "reminderDeleted": "Rappel supprimé",
+  "deleteFailed": "Échec de suppression",
+  "selectDate": "Choisir la date",
+  "snoozeAlreadyUsed": "Ce rappel a déjà été reporté une fois",
+  "sectionRecentAlerts": "Alertes récentes",
+  "viewAll": "Tout voir",
+  "sectionInvitations": "Invitations",
+  "summaryPatients": "Patients",
+  "summaryAlerts": "Alertes",
+  "summaryPending": "En attente",
+  "noAlertsAtThisTime": "Aucune alerte pour le moment",
+  "noPendingInvitations": "Aucune invitation en attente",
+  "pendingInvitationsTitle": "Invitations en attente",
+  "invitationsWaiting": "{count} invitation(s) en attente",
+  "reviewAcceptInvitations": "Examinez et acceptez les invitations d'aidants.",
+  "viewInvitations": "Voir les invitations",
+  "defaultPatient": "Patient",
+  "defaultCaregiver": "Aidant",
+  "caregiverPatientTime": "Patient : {name} • {time}",
+  "timeDaysAgo": "il y a {days} jours",
+  "alertsTitle": "Alertes",
+  "filterUnread": "Non lues",
+  "filterRead": "Lues",
+  "filterHighPriority": "Haute priorité",
+  "filterActionRequired": "Action requise",
+  "alertSingular": "Alerte",
+  "alertsPlural": "Alertes",
+  "clearFilter": "Effacer le filtre",
+  "noAlertsMatchFilter": "Aucune alerte ne correspond à ce filtre",
+  "allPatientActivitiesSmooth": "Toutes les activités des patients se déroulent bien",
+  "tryAdjustingFilter": "Essayez d'ajuster le filtre pour voir plus d'alertes",
+  "viewAllAlerts": "Voir toutes les alertes",
+  "alertMarkedAsRead": "Alerte marquée comme lue",
+  "alertsMarkedAsRead": "{count} alertes marquées comme lues",
+  "allAlertsAlreadyRead": "Toutes les alertes sont déjà lues",
+  "myPatientsTitle": "Mes patients",
+  "patientsConnectedSubtitle": "Patients connectés à vous",
+  "myPatientsSection": "Mes patients",
+  "connectedCount": "{count} connectés",
+  "searchPatientsHint": "Rechercher des patients...",
+  "noPatientsMatchSearch": "Aucun patient ne correspond à votre recherche.",
+  "noPatientsConnectedYet": "Aucun patient connecté pour le moment",
+  "acceptInvitationToSeePatient": "Acceptez une invitation pour voir un patient ici.",
+  "badgeNew": "Nouveau",
+  "joinedOn": "Rejoint le {date}",
+  "neverSynced": "Pas encore chargé",
+  "privacyDataRequestMessage": "Contactez privacy@remiminder.ai pour exporter ou supprimer vos données.",
+  "syncMinutesAgo": "il y a {minutes} min",
+  "syncHoursAgo": "il y a {hours} h",
+  "syncDaysAgo": "il y a {days} j",
+  "primaryCondition": "Condition principale",
+  "lastSynced": "Dernière synchro",
+  "allergiesLabel": "Allergies",
+  "dateOfBirth": "Date de naissance",
+  "currentMedications": "Médicaments actuels",
+  "viewCarePlan": "Voir le plan de soins",
+  "remindersButton": "Rappels",
+  "caregiverCareTeamSubtitle": "Invitez la famille ou le personnel médical",
+  "invitationsReceived": "Invitations reçues",
+  "pendingBadge": "{count} en attente",
+  "patientOverviewTitle": "Aperçu du patient",
+  "patientOverviewTabVisits": "Visites",
+  "patientOverviewTabReminders": "Rappels",
+  "patientOverviewNoVisits": "Aucune visite disponible",
+  "patientOverviewNoReminders": "Aucun rappel disponible",
+  "patientOverviewMissingPatientId": "Informations patient manquantes",
+  "patientOverviewLastVisit": "Dernière visite",
+  "patientOverviewCareTeam": "Membre de l'équipe de soins",
+  "patientOverviewScheduledReminder": "Rappel programmé",
+  "patientOverviewNever": "Jamais",
+  "patientOverviewYesterday": "Hier",
+  "statusViewed": "Vu",
+  "statusExpired": "Expiré",
+  "statusJoined": "Rejoint",
+  "noInvitationsToShow": "Aucune invitation à afficher",
+  "invitedByLabel": "Invité par : {name}",
+  "@invitedByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptInvitation": "Accepter",
+  "declineInvitation": "Refuser",
+  "invitationDeclined": "Invitation refusée",
+  "joinedCareTeamSnackbar": "A rejoint l'équipe de {patientName} en tant que {role}",
+  "@joinedCareTeamSnackbar": {
+    "placeholders": {
+      "patientName": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "manageAccess": "Gérer l'accès",
+  "manageAccessDescription": "Mettez à jour les autorisations ou supprimez l'accès.",
+  "manage": "Gérer",
+  "accessUpdatedSuccess": "Accès mis à jour avec succès",
+  "accessUpdateFailed": "Échec de la mise à jour de l'accès. Veuillez réessayer.",
+  "removeCaregiverTitle": "Retirer l'aidant ?",
+  "removeCaregiverMessage": "Voulez-vous vraiment retirer cet aidant ? Il perdra l'accès immédiatement.",
+  "remove": "Retirer",
+  "updatingAccess": "Mise à jour de l'accès...",
+  "removingCaregiver": "Retrait de l'aidant...",
+  "removeCaregiverFailed": "Impossible de retirer l'aidant. Veuillez réessayer.",
+  "viewAccess": "Accès lecture",
+  "fullAccess": "Accès complet",
+  "viewOnly": "Lecture seule",
+  "resendingInvitation": "Renvoi de l'invitation...",
+  "invitationResent": "Invitation renvoyée",
+  "failedToResendInvitation": "Échec du renvoi de l'invitation",
+  "cancelingInvitation": "Annulation de l'invitation...",
+  "invitationCanceled": "Invitation annulée",
+  "failedToCancelInvitation": "Échec de l'annulation de l'invitation",
+  "relationshipSon": "Fils",
+  "relationshipDaughter": "Fille",
+  "relationshipFriend": "Ami(e)",
+  "relationshipSpousePartner": "Conjoint(e)/Partenaire",
+  "relationshipParent": "Parent",
+  "relationshipChild": "Enfant",
+  "relationshipFamilyMember": "Membre de la famille",
+  "relationshipHealthcareProfessional": "Professionnel de santé",
+  "relationshipCaregiver": "Aidant",
+  "relationshipSister": "Sœur",
+  "relationshipBrother": "Frère",
+  "relationshipOther": "Autre"
+}

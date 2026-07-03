@@ -38,7 +38,9 @@ class CaregiverInvitation {
       patientName: data['patientName'] as String? ?? 'Patient',
       invitedBy: data['invitedBy'] as String? ?? '',
       inviteeId: data['inviteeId'] as String? ?? '',
-      role: data['role'] as String? ?? '',
+      role: (data['relationship'] as String?) ??
+          (data['role'] as String?) ??
+          '',
       status: (data['status'] as String? ?? 'pending').toLowerCase(),
       createdAt: _readDate(data['createdAt']),
       viewedAt: _readDate(data['viewedAt']),

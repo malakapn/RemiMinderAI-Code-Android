@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/config/theme.dart';
+import '../../../core/utils/locale_format.dart';
+import '../../../core/utils/relationship_l10n.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../models/caregiver_invitation.dart';
 import '../../../providers/invitation_provider.dart';
 
 enum _InviteFilter { all, pending, viewed, expired }
+
+const _activeStatuses = ['pending', 'viewed', 'expired', 'accepted'];
 
 /// Caregiver Care Team: Firestore "Invitations received" block.
 class InvitationsReceivedSection extends ConsumerStatefulWidget {
@@ -20,6 +26,19 @@ class _InvitationsReceivedSectionState
     extends ConsumerState<InvitationsReceivedSection> {
   _InviteFilter _filter = _InviteFilter.all;
   String? _busyInvitationId;
+  final Set<String> _acceptedInvitationIds = {};
+  bool _appliedRouteFilter = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_appliedRouteFilter) return;
+    final filter = GoRouterState.of(context).uri.queryParameters['filter'];
+    if (filter == 'pending') {
+      _filter = _InviteFilter.pending;
+    }
+    _appliedRouteFilter = true;
+  }
 
   List<CaregiverInvitation> _sortedNewestFirst(List<CaregiverInvitation> raw) {
     final copy = [...raw];
@@ -39,7 +58,9 @@ class _InvitationsReceivedSectionState
       case _InviteFilter.all:
         return list;
       case _InviteFilter.pending:
-        return list.where((i) => i.status == 'pending').toList();
+        return list
+            .where((i) => i.status == 'pending' || i.status == 'viewed')
+            .toList();
       case _InviteFilter.viewed:
         return list.where((i) => i.status == 'viewed').toList();
       case _InviteFilter.expired:
@@ -47,8 +68,9 @@ class _InvitationsReceivedSectionState
     }
   }
 
-  int _pendingCount(List<CaregiverInvitation> all) =>
-      all.where((i) => i.status == 'pending').length;
+  int _pendingCount(List<CaregiverInvitation> all) => all
+      .where((i) => i.status == 'pending' || i.status == 'viewed')
+      .length;
 
   @override
   Widget build(BuildContext context) {
@@ -68,8 +90,14 @@ class _InvitationsReceivedSectionState
         ),
       ),
       data: (raw) {
+        final l10n = AppLocalizations.of(context)!;
         final sortedAll = _sortedNewestFirst(raw);
-        final filtered = _sortedNewestFirst(_applyFilter(sortedAll));
+        // Keep locally-accepted cards visible until snackbar dismisses
+        final withAccepted = sortedAll.where((i) =>
+          _activeStatuses.contains(i.status) ||
+          _acceptedInvitationIds.contains(i.invitationId)
+        ).toList();
+        final filtered = _sortedNewestFirst(_applyFilter(withAccepted));
         final pending = _pendingCount(sortedAll);
 
         return Column(
@@ -77,9 +105,9 @@ class _InvitationsReceivedSectionState
           children: [
             Row(
               children: [
-                const Text(
-                  'Invitations received',
-                  style: TextStyle(
+                Text(
+                  l10n.invitationsReceived,
+                  style: const TextStyle(
                     color: RemiCareUiColors.sectionHeaderText,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -95,7 +123,10 @@ class _InvitationsReceivedSectionState
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '$pending pending',
+                      LocaleFormat.localizeDigitsInText(
+                        context,
+                        l10n.pendingBadge(pending),
+                      ),
                       style: const TextStyle(
                         color: RemiCareUiColors.pendingBadgeText,
                         fontSize: 12,
@@ -110,28 +141,29 @@ class _InvitationsReceivedSectionState
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _filterChip('All', _InviteFilter.all),
+                  _filterChip(l10n.tabAll, _InviteFilter.all),
                   const SizedBox(width: 8),
-                  _filterChip('Pending', _InviteFilter.pending),
+                  _filterChip(l10n.tabPending, _InviteFilter.pending),
                   const SizedBox(width: 8),
-                  _filterChip('Viewed', _InviteFilter.viewed),
+                  _filterChip(l10n.statusViewed, _InviteFilter.viewed),
                   const SizedBox(width: 8),
-                  _filterChip('Expired', _InviteFilter.expired),
+                  _filterChip(l10n.statusExpired, _InviteFilter.expired),
                 ],
               ),
             ),
             const SizedBox(height: 16),
             if (filtered.isEmpty)
-              const _InvitationsEmptyState()
+              _InvitationsEmptyState(message: l10n.noInvitationsToShow)
             else
               ...filtered.map(
                 (inv) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _InvitationCard(
                     invitation: inv,
+                    l10n: l10n,
                     busy: _busyInvitationId == inv.invitationId,
-                    onAccept: () => _onAccept(context, inv),
-                    onDecline: () => _onDecline(context, inv.invitationId),
+                    onAccept: () => _onAccept(context, inv, l10n),
+                    onDecline: () => _onDecline(context, inv.invitationId, l10n),
                   ),
                 ),
               ),
@@ -169,7 +201,11 @@ class _InvitationsReceivedSectionState
     );
   }
 
-  Future<void> _onAccept(BuildContext context, CaregiverInvitation inv) async {
+  Future<void> _onAccept(
+    BuildContext context,
+    CaregiverInvitation inv,
+    AppLocalizations l10n,
+  ) async {
     setState(() => _busyInvitationId = inv.invitationId);
     try {
       await ref.read(invitationActionsProvider.notifier).accept(inv);
@@ -181,7 +217,7 @@ class _InvitationsReceivedSectionState
             SnackBar(
               backgroundColor: RemiCareUiColors.snackbarSuccessBg,
               content: Text(
-                "Joined ${inv.patientName}'s care team as ${inv.role}",
+                l10n.joinedCareTeamSnackbar(inv.patientName, inv.role),
                 style: const TextStyle(color: Colors.white),
               ),
             ),
@@ -198,7 +234,11 @@ class _InvitationsReceivedSectionState
     }
   }
 
-  Future<void> _onDecline(BuildContext context, String invitationId) async {
+  Future<void> _onDecline(
+    BuildContext context,
+    String invitationId,
+    AppLocalizations l10n,
+  ) async {
     setState(() => _busyInvitationId = invitationId);
     try {
       await ref.read(invitationActionsProvider.notifier).decline(invitationId);
@@ -207,7 +247,7 @@ class _InvitationsReceivedSectionState
       async.whenOrNull(
         data: (_) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invitation declined')),
+            SnackBar(content: Text(l10n.invitationDeclined)),
           );
         },
         error: (e, _) {
@@ -223,25 +263,27 @@ class _InvitationsReceivedSectionState
 }
 
 class _InvitationsEmptyState extends StatelessWidget {
-  const _InvitationsEmptyState();
+  final String message;
+
+  const _InvitationsEmptyState({required this.message});
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 48),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.mail_outline,
               size: 40,
               color: RemiCareUiColors.declineBorder,
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
-              'No invitations to show',
-              style: TextStyle(
+              message,
+              style: const TextStyle(
                 color: RemiCareUiColors.confidenceText,
                 fontSize: 14,
               ),
@@ -255,12 +297,14 @@ class _InvitationsEmptyState extends StatelessWidget {
 
 class _InvitationCard extends ConsumerStatefulWidget {
   final CaregiverInvitation invitation;
+  final AppLocalizations l10n;
   final bool busy;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
 
   const _InvitationCard({
     required this.invitation,
+    required this.l10n,
     required this.busy,
     required this.onAccept,
     required this.onDecline,
@@ -272,21 +316,9 @@ class _InvitationCard extends ConsumerStatefulWidget {
 
 class _InvitationCardState extends ConsumerState<_InvitationCard> {
   @override
-  void initState() {
-    super.initState();
-    if (widget.invitation.status == 'pending') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        ref
-            .read(invitationServiceProvider)
-            .markAsViewed(widget.invitation.invitationId);
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final inv = widget.invitation;
+    final l10n = widget.l10n;
     final expired = inv.status == 'expired';
     final opacity = expired ? 0.65 : 1.0;
 
@@ -312,7 +344,11 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        inv.patientName,
+                        LocaleFormat.displayName(
+                          context,
+                          inv.patientName,
+                          fallback: l10n.defaultPatient,
+                        ),
                         style: const TextStyle(
                           color: RemiCareUiColors.sectionHeaderText,
                           fontSize: 15,
@@ -321,7 +357,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Invited by: ${inv.invitedBy}',
+                        l10n.invitedByLabel(inv.invitedBy),
                         style: const TextStyle(
                           color: RemiCareUiColors.bodySubtitleText,
                           fontSize: 12,
@@ -331,7 +367,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                   ),
                 ),
                 Text(
-                  inv.timeAgoLabel,
+                  LocaleFormat.timeAgo(context, inv.createdAt, l10n),
                   style: const TextStyle(
                     color: RemiCareUiColors.confidenceText,
                     fontSize: 11,
@@ -344,12 +380,14 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _roleBadge(inv.role),
-                _statusBadge(inv.status),
+                _roleBadge(l10n, inv.role),
+                _statusBadge(l10n, inv.status),
               ],
             ),
             const SizedBox(height: 14),
-            if (expired)
+            if (inv.status == 'accepted')
+              const SizedBox.shrink()
+            else if (expired)
               OutlinedButton(
                 onPressed: null,
                 style: OutlinedButton.styleFrom(
@@ -359,9 +397,9 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  'Expired',
-                  style: TextStyle(fontSize: 13),
+                child: Text(
+                  l10n.statusExpired,
+                  style: const TextStyle(fontSize: 13),
                 ),
               )
             else
@@ -388,9 +426,9 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Accept',
-                              style: TextStyle(
+                          : Text(
+                              l10n.acceptInvitation,
+                              style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -411,9 +449,9 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'Decline',
-                        style: TextStyle(fontSize: 13),
+                      child: Text(
+                        l10n.declineInvitation,
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ),
                   ),
@@ -425,7 +463,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
     );
   }
 
-  static Widget _roleBadge(String role) {
+  static Widget _roleBadge(AppLocalizations l10n, String role) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -434,7 +472,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
         border: Border.all(color: const Color(0xFFB5D4F4)),
       ),
       child: Text(
-        role,
+        RelationshipL10n.label(l10n, role),
         style: const TextStyle(
           color: Color(0xFF185FA5),
           fontSize: 11,
@@ -444,7 +482,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
     );
   }
 
-  static Widget _statusBadge(String status) {
+  static Widget _statusBadge(AppLocalizations l10n, String status) {
     late Color dot;
     late Color bg;
     late Color fg;
@@ -457,14 +495,21 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
         bg = const Color(0xFFEFF6FF);
         fg = const Color(0xFF1D4ED8);
         border = const Color(0xFFBFDBFE);
-        label = 'Viewed';
+        label = l10n.statusViewed;
         break;
       case 'expired':
         dot = RemiCareUiColors.grayExpiredAccent;
         bg = const Color(0xFFF3F4F6);
         fg = const Color(0xFF6B7280);
         border = const Color(0xFFE5E7EB);
-        label = 'Expired';
+        label = l10n.statusExpired;
+        break;
+      case 'accepted':
+        dot = const Color(0xFF16A34A);
+        bg = const Color(0xFFD6EAD8);
+        fg = const Color(0xFF14532D);
+        border = const Color(0xFF86EFAC);
+        label = l10n.statusJoined;
         break;
       case 'pending':
       default:
@@ -472,7 +517,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
         bg = const Color(0xFFFAEEDA);
         fg = const Color(0xFF854F0B);
         border = const Color(0xFFFAC775);
-        label = 'Pending';
+        label = l10n.statusPending;
         break;
     }
 

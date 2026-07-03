@@ -6,7 +6,7 @@ class RemiCareUiColors {
 
   static const Color primaryDarkTeal = Color(0xFF1B3A30);
   static const Color activeTealAccent = Color(0xFF2E7D62);
-  static const Color bodyBackground = Color(0xFFF5F5F3);
+  static const Color bodyBackground = Color(0xFFEDEAE1);
   static const Color cardBackground = Color(0xFFFFFFFF);
   static const Color sectionHeaderText = Color(0xFF1B1B1B);
   static const Color bodySubtitleText = Color(0xFF6B6B6B);

@@ -486,7 +486,11 @@ async def get_visit_summary_structured(
         logger.info(f"Getting structured summary for visit_id={visit_id}, firebase_uid={user_id}")
 
         # Step 1: Resolve Firebase UID to Cloud SQL user UUID
-        from services.db_service import get_user_uuid, get_latest_ai_structured_summary_for_visit
+        from services.db_service import (
+            get_user_uuid,
+            get_latest_ai_structured_summary_for_visit,
+            get_latest_ai_summary_for_visit,
+        )
         user_uuid = await get_user_uuid(user_id)
         await assert_patient_access(user_uuid, user_uuid, "view")
 
@@ -505,9 +509,22 @@ async def get_visit_summary_structured(
         # Step 3: Return appropriate response
         if structured_data:
             return structured_data
-        else:
-            logger.info("Returning processing status for structured summary")
-            return {"status": "processing"}
+
+        # Legacy rows: summary_text saved without structured_data_json — still show Visit Details UI.
+        summary_text = await get_latest_ai_summary_for_visit(visit_id, user_uuid)
+        if summary_text and str(summary_text).strip():
+            logger.info(
+                "Structured JSON missing; returning text summary only for visit_id=%s",
+                visit_id,
+            )
+            return {
+                "summary": str(summary_text).strip(),
+                "medications": [],
+                "actions": [],
+            }
+
+        logger.info("No summary yet for visit_id=%s (structured or text)", visit_id)
+        return {"status": "processing"}
 
     except HTTPException:
         raise

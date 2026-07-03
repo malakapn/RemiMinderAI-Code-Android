@@ -114,3 +114,6 @@ experiment_results/
 apps/backend/experiments/
 *.ipynb_checkpoints/
 experiment_results/
+
+# Cursor / local audit clones (never commit)
+_audit_RemiMinderAI-Mobile/

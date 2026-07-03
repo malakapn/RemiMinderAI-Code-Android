@@ -46,6 +46,7 @@ class ConnectedPatient {
     final role = (link['role'] as String?)?.trim() ?? '';
     final invitationId = (link['invitationId'] as String?)?.trim() ?? '';
     final joinedAt = _readTimestamp(link['joinedAt']);
+    final linkSyncedAt = _readTimestamp(link['lastSyncedAt']);
 
     Map<String, dynamic>? p;
     if (patientDoc != null && patientDoc.exists) {
@@ -72,7 +73,7 @@ class ConnectedPatient {
       medications: p != null ? _stringList(p['medications']) : const [],
       alerts: p != null ? _stringList(p['alerts']) : const [],
       lastSyncedAt:
-          p != null ? _readTimestamp(p['lastSyncedAt']) : null,
+          linkSyncedAt ?? (p != null ? _readTimestamp(p['lastSyncedAt']) : null),
     );
   }
 
@@ -118,7 +119,7 @@ class ConnectedPatient {
 
   String get lastSyncLabel {
     final t = lastSyncedAt;
-    if (t == null) return 'Never synced';
+    if (t == null) return 'Not loaded yet';
     final diff = DateTime.now().difference(t);
     final minutes = diff.inMinutes;
     if (minutes < 60) {
