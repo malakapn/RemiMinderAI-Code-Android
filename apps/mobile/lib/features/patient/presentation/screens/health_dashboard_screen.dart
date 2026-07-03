@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+import '../../../../core/utils/locale_format.dart';
+
 class HealthDashboardScreen extends StatefulWidget {
   const HealthDashboardScreen({super.key});
 
@@ -356,7 +358,7 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
               reservedSize: 40,
               getTitlesWidget: (value, meta) {
                 return Text(
-                  '${value.toInt()}',
+                  LocaleFormat.number(context, value.round()),
                   style: const TextStyle(fontSize: 10),
                 );
               },
@@ -369,8 +371,11 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
                 final index = value.toInt();
                 if (index >= 0 && index < _bloodPressureData.length) {
                   final date = _bloodPressureData[index]['date'] as String;
+                  final parsed = DateTime.tryParse(date);
                   return Text(
-                    date.split('-')[2], // Day only
+                    parsed != null
+                        ? LocaleFormat.number(context, parsed.day)
+                        : '',
                     style: const TextStyle(fontSize: 10),
                   );
                 }
@@ -419,7 +424,7 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
               reservedSize: 50,
               getTitlesWidget: (value, meta) {
                 return Text(
-                  '${value.toInt()}',
+                  LocaleFormat.number(context, value.round()),
                   style: const TextStyle(fontSize: 10),
                 );
               },
@@ -432,8 +437,11 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
                 final index = value.toInt();
                 if (index >= 0 && index < _weightData.length) {
                   final date = _weightData[index]['date'] as String;
+                  final parsed = DateTime.tryParse(date);
                   return Text(
-                    date.split('-')[2], // Day only
+                    parsed != null
+                        ? LocaleFormat.number(context, parsed.day)
+                        : '',
                     style: const TextStyle(fontSize: 10),
                   );
                 }
@@ -471,7 +479,7 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
               reservedSize: 40,
               getTitlesWidget: (value, meta) {
                 return Text(
-                  '${(value * 100).toInt()}%',
+                  LocaleFormat.percent(context, value * 100),
                   style: const TextStyle(fontSize: 10),
                 );
               },
@@ -483,9 +491,13 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
                 if (index >= 0 && index < _medicationAdherenceData.length) {
-                  final date = _medicationAdherenceData[index]['date'] as String;
+                  final date =
+                      _medicationAdherenceData[index]['date'] as String;
+                  final parsed = DateTime.tryParse(date);
                   return Text(
-                    date.split('-')[2], // Day only
+                    parsed != null
+                        ? LocaleFormat.number(context, parsed.day)
+                        : '',
                     style: const TextStyle(fontSize: 10),
                   );
                 }
@@ -678,22 +690,6 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
             Colors.purple,
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Navigate to add measurement screen
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Add new measurement - Coming Soon!')),
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Add Measurement'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
         ],
       ),
     );

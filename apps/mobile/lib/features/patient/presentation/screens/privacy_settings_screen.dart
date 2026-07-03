@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../care_team/data/models/care_team_member.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
 
@@ -10,13 +12,11 @@ class PrivacySettingsScreen extends StatefulWidget {
 }
 
 class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
-  // Data Sharing toggles
   bool _allowCaregiverSummaries = true;
   bool _allowCaregiverMedications = false;
   bool _allowCaregiverReminders = true;
   bool _allowAiImprovement = true;
 
-  // Communication & Consent toggles
   bool _allowEmailNotifications = true;
   bool _allowSmsNotifications = false;
   bool _allowPushNotifications = true;
@@ -32,11 +32,12 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     _loadCaregiver();
   }
 
-  void _showComingSoonSnackBar(String feature) {
+  void _showPrivacySupportContact() {
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature coming soon'),
-        duration: const Duration(seconds: 2),
+        content: Text(l10n.privacyDataRequestMessage),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -70,7 +71,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _caregiverError = e.toString();
+        _caregiverError = _friendlyError(e);
         _isLoadingCaregiver = false;
         _setAllToggleStates(false);
       });
@@ -78,10 +79,11 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
   }
 
   Future<void> _updateCaregiverPermission(bool value) async {
+    final l10n = AppLocalizations.of(context)!;
     final caregiver = _activeCaregiver;
     if (caregiver == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No caregiver added yet')),
+        SnackBar(content: Text(l10n.noCaregiversYet)),
       );
       return;
     }
@@ -91,7 +93,9 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
 
     setState(() {
       _isUpdatingPermission = true;
-      _setAllToggleStates(value);
+      _allowCaregiverSummaries = value;
+      _allowCaregiverMedications = value;
+      _allowCaregiverReminders = value;
       _activeCaregiver = CareTeamMember(
         id: caregiver.id,
         patientId: caregiver.patientId,
@@ -108,6 +112,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
       await CareTeamApiService().updatePermission(
         memberId: caregiver.id,
         permission: newPermission,
+        memberEmail: caregiver.email,
       );
       if (!mounted) return;
       setState(() {
@@ -116,15 +121,17 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(value
-              ? 'Caregiver sharing enabled'
-              : 'Caregiver sharing disabled'),
+              ? l10n.caregiverSharingEnabled
+              : l10n.caregiverSharingDisabled),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isUpdatingPermission = false;
-        _setAllToggleStates(previousPermission == 'full');
+        _allowCaregiverSummaries = previousPermission == 'full';
+        _allowCaregiverMedications = previousPermission == 'full';
+        _allowCaregiverReminders = previousPermission == 'full';
         _activeCaregiver = CareTeamMember(
           id: caregiver.id,
           patientId: caregiver.patientId,
@@ -137,9 +144,21 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
         );
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(l10n.accessUpdateFailed)),
       );
     }
+  }
+
+  void _updateLocalPreference(void Function() apply) {
+    setState(apply);
+  }
+
+  String _friendlyError(Object error) {
+    final message = error.toString();
+    if (message.contains('not-found')) {
+      return 'Caregiver record is syncing. Try again in a moment.';
+    }
+    return message;
   }
 
   Future<void> _showDeleteConfirmationDialog(
@@ -149,6 +168,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     String action,
     Color actionColor,
   ) async {
+    final l10n = AppLocalizations.of(context)!;
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -157,7 +177,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -171,86 +191,63 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     );
 
     if (result == true) {
-      _showComingSoonSnackBar(action.toLowerCase());
+      _showPrivacySupportContact();
     }
   }
 
-  void _showTermsOfService() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Terms of Service'),
-          content: const SingleChildScrollView(
-            child: Text(
-              'Terms of Service for RemiMinder\n\n'
-              '1. Acceptance of Terms\n'
-              'By using RemiMinder, you agree to these terms.\n\n'
-              '2. Use of Service\n'
-              'RemiMinder is designed to help manage healthcare and medication reminders.\n\n'
-              '3. Privacy\n'
-              'Your privacy is important to us. All health data is handled securely.\n\n'
-              'For the complete Terms of Service, please visit our website.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
+  Future<void> _openTermsOfService() async {
+    final uri = Uri.parse('https://remiminderai.com/terms');
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
     );
+    if (!mounted) return;
+    if (!launched) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open Terms of Service. Try again.'),
+        ),
+      );
+    }
   }
 
-  void _showPrivacyPolicy() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Privacy Policy'),
-          content: const SingleChildScrollView(
-            child: Text(
-              'Privacy Policy for RemiMinder\n\n'
-              '1. Information We Collect\n'
-              'We collect information you provide and usage data to improve our service.\n\n'
-              '2. How We Use Information\n'
-              'Information is used to provide healthcare management services.\n\n'
-              '3. Information Sharing\n'
-              'We do not sell your personal information.\n\n'
-              'For the complete Privacy Policy, please visit our website.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse('https://remiminderai.com/privacy');
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
     );
+    if (!mounted) return;
+    if (!launched) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open Privacy Policy. Try again.'),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final togglesEnabled = !_isLoadingCaregiver &&
+        !_isUpdatingPermission &&
+        _activeCaregiver != null;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color(0xFF1A4D4D), // Dark teal-green
-                    Color(0xFF051818), // Very dark green/black
+                    Color(0xFF1A4D4D),
+                    Color(0xFF051818),
                   ],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
@@ -265,10 +262,10 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Privacy Settings',
-                      style: TextStyle(
+                      l10n.privacySettings,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
@@ -276,20 +273,17 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 48), // Balance the back button
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
-
-            // Content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Data Sharing Section
-                    _buildSectionHeader('Data Sharing', Icons.share),
+                    _buildSectionHeader(l10n.dataSharing, Icons.share),
                     const SizedBox(height: 8),
                     if (_caregiverError != null)
                       Padding(
@@ -306,7 +300,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Text(
-                          'No caregiver added yet',
+                          l10n.noCaregiversYet,
                           style: TextStyle(
                             color: theme.colorScheme.secondary,
                             fontSize: 12,
@@ -314,120 +308,104 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                         ),
                       ),
                     _buildToggleTile(
-                      'Allow caregiver to view summaries',
+                      l10n.allowCaregiverSummaries,
                       _allowCaregiverSummaries,
                       _updateCaregiverPermission,
-                      isEnabled: !_isLoadingCaregiver &&
-                          !_isUpdatingPermission &&
-                          _activeCaregiver != null,
+                      isEnabled: togglesEnabled,
                     ),
                     _buildToggleTile(
-                      'Allow caregiver to view medications',
+                      l10n.allowCaregiverMedications,
                       _allowCaregiverMedications,
                       _updateCaregiverPermission,
-                      isEnabled: !_isLoadingCaregiver &&
-                          !_isUpdatingPermission &&
-                          _activeCaregiver != null,
+                      isEnabled: togglesEnabled,
                     ),
                     _buildToggleTile(
-                      'Allow caregiver to view reminders',
+                      l10n.allowCaregiverReminders,
                       _allowCaregiverReminders,
                       _updateCaregiverPermission,
-                      isEnabled: !_isLoadingCaregiver &&
-                          !_isUpdatingPermission &&
-                          _activeCaregiver != null,
+                      isEnabled: togglesEnabled,
                     ),
                     _buildToggleTile(
-                      'Allow AI to use my data to improve the product',
+                      l10n.allowAiImprovement,
                       _allowAiImprovement,
-                      _updateCaregiverPermission,
-                      isEnabled: !_isLoadingCaregiver &&
-                          !_isUpdatingPermission &&
-                          _activeCaregiver != null,
+                      (value) => _updateLocalPreference(
+                        () => _allowAiImprovement = value,
+                      ),
+                      isEnabled: !_isLoadingCaregiver,
                     ),
-
                     const SizedBox(height: 24),
-
-                    // Communication & Consent Section
                     _buildSectionHeader(
-                        'Communication & Consent', Icons.notifications),
+                        l10n.communicationAndConsent, Icons.notifications),
                     const SizedBox(height: 8),
                     _buildToggleTile(
-                      'Allow email notifications',
+                      l10n.allowEmailNotifications,
                       _allowEmailNotifications,
-                      _updateCaregiverPermission,
-                      isEnabled: !_isLoadingCaregiver &&
-                          !_isUpdatingPermission &&
-                          _activeCaregiver != null,
+                      (value) => _updateLocalPreference(
+                        () => _allowEmailNotifications = value,
+                      ),
+                      isEnabled: !_isLoadingCaregiver,
                     ),
                     _buildToggleTile(
-                      'Allow SMS notifications',
+                      l10n.allowSmsNotifications,
                       _allowSmsNotifications,
-                      _updateCaregiverPermission,
-                      isEnabled: !_isLoadingCaregiver &&
-                          !_isUpdatingPermission &&
-                          _activeCaregiver != null,
+                      (value) => _updateLocalPreference(
+                        () => _allowSmsNotifications = value,
+                      ),
+                      isEnabled: !_isLoadingCaregiver,
                     ),
                     _buildToggleTile(
-                      'Allow push notifications',
+                      l10n.allowPushNotifications,
                       _allowPushNotifications,
-                      _updateCaregiverPermission,
-                      isEnabled: !_isLoadingCaregiver &&
-                          !_isUpdatingPermission &&
-                          _activeCaregiver != null,
+                      (value) => _updateLocalPreference(
+                        () => _allowPushNotifications = value,
+                      ),
+                      isEnabled: !_isLoadingCaregiver,
                     ),
-
                     const SizedBox(height: 24),
-
-                    // Data Control Section
-                    _buildSectionHeader('Data Control', Icons.storage),
+                    _buildSectionHeader(l10n.dataControl, Icons.storage),
                     const SizedBox(height: 8),
                     _buildActionButton(
-                      'Export my data',
+                      l10n.exportMyData,
                       Icons.download,
-                      () => _showComingSoonSnackBar('Data export'),
+                      _showPrivacySupportContact,
                     ),
                     const SizedBox(height: 8),
                     _buildActionButton(
-                      'Delete all my medical records',
+                      l10n.deleteAllMedicalRecords,
                       Icons.delete_forever,
                       () => _showDeleteConfirmationDialog(
                         context,
-                        'Delete Medical Records',
-                        'This will permanently delete all your medical records. This action cannot be undone.',
-                        'Delete Records',
+                        l10n.deleteMedicalRecordsTitle,
+                        l10n.deleteMedicalRecordsMessage,
+                        l10n.deleteRecords,
                         Colors.red,
                       ),
                     ),
                     const SizedBox(height: 8),
                     _buildDangerButton(
-                      'Delete my account',
+                      l10n.deleteMyAccount,
                       () => _showDeleteConfirmationDialog(
                         context,
-                        'Delete Account',
-                        'This will permanently delete your account and all associated data. This action cannot be undone.',
-                        'Delete Account',
+                        l10n.deleteAccountTitle,
+                        l10n.deleteAccountMessage,
+                        l10n.deleteAccount,
                         Colors.red,
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
-                    // Legal Section
-                    _buildSectionHeader('Legal', Icons.gavel),
+                    _buildSectionHeader(l10n.legal, Icons.gavel),
                     const SizedBox(height: 8),
                     _buildActionButton(
-                      'View Privacy Policy',
+                      l10n.viewPrivacyPolicy,
                       Icons.policy,
-                      _showPrivacyPolicy,
+                      _openPrivacyPolicy,
                     ),
                     const SizedBox(height: 8),
                     _buildActionButton(
-                      'View Terms of Service',
+                      l10n.viewTermsOfService,
                       Icons.description,
-                      _showTermsOfService,
+                      _openTermsOfService,
                     ),
-
                     const SizedBox(height: 32),
                   ],
                 ),

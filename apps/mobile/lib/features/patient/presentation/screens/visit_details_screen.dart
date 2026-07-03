@@ -1,25 +1,29 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import '../../../../core/config/theme.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/config/environment.dart';
+import '../../../../core/utils/locale_format.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../data/services/patient_api_service.dart';
 
-/// After a recording, the backend pipeline writes a structured summary with
-/// keys `summary`, `decisions`, `medications`, and `actions` (v2 normalizer output).
-/// Placeholder-only lines from the model are filtered out in the UI.
 class VisitDetailsScreen extends StatefulWidget {
   final String visitId;
   final String? visitDate;
+  final String? patientId;
 
   VisitDetailsScreen({
     super.key,
     required this.visitId,
     this.visitDate,
+    this.patientId,
   }) {
-    print("🧨🧨🧨 Opening VisitDetailsScreen with visitId = $visitId");
+    if (kDebugMode) {
+      print("🧨🧨🧨 Opening VisitDetailsScreen with visitId = $visitId");
+    }
   }
 
   @override
@@ -32,6 +36,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   List<String> _decisions = [];
   List<String> _medications = [];
   List<String> _actions = [];
+  List<String> _keyDiagnoses = [];
   bool _isLoadingSummary = true;
   String _summaryStatus =
       'loading'; // 'loading', 'processing', 'ready', 'error'
@@ -48,7 +53,9 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   }
 
   Future<void> _fetchAISummary() async {
-    print("🔍 _fetchAISummary called for visitId: ${widget.visitId}");
+    if (kDebugMode) {
+      print("🔍 _fetchAISummary called for visitId: ${widget.visitId}");
+    }
 
     setState(() {
       _isLoadingSummary = true;
@@ -56,69 +63,65 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     });
 
     try {
-      final authToken = await AuthService().getAccessToken();
-      print("🔍 Auth token available: ${authToken != null}");
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) throw Exception('Authentication required');
+      final authToken = await firebaseUser.getIdToken(true);
+      if (kDebugMode) {
+        print("🔍 Auth token available: ${authToken != null}");
+      }
 
       final apiService = PatientApiService(
         baseUrl: Environment.apiBaseUrl,
         authToken: authToken ?? '',
       );
 
-      print(
-          "🔥🔥🔥 Calling GET /api/visits/${widget.visitId}/summary-structured");
-      final data = await apiService.getVisitSummaryStructured(widget.visitId);
-      print("🔍 API response: $data");
+      if (kDebugMode) {
+        print(
+            "🔥🔥🔥 Calling GET /api/visits/${widget.visitId}/summary-structured");
+      }
+      final data = await apiService.getVisitSummaryStructured(
+        widget.visitId,
+        patientId: widget.patientId,
+      );
+      if (kDebugMode) {
+        print("🔍 API response: $data");
+      }
 
       if (data['status'] == 'processing') {
-        print("🔍 Structured summary missing or processing; trying plain summary");
-        try {
-          final plain = await apiService.getVisitSummary(widget.visitId);
-          final text = plain['summary']?.toString().trim();
-          if (text != null && text.isNotEmpty) {
-            setState(() {
-              _summaryText = text;
-              _decisions = [];
-              _medications = [];
-              _actions = [];
-              _summaryStatus = 'ready';
-              _isLoadingSummary = false;
-            });
-            return;
-          }
-        } catch (e) {
-          print("🔍 Plain summary fallback failed: $e");
+        if (kDebugMode) {
+          print("🔍 Summary still processing, setting processing state");
         }
-        print("🔍 Summary still processing, setting processing state");
         setState(() {
           _summaryStatus = 'processing';
           _isLoadingSummary = false;
         });
-      } else if (data.containsKey('summary')) {
-        print("🔍 Found structured summary, setting to ready state");
-        final decisions = _toStringList(data['decisions']);
-        final medications = _toStringList(data['medications']);
-        final actions = _toStringList(
-          data['actions'] ??
-              data['action_items'] ??
-              data['next_steps'],
-        );
+      } else if (_hasStructuredSummaryPayload(data)) {
+        if (kDebugMode) {
+          print("🔍 Found structured summary, setting to ready state");
+        }
+        final parsed = _parseStructuredSummary(data);
         setState(() {
-          _summaryText = data['summary']?.toString();
-          _decisions = decisions;
-          _medications = medications;
-          _actions = actions;
+          _summaryText = parsed.summarization;
+          _decisions = parsed.decisions;
+          _medications = parsed.medications;
+          _actions = parsed.actions;
+          _keyDiagnoses = parsed.keyDiagnoses;
           _summaryStatus = 'ready';
           _isLoadingSummary = false;
         });
       } else {
-        print("🔍 Unexpected response format: $data");
+        if (kDebugMode) {
+          print("🔍 Unexpected response format: $data");
+        }
         setState(() {
           _summaryStatus = 'error';
           _isLoadingSummary = false;
         });
       }
     } catch (e) {
-      print("🔍 Error fetching summary: $e");
+      if (kDebugMode) {
+        print("🔍 Error fetching summary: $e");
+      }
       setState(() {
         _summaryStatus = 'error';
         _isLoadingSummary = false;
@@ -128,13 +131,19 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
 
   Future<void> _fetchVisitMetadata() async {
     try {
-      final authToken = await AuthService().getAccessToken();
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) throw Exception('Authentication required');
+      final authToken = await firebaseUser.getIdToken(true);
       if (authToken == null) {
         throw Exception('Authentication required');
       }
 
-      final uri = Uri.parse(
-          '${Environment.apiBaseUrl}/api/visits/${widget.visitId}');
+      final uri = Uri.parse('${Environment.apiBaseUrl}/api/visits/${widget.visitId}')
+          .replace(
+        queryParameters: widget.patientId != null && widget.patientId!.isNotEmpty
+            ? {'patient_id': widget.patientId!}
+            : null,
+      );
       final response = await http.get(
         uri,
         headers: {
@@ -177,28 +186,112 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     return [];
   }
 
-  /// Normalizer emits English placeholders when lists are empty; hide those in UI.
-  bool _isPlaceholderMedicationLine(String s) {
-    final t = s.toLowerCase();
-    return t.contains('no medications mentioned') ||
-        t.contains('no medication mentioned');
+  bool _hasStructuredSummaryPayload(Map<String, dynamic> data) {
+    if (data.containsKey('summary')) return true;
+    if (data.containsKey('summarization')) return true;
+    return data.containsKey('decision') ||
+        data.containsKey('decisions') ||
+        data.containsKey('medication') ||
+        data.containsKey('medications') ||
+        data.containsKey('action') ||
+        data.containsKey('actions') ||
+        data.containsKey('action_items') ||
+        data.containsKey('keyPoints') ||
+        data.containsKey('key_diagnoses') ||
+        data.containsKey('questions_next_visit');
   }
 
-  bool _isPlaceholderActionLine(String s) {
-    final t = s.toLowerCase();
-    return t.contains('no follow-up actions') ||
-        t.contains('no follow up actions') ||
-        t.contains('no follow-up action');
+  String _readSummaryText(Map<String, dynamic> data) {
+    final summarizationMap = data['summarization'];
+    if (summarizationMap is Map) {
+      final text = summarizationMap['text']?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return data['summary']?.toString().trim() ?? '';
   }
 
-  bool _isPlaceholderDecisionLine(String s) {
-    final t = s.toLowerCase();
-    return t.contains('no clinical decisions');
+  /// Merges V1 (`decision`/`action` sections) and V2 (`decisions`/`actions` lists).
+  List<String> _readSectionItems(
+    Map<String, dynamic> data, {
+    required String singularKey,
+    required String pluralKey,
+    List<String> legacyKeys = const [],
+  }) {
+    final seen = <String>{};
+    final merged = <String>[];
+    void append(List<String> items) {
+      for (final item in _nonEmptyItems(items)) {
+        if (seen.add(item)) merged.add(item);
+      }
+    }
+
+    append(_itemsFromSection(data[singularKey]));
+    append(_toStringList(data[pluralKey]));
+    for (final legacyKey in legacyKeys) {
+      append(_toStringList(data[legacyKey]));
+    }
+    return merged;
+  }
+
+  ({
+    String summarization,
+    List<String> decisions,
+    List<String> medications,
+    List<String> actions,
+    List<String> keyDiagnoses,
+  }) _parseStructuredSummary(Map<String, dynamic> data) {
+    return (
+      summarization: _readSummaryText(data),
+      decisions: _readSectionItems(
+        data,
+        singularKey: 'decision',
+        pluralKey: 'decisions',
+      ),
+      medications: _readSectionItems(
+        data,
+        singularKey: 'medication',
+        pluralKey: 'medications',
+      ),
+      actions: _readSectionItems(
+        data,
+        singularKey: 'action',
+        pluralKey: 'actions',
+        legacyKeys: const ['action_items', 'keyPoints'],
+      ),
+      keyDiagnoses: _toStringList(data['key_diagnoses']),
+    );
+  }
+
+  List<String> _itemsFromSection(dynamic section) {
+    if (section is Map) {
+      return _toStringList(section['items']);
+    }
+    return _toStringList(section);
+  }
+
+  void _handleBack() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+
+    final path = GoRouterState.of(context).uri.path;
+    if (path.startsWith('/caregiver/')) {
+      final patientId = widget.patientId;
+      if (patientId != null && patientId.isNotEmpty) {
+        context.go('/caregiver/patient-overview?patientId=$patientId');
+      } else {
+        context.go('/caregiver/patients');
+      }
+      return;
+    }
+
+    context.go('/patient/overview');
   }
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -207,56 +300,41 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
-            color: primary,
+            color: Theme.of(context).colorScheme.primary,
           ),
-          onPressed: () => context.pop(),
+          onPressed: _handleBack,
         ),
         title: Text(
-          'Visit Details',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: primary,
-            fontSize: 20,
+          l10n.visitDetails,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          if (!_isLoadingSummary &&
-              (_summaryStatus == 'ready' || _summaryStatus == 'processing'))
-            IconButton(
-              onPressed: _fetchAISummary,
-              icon: Icon(Icons.refresh, color: primary),
-              tooltip: 'Refresh summary',
-            ),
-        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _fetchAISummary,
           child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 8),
-                if (!_isLoadingVisit && _hasVisitMetadata()) _buildVisitHeader(),
+                const SizedBox(height: 20),
+
                 if (!_isLoadingVisit && _hasVisitMetadata())
-                  const SizedBox(height: 12),
-                if (!_isLoadingVisit &&
-                    !_hasVisitMetadata() &&
-                    widget.visitDate != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _formatVisitDate(widget.visitDate!),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.accentColor,
-                      ),
-                    ),
-                  ),
-                _buildSummaryContent(),
-                const SizedBox(height: 32),
+                  _buildVisitHeader(),
+                if (!_isLoadingVisit && _hasVisitMetadata())
+                  const SizedBox(height: 16),
+
+                _buildSummaryStatusSection(l10n),
+                if (_summaryStatus == 'ready') ...[
+                  const SizedBox(height: 16),
+                  ..._buildReadySummaryCards(l10n),
+                  const SizedBox(height: 8),
+                  _buildAiSummaryDisclaimer(),
+                ],
+
+                const SizedBox(height: 40),
               ],
             ),
           ),
@@ -265,99 +343,125 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     );
   }
 
-  /// Outer card chrome removed — stacked section cards match visit-summary design.
-  Widget _buildSummaryContent() {
-    if (_isLoadingSummary) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48),
-        child: Center(
-          child: Column(
+  Widget _buildSummaryStatusSection(AppLocalizations l10n) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Loading summary…',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppTheme.accentColor,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: const Icon(
+                  Icons.smart_toy,
+                  color: Colors.blue,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.healthVisitSummary,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    if (widget.visitDate != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          _formatVisitDate(widget.visitDate!),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _fetchAISummary,
+                icon: const Icon(Icons.refresh),
+                tooltip: l10n.refreshSummaryTooltip,
               ),
             ],
           ),
-        ),
-      );
-    }
-
-    if (_summaryStatus == 'processing') {
-      return _buildStatusCard(
-        icon: Icons.psychology_outlined,
-        title: 'Preparing visit summary…',
-        subtitle: 'This may take a minute.',
-        borderColor: AppTheme.secondaryColor.withOpacity(0.35),
-        backgroundColor: AppTheme.secondaryColor.withOpacity(0.08),
-        iconColor: AppTheme.primaryColor,
-        titleColor: AppTheme.primaryColor,
-        subtitleColor: AppTheme.accentColor,
-      );
-    }
-
-    if (_summaryStatus == 'ready' && _summaryText != null) {
-      return _buildStructuredSummary();
-    }
-
-    if (_summaryStatus == 'error') {
-      return _buildStatusCard(
-        icon: Icons.error_outline,
-        title: 'Unable to load visit summary',
-        subtitle: null,
-        borderColor: AppTheme.errorColor.withOpacity(0.35),
-        backgroundColor: AppTheme.errorColor.withOpacity(0.08),
-        iconColor: AppTheme.errorColor,
-        titleColor: AppTheme.errorColor,
-        subtitleColor: AppTheme.accentColor,
-        trailing: TextButton(
-          onPressed: _fetchAISummary,
-          child: const Text('Retry'),
-        ),
-      );
-    }
-
-    return _buildStatusCard(
-      icon: Icons.info_outline,
-      title: 'Visit summary is unavailable',
-      subtitle: null,
-      borderColor: AppTheme.accentColor.withOpacity(0.25),
-      backgroundColor: Colors.white,
-      iconColor: AppTheme.accentColor,
-      titleColor: AppTheme.accentColor,
-      subtitleColor: AppTheme.accentColor,
+          if (_summaryStatus != 'ready') ...[
+            const SizedBox(height: 16),
+            if (_isLoadingSummary)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_summaryStatus == 'processing')
+              _buildInlineStatusBanner(
+                icon: Icons.psychology,
+                color: Colors.orange,
+                title: l10n.preparingVisitSummary,
+                subtitle: l10n.preparingVisitSubtitle,
+              )
+            else if (_summaryStatus == 'error')
+              _buildInlineStatusBanner(
+                icon: Icons.error_outline,
+                color: Colors.red,
+                title: l10n.unableToLoadVisitSummary,
+                showRetry: true,
+                retryLabel: l10n.retry,
+              )
+            else
+              _buildInlineStatusBanner(
+                icon: Icons.error_outline,
+                color: Colors.grey,
+                title: l10n.visitSummaryUnavailable,
+              ),
+          ],
+        ],
+      ),
     );
   }
 
-  Widget _buildStatusCard({
+  Widget _buildInlineStatusBanner({
     required IconData icon,
+    required Color color,
     required String title,
     String? subtitle,
-    required Color borderColor,
-    required Color backgroundColor,
-    required Color iconColor,
-    required Color titleColor,
-    required Color subtitleColor,
-    Widget? trailing,
+    bool showRetry = false,
+    String retryLabel = 'Retry',
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: iconColor, size: 24),
+          Icon(icon, color: color, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -368,7 +472,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: titleColor,
+                    color: color,
                   ),
                 ),
                 if (subtitle != null) ...[
@@ -377,17 +481,270 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
                     subtitle,
                     style: TextStyle(
                       fontSize: 14,
-                      color: subtitleColor,
-                      height: 1.35,
+                      color: color.withOpacity(0.85),
                     ),
                   ),
                 ],
               ],
             ),
           ),
-          if (trailing != null) trailing,
+          if (showRetry)
+            TextButton(
+              onPressed: _fetchAISummary,
+              child: Text(retryLabel),
+            ),
         ],
       ),
+    );
+  }
+
+  static const _nextToDoPlaceholderPhrases = {
+    'no clinical decisions mentioned in the conversation',
+    'no follow-up actions mentioned in the conversation',
+  };
+
+  List<String> _nonEmptyItems(List<String> items) {
+    return items.map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+  }
+
+  List<String> _meaningfulNextToDoItems(List<String> items) {
+    return _nonEmptyItems(items)
+        .where(
+          (item) => !_nextToDoPlaceholderPhrases.contains(item.toLowerCase()),
+        )
+        .toList();
+  }
+
+  List<Widget> _buildReadySummaryCards(AppLocalizations l10n) {
+    final cards = <Widget>[];
+    void addCard(Widget? card) {
+      if (card == null) return;
+      if (cards.isNotEmpty) {
+        cards.add(const SizedBox(height: 12));
+      }
+      cards.add(card);
+    }
+
+    addCard(_buildVisitSummaryCard(l10n));
+    addCard(_buildMedicationCard(l10n));
+    addCard(_buildNextToDoCard(l10n));
+    return cards;
+  }
+
+  static const _labFollowUpKeywords = [
+    'lab',
+    'fasting',
+    'blood',
+    'panel',
+    'metabolic',
+    'lipid',
+  ];
+
+  List<String> _labFollowUpLines() {
+    final lines = <String>[];
+    for (final item in _meaningfulNextToDoItems(_actions)) {
+      final lower = item.toLowerCase();
+      if (!_labFollowUpKeywords.any(lower.contains)) continue;
+      lines.add(_condenseLabFollowUpLine(item));
+    }
+    return lines;
+  }
+
+  String _condenseLabFollowUpLine(String item) {
+    final lower = item.toLowerCase();
+    if (lower.contains('fasting') &&
+        (lower.contains('lab') ||
+            lower.contains('blood') ||
+            lower.contains('panel'))) {
+      return 'Lab results while fasting';
+    }
+    return item;
+  }
+
+  Widget _buildSummarySubheading(String label) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+
+  Widget _buildAiSummaryDisclaimer() {
+    return Text(
+      'AI-generated summary. Not a substitute for professional medical advice.',
+      style: TextStyle(
+        fontSize: 12,
+        fontStyle: FontStyle.italic,
+        color: Colors.grey[600],
+      ),
+    );
+  }
+
+  Widget? _buildVisitSummaryCard(AppLocalizations l10n) {
+    final overview = (_summaryText ?? '').trim();
+    final diagnoses = _nonEmptyItems(_keyDiagnoses);
+    final followUps = _labFollowUpLines();
+    if (overview.isEmpty && diagnoses.isEmpty && followUps.isEmpty) {
+      return null;
+    }
+
+    return _buildSummaryCategoryCard(
+      title: l10n.visitSummary,
+      icon: Icons.summarize_outlined,
+      accentColor: const Color(0xFF2E7D62),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (overview.isNotEmpty)
+            Text(
+              overview,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.secondary,
+                height: 1.4,
+              ),
+            ),
+          if (diagnoses.isNotEmpty) ...[
+            if (overview.isNotEmpty) const SizedBox(height: 14),
+            _buildSummarySubheading(l10n.conditionsDiscussed),
+            const SizedBox(height: 8),
+            _buildBulletList(diagnoses),
+          ],
+          if (followUps.isNotEmpty) ...[
+            if (overview.isNotEmpty || diagnoses.isNotEmpty)
+              const SizedBox(height: 14),
+            _buildSummarySubheading(l10n.followUp),
+            const SizedBox(height: 8),
+            _buildBulletList(followUps),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget? _buildMedicationCard(AppLocalizations l10n) {
+    final items = _nonEmptyItems(_medications);
+    if (items.isEmpty) return null;
+
+    return _buildSummaryCategoryCard(
+      title: l10n.medication,
+      icon: Icons.medication_outlined,
+      accentColor: const Color(0xFF3AA8A1),
+      child: _buildBulletList(items),
+    );
+  }
+
+  bool _isLabFollowUpAction(String item) {
+    final lower = item.toLowerCase();
+    return _labFollowUpKeywords.any(lower.contains);
+  }
+
+  /// Merged decisions + actions in one list (decisions first, then actions).
+  Widget? _buildNextToDoCard(AppLocalizations l10n) {
+    final items = [
+      ..._meaningfulNextToDoItems(_decisions),
+      ..._meaningfulNextToDoItems(_actions)
+          .where((item) => !_isLabFollowUpAction(item)),
+    ];
+    if (items.isEmpty) return null;
+
+    return _buildSummaryCategoryCard(
+      title: l10n.nextToDo,
+      icon: Icons.playlist_add_check_outlined,
+      accentColor: const Color(0xFF557A7F),
+      child: _buildBulletList(items),
+    );
+  }
+
+  Widget _buildSummaryCategoryCard({
+    required String title,
+    required IconData icon,
+    required Color accentColor,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accentColor.withOpacity(0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: accentColor, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBulletList(List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: items.map((item) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '• ',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  item,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.secondary,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -398,17 +755,15 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   }
 
   Widget _buildVisitHeader() {
-    final primary = Theme.of(context).colorScheme.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_visitTitle != null && _visitTitle!.trim().isNotEmpty)
           Text(
             _visitTitle!,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: primary,
             ),
           ),
         if (_visitDoctor != null && _visitDoctor!.trim().isNotEmpty)
@@ -418,7 +773,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
               _visitDoctor!,
               style: TextStyle(
                 fontSize: 14,
-                color: primary,
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -430,18 +785,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
               _visitSpecialty!,
               style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.accentColor,
-              ),
-            ),
-          ),
-        if (widget.visitDate != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              _formatVisitDate(widget.visitDate!),
-              style: TextStyle(
-                fontSize: 13,
-                color: AppTheme.accentColor,
+                color: Theme.of(context).colorScheme.secondary,
               ),
             ),
           ),
@@ -449,134 +793,10 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     );
   }
 
-  Widget _buildStructuredSummary() {
-    final decisionsFiltered = _decisions
-        .where((s) => !_isPlaceholderDecisionLine(s))
-        .toList();
-    final medsFiltered = _medications
-        .where((s) => !_isPlaceholderMedicationLine(s))
-        .toList();
-    final stepsFiltered =
-        _actions.where((s) => !_isPlaceholderActionLine(s)).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildNarrativeSummaryCard(),
-        if (decisionsFiltered.isNotEmpty)
-          _buildListSection(
-            title: 'Clinical Decisions',
-            items: decisionsFiltered,
-          ),
-        if (medsFiltered.isNotEmpty)
-          _buildListSection(title: 'Medications', items: medsFiltered),
-        if (stepsFiltered.isNotEmpty)
-          _buildListSection(title: 'Next Steps', items: stepsFiltered),
-      ],
-    );
-  }
-
-  /// Top overview: light green tint, patient-facing paragraph only (no section title).
-  Widget _buildNarrativeSummaryCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F4EF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.accentColor.withOpacity(0.18),
-        ),
-      ),
-      child: Text(
-        _summaryText ?? '',
-        style: const TextStyle(
-          fontSize: 16,
-          color: AppTheme.accentColor,
-          height: 1.5,
-        ),
-      ),
-    );
-  }
-
-  static const _cardBorder = Color(0xFFE0E4E3);
-
-  Widget _buildListSection({
-    required String title,
-    required List<String> items,
-  }) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: primary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '•  ',
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.45,
-                      color: AppTheme.accentColor,
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: AppTheme.accentColor,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   String _formatVisitDate(String dateString) {
     try {
       final date = DateTime.parse(dateString);
-      const months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      final month = months[date.month - 1];
-      return '$month ${date.day}, ${date.year}';
+      return LocaleFormat.dateMedium(context, date);
     } catch (e) {
       return dateString;
     }

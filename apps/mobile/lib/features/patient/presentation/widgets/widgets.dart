@@ -4,4 +4,3 @@ export 'status_badge.dart';
 export 'quick_action_item.dart';
 export 'progress_item.dart';
 export 'rounded_navigation_bar.dart';
-export 'bottom_nav_safe_wrapper.dart';

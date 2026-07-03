@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 
 import '../config/environment.dart';
 import '../models/user.dart';
-import '../../features/care_team/data/services/care_team_api_service.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
 
@@ -15,6 +14,15 @@ import 'notification_service.dart';
 /// future alarms after login or when screens load fresh reminder data.
 class ReminderNotificationSync {
   ReminderNotificationSync._();
+
+  /// Reads API `reminder_type` first, then mapped `type` (see [Reminder._readType]).
+  static String? readReminderType(Map<String, dynamic> r) {
+    final fromApi = r['reminder_type']?.toString().trim();
+    if (fromApi != null && fromApi.isNotEmpty) return fromApi;
+    final fromMapped = r['type']?.toString().trim();
+    if (fromMapped != null && fromMapped.isNotEmpty) return fromMapped;
+    return null;
+  }
 
   /// After auth: fetch from API and rebuild all local reminder alarms for this role.
   static Future<void> syncAfterAuth(AuthService auth, User user) async {
@@ -56,10 +64,7 @@ class ReminderNotificationSync {
       for (final r in merged) {
         final scheduledTime =
             DateTime.tryParse(r['scheduled_time']?.toString() ?? '')?.toLocal();
-        final skipIfBefore = now.subtract(const Duration(minutes: 2));
-        if (scheduledTime == null || scheduledTime.isBefore(skipIfBefore)) {
-          continue;
-        }
+        if (scheduledTime == null || scheduledTime.isBefore(now)) continue;
 
         final reminderId = r['id']?.toString() ?? '';
         if (reminderId.isEmpty) continue;
@@ -73,12 +78,21 @@ class ReminderNotificationSync {
         final title = (r['title'] as String?)?.trim() ?? 'Reminder';
         final notifId = 'caregiver_$reminderId';
 
+        final reminderType = readReminderType(r);
+        if (reminderType == null) {
+          debugPrint(
+            'ReminderNotificationSync: missing reminder_type for caregiver reminder id=$reminderId, skipping local notification',
+          );
+          continue;
+        }
+
         try {
           await svc.scheduleFromReminderData(
             reminderId: notifId,
             medicationName: '$patientName — $title',
             dosage: '',
             scheduledTime: scheduledTime,
+            reminderType: reminderType,
             notificationBody:
                 '$patientName has a reminder due at ${_formatShortTime(scheduledTime)}',
           );
@@ -129,25 +143,22 @@ class ReminderNotificationSync {
                 .toLocal(),
         'status':
             (r['display_status'] ?? r['status'])?.toString() ?? 'pending',
-        'type': r['reminder_type']?.toString() ?? 'task',
+        'type': r['reminder_type']?.toString(),
         'dosage': null,
-        'recurrence': r['recurrence']?.toString() ?? 'once',
+        'recurrence': (r['recurrence'] ?? r['frequency'])?.toString() ?? 'once',
       };
     }).toList();
 
     await syncPatientFromMapped(mapped);
   }
 
-  /// Skips only reminders clearly in the past; allows a 2-minute buffer so a
-  /// row just created (or clock/API skew) is not dropped from the rebuild.
   static Future<void> _scheduleOnePatientRow(
     NotificationService svc,
     Map<String, dynamic> r,
     DateTime now,
   ) async {
     final scheduledTime = r['scheduledTime'] as DateTime?;
-    final skipIfBefore = now.subtract(const Duration(minutes: 2));
-    if (scheduledTime == null || scheduledTime.isBefore(skipIfBefore)) return;
+    if (scheduledTime == null || scheduledTime.isBefore(now)) return;
 
     final status = r['status']?.toString().toLowerCase() ?? '';
     if (status == 'completed' ||
@@ -159,23 +170,27 @@ class ReminderNotificationSync {
     final id = r['id']?.toString() ?? '';
     if (id.isEmpty) return;
 
-    final recurrence = (r['recurrence']?.toString() ?? 'once').trim();
+    final recurrence = ((r['recurrence'] ?? r['frequency'])?.toString() ?? 'once').trim();
     final isRecurring = recurrence != 'once';
     final title = r['title']?.toString() ?? 'Reminder';
+    final reminderType = readReminderType(r);
+    if (reminderType == null) {
+      debugPrint(
+        'ReminderNotificationSync: missing reminder_type for reminder id=$id, skipping local notification',
+      );
+      return;
+    }
+
     final dosage = r['dosage']?.toString() ?? '';
     final description = r['description']?.toString() ?? '';
-    final dosageLine = dosage.isNotEmpty
-        ? dosage
-        : (description.isNotEmpty
-            ? description
-            : 'Take your medication as prescribed');
 
     try {
       await svc.scheduleFromReminderData(
         reminderId: id,
         medicationName: title,
-        dosage: dosageLine,
+        dosage: dosage,
         scheduledTime: scheduledTime,
+        reminderType: reminderType,
         isRecurring: isRecurring,
         recurrencePattern: recurrence.isEmpty ? 'once' : recurrence,
         notificationBody:
@@ -185,48 +200,9 @@ class ReminderNotificationSync {
   }
 
   static Future<void> _syncCaregiverFromServer(AuthService auth) async {
-    final api = CareTeamApiService(authService: auth);
-    List<Map<String, dynamic>> patients;
-    try {
-      patients = await api.getMyPatients();
-    } catch (_) {
-      return;
-    }
-
-    final merged = <Map<String, dynamic>>[];
-    for (final p in patients) {
-      final pid = p['patient_id']?.toString() ?? '';
-      if (pid.isEmpty) continue;
-      final pname = (p['full_name'] as String?)?.trim().isNotEmpty == true
-          ? (p['full_name'] as String).trim()
-          : ((p['email'] as String?)?.trim() ?? 'Patient');
-      try {
-        final rows = await api.getPatientReminderList(pid);
-        for (final m in rows) {
-          merged.add(Map<String, dynamic>.from(m)
-            ..['_patient_id'] = pid
-            ..['_patient_name'] = pname);
-        }
-      } catch (_) {}
-    }
-
-    await syncCaregiverFromMergedList(merged);
-  }
-
-  static void _appendBucket(
-    dynamic bucket,
-    String patientId,
-    String patientName,
-    List<Map<String, dynamic>> out,
-  ) {
-    if (bucket is! List) return;
-    for (final item in bucket) {
-      if (item is Map) {
-        final m = Map<String, dynamic>.from(item);
-        m['_patient_id'] = patientId;
-        m['_patient_name'] = patientName;
-        out.add(m);
-      }
-    }
+    // Caregiver reminder rows require patient-scoped API access. Firestore-backed
+    // [CareTeamApiService] does not expose REST reminder bundles; local alarms for
+    // caregivers are rebuilt when merged lists are loaded (e.g. overview / timeline).
+    await auth.getAccessToken();
   }
 }

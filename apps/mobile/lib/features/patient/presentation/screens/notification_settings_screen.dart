@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/services/notification_service.dart';
+import '../../../../core/l10n/localized_pickers.dart';
+import '../../../../core/utils/locale_format.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -285,8 +286,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           ),
           TextButton(
             onPressed: () async {
-              final TimeOfDay? newTime = await showTimePicker(
-                context: context,
+              final TimeOfDay? newTime = await showLocalizedTimePicker(
+                context,
                 initialTime: time,
               );
               if (newTime != null) {
@@ -347,12 +348,37 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 setState(() => _reminderAdvanceMinutes = value);
               }
             },
-            items: const [
-              DropdownMenuItem(value: 5, child: Text('5 min')),
-              DropdownMenuItem(value: 10, child: Text('10 min')),
-              DropdownMenuItem(value: 15, child: Text('15 min')),
-              DropdownMenuItem(value: 30, child: Text('30 min')),
-              DropdownMenuItem(value: 60, child: Text('1 hour')),
+            items: [
+              DropdownMenuItem(
+                value: 5,
+                child: Text(
+                  LocaleFormat.localizeDigitsInText(context, '5 min'),
+                ),
+              ),
+              DropdownMenuItem(
+                value: 10,
+                child: Text(
+                  LocaleFormat.localizeDigitsInText(context, '10 min'),
+                ),
+              ),
+              DropdownMenuItem(
+                value: 15,
+                child: Text(
+                  LocaleFormat.localizeDigitsInText(context, '15 min'),
+                ),
+              ),
+              DropdownMenuItem(
+                value: 30,
+                child: Text(
+                  LocaleFormat.localizeDigitsInText(context, '30 min'),
+                ),
+              ),
+              DropdownMenuItem(
+                value: 60,
+                child: Text(
+                  LocaleFormat.localizeDigitsInText(context, '1 hour'),
+                ),
+              ),
             ],
           ),
         ],
@@ -482,7 +508,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               ),
               const Spacer(),
               Text(
-                '${(_volumeLevel * 100).toInt()}%',
+                LocaleFormat.percent(context, _volumeLevel * 100),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -505,31 +531,10 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     );
   }
 
-  Future<void> _sendTestNotification() async {
-    try {
-      final granted = await NotificationService().requestNotificationPermission();
-      if (!granted && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Enable notifications in system settings to receive alerts.'),
-          ),
-        );
-        return;
-      }
-      await NotificationService().showInstantNotification(
-        notificationId: 90001,
-        title: '💊 Test Notification',
-        body: 'Notifications are working correctly! ✅',
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Test notification sent!')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Test notification failed: $e')),
-      );
-    }
+  void _sendTestNotification() {
+    // TODO: Send test notification
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Test notification sent!')),
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Service for handling app permissions (Camera, Microphone, etc.)
@@ -28,12 +29,18 @@ class PermissionsService {
   Future<PermissionStatus> requestMicrophonePermission(
     BuildContext context,
   ) async {
-    print('🔊 Requesting microphone permission...');
+    if (kDebugMode) {
+      print('🔊 Requesting microphone permission...');
+    }
     final status = await Permission.microphone.request();
-    print('🔊 Microphone permission status: $status');
+    if (kDebugMode) {
+      print('🔊 Microphone permission status: $status');
+    }
 
     if (status.isPermanentlyDenied) {
-      print('🔊 Microphone permission permanently denied, opening settings...');
+      if (kDebugMode) {
+        print('🔊 Microphone permission permanently denied, opening settings...');
+      }
       await _showPermissionDialog(
         context,
         title: 'Microphone Permission Required',
@@ -42,7 +49,9 @@ class PermissionsService {
         permission: Permission.microphone,
       );
     } else if (status.isDenied || !status.isGranted) {
-      print('🔊 Microphone permission denied, showing dialog...');
+      if (kDebugMode) {
+        print('🔊 Microphone permission denied, showing dialog...');
+      }
       await _showPermissionDialog(
         context,
         title: 'Microphone Permission Required',

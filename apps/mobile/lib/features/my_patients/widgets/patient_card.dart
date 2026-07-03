@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/config/theme.dart';
+import '../../../core/utils/locale_format.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../models/connected_patient.dart';
 
 class PatientCard extends StatefulWidget {
@@ -18,6 +21,7 @@ class _PatientCardState extends State<PatientCard> {
   @override
   Widget build(BuildContext context) {
     final p = widget.patient;
+    final l10n = AppLocalizations.of(context)!;
     final (avatarBg, avatarFg) = p.avatarColors;
 
     return AnimatedContainer(
@@ -44,17 +48,17 @@ class _PatientCardState extends State<PatientCard> {
                   child: InkWell(
                     onTap: () => setState(() => _expanded = !_expanded),
                     borderRadius: BorderRadius.circular(8),
-                    child: _collapsedHeader(p, avatarBg, avatarFg),
+                    child: _collapsedHeader(p, avatarBg, avatarFg, l10n),
                   ),
                 ),
                 if (_expanded) ...[
                   const Divider(thickness: 0.5, color: Color(0xFFEEEEEE)),
                   const SizedBox(height: 12),
-                  _detailGrid(p),
-                  if (p.medications.isNotEmpty) _medicationsSection(p),
-                  if (p.alerts.isNotEmpty) _alertsSection(p),
+                  _detailGrid(p, l10n),
+                  if (p.medications.isNotEmpty) _medicationsSection(p, l10n),
+                  if (p.alerts.isNotEmpty) _alertsSection(p, l10n),
                   const SizedBox(height: 12),
-                  _actionRow(context),
+                  _actionRow(context, l10n),
                 ],
               ],
             ),
@@ -68,6 +72,7 @@ class _PatientCardState extends State<PatientCard> {
     ConnectedPatient p,
     Color avatarBg,
     Color avatarFg,
+    AppLocalizations l10n,
   ) {
     final genderDob = <String>[];
     if (p.gender != null && p.gender!.isNotEmpty) {
@@ -124,8 +129,8 @@ class _PatientCardState extends State<PatientCard> {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: RemiCareUiColors.newBadgeBorder),
                       ),
-                      child: const Text(
-                        'New',
+                      child: Text(
+                        l10n.badgeNew,
                         style: TextStyle(
                           color: RemiCareUiColors.newBadgeText,
                           fontSize: 11,
@@ -173,9 +178,11 @@ class _PatientCardState extends State<PatientCard> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            if (p.joinedLabel.isNotEmpty)
+            if (p.joinedAt != null)
               Text(
-                p.joinedLabel,
+                l10n.joinedOn(
+                  LocaleFormat.dateMd(context, p.joinedAt!),
+                ),
                 style: const TextStyle(
                   color: RemiCareUiColors.confidenceText,
                   fontSize: 11,
@@ -196,7 +203,7 @@ class _PatientCardState extends State<PatientCard> {
     );
   }
 
-  Widget _detailGrid(ConnectedPatient p) {
+  Widget _detailGrid(ConnectedPatient p, AppLocalizations l10n) {
     final primary = p.primaryCondition;
     final allergies = p.allergies;
     final dob = p.dob;
@@ -206,7 +213,7 @@ class _PatientCardState extends State<PatientCard> {
     final hasDob = dob != null && dob.isNotEmpty;
 
     if (!hasPrimary && !hasAllergies && !hasDob) {
-      return _syncRowOnly(p);
+      return _syncRowOnly(p, l10n);
     }
 
     return Column(
@@ -218,7 +225,7 @@ class _PatientCardState extends State<PatientCard> {
             if (hasPrimary)
               Expanded(
                 child: _labelValue(
-                  'Primary condition',
+                  l10n.primaryCondition,
                   primary!,
                   syncDot: false,
                 ),
@@ -226,8 +233,8 @@ class _PatientCardState extends State<PatientCard> {
             if (hasPrimary) const SizedBox(width: 12),
             Expanded(
               child: _labelValue(
-                'Last synced',
-                p.lastSyncLabel,
+                l10n.lastSynced,
+                _lastSyncLabel(p, l10n),
                 syncDot: true,
               ),
             ),
@@ -241,7 +248,7 @@ class _PatientCardState extends State<PatientCard> {
               if (hasAllergies)
                 Expanded(
                   child: _labelValue(
-                    'Allergies',
+                    l10n.allergiesLabel,
                     allergies!,
                     syncDot: false,
                   ),
@@ -250,7 +257,7 @@ class _PatientCardState extends State<PatientCard> {
               if (hasDob)
                 Expanded(
                   child: _labelValue(
-                    'Date of birth',
+                    l10n.dateOfBirth,
                     dob!,
                     syncDot: false,
                   ),
@@ -262,10 +269,16 @@ class _PatientCardState extends State<PatientCard> {
     );
   }
 
-  Widget _syncRowOnly(ConnectedPatient p) {
+  String _lastSyncLabel(ConnectedPatient p, AppLocalizations l10n) {
+    final t = p.lastSyncedAt;
+    if (t == null) return l10n.neverSynced;
+    return LocaleFormat.timeAgo(context, t, l10n);
+  }
+
+  Widget _syncRowOnly(ConnectedPatient p, AppLocalizations l10n) {
     return _labelValue(
-      'Last synced',
-      p.lastSyncLabel,
+      l10n.lastSynced,
+      _lastSyncLabel(p, l10n),
       syncDot: true,
     );
   }
@@ -318,13 +331,13 @@ class _PatientCardState extends State<PatientCard> {
     );
   }
 
-  Widget _medicationsSection(ConnectedPatient p) {
+  Widget _medicationsSection(ConnectedPatient p, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
-        const Text(
-          'Current medications',
+        Text(
+          l10n.currentMedications,
           style: TextStyle(
             color: RemiCareUiColors.confidenceText,
             fontSize: 11,
@@ -360,13 +373,13 @@ class _PatientCardState extends State<PatientCard> {
     );
   }
 
-  Widget _alertsSection(ConnectedPatient p) {
+  Widget _alertsSection(ConnectedPatient p, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
-        const Text(
-          'Alerts',
+        Text(
+          l10n.alertsTitle,
           style: TextStyle(
             color: RemiCareUiColors.confidenceText,
             fontSize: 11,
@@ -403,7 +416,7 @@ class _PatientCardState extends State<PatientCard> {
     );
   }
 
-  Widget _actionRow(BuildContext context) {
+  Widget _actionRow(BuildContext context, AppLocalizations l10n) {
     return Row(
       children: [
         Expanded(
@@ -411,7 +424,7 @@ class _PatientCardState extends State<PatientCard> {
             height: 36,
             child: OutlinedButton(
               onPressed: () {
-                // TODO: navigate to CarePlanScreen
+                context.go('/caregiver/patient-overview?patientId=${widget.patient.patientId}');
               },
               style: OutlinedButton.styleFrom(
                 foregroundColor: RemiCareUiColors.carePlanButtonText,
@@ -422,8 +435,8 @@ class _PatientCardState extends State<PatientCard> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'View care plan',
+              child: Text(
+                l10n.viewCarePlan,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -438,7 +451,7 @@ class _PatientCardState extends State<PatientCard> {
             height: 36,
             child: ElevatedButton(
               onPressed: () {
-                // TODO: navigate to RemindersScreen
+                context.go('/caregiver/patient-overview?patientId=${widget.patient.patientId}');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: RemiCareUiColors.tealAcceptButton,
@@ -449,8 +462,8 @@ class _PatientCardState extends State<PatientCard> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'Reminders',
+              child: Text(
+                l10n.remindersButton,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,

@@ -5,7 +5,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-import 'deep_link_service.dart';
 import 'notification_service.dart';
 
 @pragma('vm:entry-point')
@@ -25,7 +24,6 @@ class FCMService {
   static bool _backgroundHandlerRegistered = false;
 
   StreamSubscription<RemoteMessage>? _onMessageSub;
-  StreamSubscription<RemoteMessage>? _onMessageOpenedSub;
   StreamSubscription<String>? _onTokenRefreshSub;
 
   Future<void> _persistToken(String userId, String token) async {
@@ -35,22 +33,8 @@ class FCMService {
     );
   }
 
-  String? _deepLinkFromMessage(RemoteMessage message) {
-    final link = message.data['deep_link']?.toString().trim();
-    if (link != null && link.isNotEmpty) return link;
-    return null;
-  }
-
-  void _navigateFromMessage(RemoteMessage message) {
-    final link = _deepLinkFromMessage(message);
-    if (link != null) {
-      DeepLinkService.instance.navigate(link);
-    }
-  }
-
-  /// Registers background handler (once), saves token to
+  /// Registers background handler (once), requests permission, saves token to
   /// `users/{userId}` (`fcmToken`), and wires foreground / token refresh.
-  /// Does not show a launch-time OS notification prompt.
   Future<void> initialize(String userId) async {
     if (!_backgroundHandlerRegistered) {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -58,32 +42,29 @@ class FCMService {
     }
 
     await _onMessageSub?.cancel();
-    await _onMessageOpenedSub?.cancel();
     await _onTokenRefreshSub?.cancel();
+
+    await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
     final token = await _messaging.getToken();
     if (token != null) {
       await _persistToken(userId, token);
     }
 
-    final initial = await _messaging.getInitialMessage();
-    if (initial != null) {
-      _navigateFromMessage(initial);
-    }
-
-    _onMessageOpenedSub =
-        FirebaseMessaging.onMessageOpenedApp.listen(_navigateFromMessage);
-
     _onMessageSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      final id = message.hashCode;
+      final id = message.hashCode & 0x7fffffff;
       final title = message.notification?.title ?? 'Reminder';
       final body = message.notification?.body ?? '';
-      await NotificationService().scheduleReminder(
-        id: id,
+      final notif = NotificationService();
+      await notif.initialize();
+      await notif.showInstantNotification(
+        notificationId: id == 0 ? 1 : id,
         title: title,
-        body: body,
-        scheduledTime: DateTime.now(),
-        payload: _deepLinkFromMessage(message),
+        body: body.isEmpty ? ' ' : body,
       );
     });
 

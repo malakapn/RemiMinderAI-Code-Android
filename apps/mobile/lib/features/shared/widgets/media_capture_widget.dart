@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/camera_service.dart';
 import '../../../core/services/audio_service.dart';
+import '../../../core/utils/locale_format.dart';
 
 /// Widget for capturing media (photos/videos for scanning, audio for conversations)
 class MediaCaptureWidget extends StatefulWidget {
@@ -156,7 +157,7 @@ class _MediaCaptureWidgetState extends State<MediaCaptureWidget> {
                 const Icon(Icons.radio_button_checked, color: Colors.red),
                 const SizedBox(width: 8),
                 Text(
-                  'Recording: ${_audioService.getFormattedDuration()}',
+                  'Recording: ${_audioService.getFormattedDuration(LocaleFormat.locale(context))}',
                   style: const TextStyle(
                       color: Colors.red, fontWeight: FontWeight.bold),
                 ),

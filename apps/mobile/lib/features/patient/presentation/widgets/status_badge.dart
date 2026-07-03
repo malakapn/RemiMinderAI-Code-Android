@@ -69,11 +69,23 @@ class StatusBadge extends StatelessWidget {
       case 'completed':
         return _StatusInfo('Done', Colors.green, Icons.check_circle);
       case 'pending':
+      case 'active':
         return _StatusInfo('Pending', Colors.blue, Icons.schedule);
+      case 'due now':
+        return _StatusInfo('Due Now', Colors.red, Icons.alarm);
+      case 'upcoming':
+        return _StatusInfo('Upcoming', Colors.blue, Icons.schedule);
+      case 'missed':
+        return _StatusInfo('Missed', Colors.red, Icons.warning_amber);
       case 'snoozed':
         return _StatusInfo('Snoozed', Colors.orange, Icons.snooze);
+      case 'skipped':
+        return _StatusInfo('Skipped', Colors.grey, Icons.skip_next);
       default:
-        return _StatusInfo('Unknown', Colors.grey, Icons.help);
+        if (status.isNotEmpty) {
+          return _StatusInfo(status, Colors.blue, Icons.schedule);
+        }
+        return _StatusInfo('Pending', Colors.blue, Icons.schedule);
     }
   }
 

@@ -9,7 +9,9 @@
 
 import 'package:flutter/material.dart';
 
-import '../../features/reminders/data/reminder_repository.dart';
+import '../../core/utils/locale_format.dart';
+import '../../l10n/app_localizations.dart';
+import '../models/reminder.dart';
 
 class ReminderCard extends StatelessWidget {
   final Reminder reminder;
@@ -65,7 +67,7 @@ class ReminderCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _formatTime(),
+                  _formatTime(context),
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -164,24 +166,19 @@ class ReminderCard extends StatelessWidget {
     }
   }
 
-  String _formatTime() {
-    final now = DateTime.now();
-    final difference = reminder.scheduledTime.difference(now);
+  String _formatTime(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheduled = reminder.scheduledTime.toLocal();
 
-    if (reminder.isOverdue) {
-      final hours = difference.inHours.abs();
-      if (hours < 1) return 'Just now';
-      if (hours < 24) return '$hours hours ago';
-      return '${difference.inDays.abs()} days ago';
+    if (reminder.isToday && !reminder.isOverdue) {
+      return LocaleFormat.time(context, scheduled);
     }
 
-    if (reminder.isToday) {
-      return '${reminder.scheduledTime.hour}:${reminder.scheduledTime.minute.toString().padLeft(2, '0')}';
+    final delta = scheduled.difference(DateTime.now());
+    if (reminder.isOverdue || delta.inDays.abs() < 7) {
+      return LocaleFormat.reminderRelativeTime(context, scheduled, l10n);
     }
 
-    if (difference.inDays == 1) return 'Tomorrow';
-    if (difference.inDays < 7) return 'In ${difference.inDays} days';
-
-    return '${reminder.scheduledTime.month}/${reminder.scheduledTime.day}';
+    return LocaleFormat.dateMd(context, scheduled);
   }
 }

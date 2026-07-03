@@ -4,7 +4,6 @@ import 'secure_storage.dart';
 import 'firebase_auth_service.dart';
 import '../../features/patient/data/services/local_storage_service.dart';
 import 'audio_service.dart';
-import 'notification_service.dart';
 import 'video_service.dart';
 import 'visit_context.dart';
 
@@ -55,24 +54,17 @@ class AuthService {
     return await _firebaseAuth.signInWithGoogle(selectedRole: selectedRole);
   }
 
+
+  /// Sign in with Apple (iOS only)
+  Future<User> signInWithApple({UserRole? selectedRole}) async {
+    return await _firebaseAuth.signInWithApple(selectedRole: selectedRole);
+  }
+
   /// Sign out current user
   Future<void> signOut() async {
-    // Backend FCM row must be cleared while we still have a Firebase ID token.
-    try {
-      await NotificationService()
-          .unregisterBackendFcmToken()
-          .timeout(const Duration(seconds: 3));
-    } catch (_) {
-      // Continue local sign-out even if backend is unreachable.
-    }
-
-    try {
-      await _firebaseAuth.signOut().timeout(const Duration(seconds: 5));
-    } catch (_) {
-      // Continue cleanup even if Firebase sign-out hangs/fails.
-    }
-    await _localStorage.clearAllData().timeout(const Duration(seconds: 3));
-    await _tokenManager.clearTokens().timeout(const Duration(seconds: 3));
+    await _firebaseAuth.signOut();
+    await _localStorage.clearAllData();
+    await _tokenManager.clearTokens();
 
     // Clean up any remaining audio recordings
     final savedRecordings = await _audioService.getSavedRecordings();
@@ -85,14 +77,6 @@ class AuthService {
     for (final file in savedVideos) {
       await _videoService.deleteVideo(file.path);
     }
-
-    // Cancel all local scheduled notifications (patient + caregiver mirrors)
-    await NotificationService().cancelAllReminders();
-
-    // Invalidate installation token after auth session is gone
-    await NotificationService()
-        .clearLocalFcmRegistration()
-        .timeout(const Duration(seconds: 3));
 
     // Clear visit context on logout
     VisitContext().clearVisit();
@@ -120,18 +104,8 @@ class AuthService {
 
   /// Get access token for API calls
   Future<String?> getAccessToken() async {
-    final firebaseToken = await _firebaseAuth.getIdToken();
-    if (firebaseToken != null && firebaseToken.trim().isNotEmpty) {
-      return firebaseToken;
-    }
-
-    // Fallback: Firebase currentUser can be temporarily null right after login
-    // or app resume. We persist the same ID token in secure storage at sign-in.
-    final storedToken = await _tokenManager.getAccessToken();
-    if (storedToken != null && storedToken.trim().isNotEmpty) {
-      return storedToken;
-    }
-    return null;
+    final token = await _firebaseAuth.getIdToken();
+    return token;
   }
 
   /// Get authenticated headers for API calls

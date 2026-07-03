@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/utils/locale_format.dart';
+import '../../../../l10n/app_localizations.dart';
 
 class EmergencyContactsScreen extends StatefulWidget {
   const EmergencyContactsScreen({super.key});
@@ -47,6 +49,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       'isSystem': false,
     },
   ];
+
+  String _medicalAlertInfo =
+      'Cardiac patient, allergic to penicillin, takes daily medications';
 
   final List<String> _contactTypes = ['family', 'medical', 'friend', 'other'];
 
@@ -165,7 +170,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Cardiac patient, allergic to penicillin, takes daily medications',
+                          _medicalAlertInfo,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.red[700],
@@ -230,7 +235,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
               ),
               child: Center(
                 child: Text(
-                  priority.toString(),
+                  LocaleFormat.number(context, priority),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -550,9 +555,123 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
   }
 
   void _showEditContactDialog(Map<String, dynamic> contact) {
-    // TODO: Implement edit contact dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Edit ${contact['name']} - Coming Soon!')),
+    if (contact['isSystem'] == true) return;
+
+    final nameController = TextEditingController(text: contact['name'] as String? ?? '');
+    final phoneController = TextEditingController(text: contact['phone'] as String? ?? '');
+    final relationshipController =
+        TextEditingController(text: contact['relationship'] as String? ?? '');
+    String selectedType = (contact['type'] as String?) ?? 'family';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Edit Emergency Contact'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Full Name'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone Number'),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedType,
+                  decoration: const InputDecoration(labelText: 'Contact Type'),
+                  items: _contactTypes
+                      .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(
+                                type[0].toUpperCase() + type.substring(1)),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => selectedType = value);
+                  },
+                ),
+                if (selectedType == 'family') ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: relationshipController,
+                    decoration: const InputDecoration(
+                      labelText: 'Relationship',
+                      hintText: 'Spouse, Child, Parent, etc.',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isEmpty || phoneController.text.isEmpty) {
+                  return;
+                }
+                final relationship = relationshipController.text.trim();
+                setState(() {
+                  contact['name'] = nameController.text.trim();
+                  contact['phone'] = phoneController.text.trim();
+                  contact['type'] = selectedType;
+                  contact['relationship'] =
+                      relationship.isNotEmpty ? relationship : null;
+                });
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Contact updated')),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _editMedicalInfo() {
+    final controller = TextEditingController(text: _medicalAlertInfo);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Medical Alert Information'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Allergies, conditions, medications...',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _medicalAlertInfo = controller.text.trim().isEmpty
+                    ? 'No medical alerts recorded'
+                    : controller.text.trim();
+              });
+              Navigator.of(context).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -561,7 +680,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Contact'),
-        content: Text('Are you sure you want to remove ${contact['name']} from emergency contacts?'),
+        content: Text(
+            'Are you sure you want to remove ${contact['name']} from emergency contacts?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -585,7 +705,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     );
   }
 
-  void _addContact(String name, String phone, String type, String relationship) {
+  void _addContact(
+      String name, String phone, String type, String relationship) {
     final newContact = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'name': name,
@@ -602,13 +723,6 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$name added to emergency contacts')),
-    );
-  }
-
-  void _editMedicalInfo() {
-    // TODO: Implement medical info editing
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit medical information - Coming Soon!')),
     );
   }
 }

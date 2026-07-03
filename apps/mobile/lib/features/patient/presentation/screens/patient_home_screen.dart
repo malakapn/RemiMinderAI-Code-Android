@@ -2,14 +2,25 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
-import '../../../../core/services/notification_service.dart';
-import '../../../../shared/utilities/greeting_utils.dart';
-import '../widgets/widgets.dart';
+import '../../../../core/utils/locale_format.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../data/models/patient_task.dart';
+import '../../data/services/patient_tasks_api_service.dart';
+import '../../../shared/widgets/scroll_bottom_fade.dart';
+
+// Home screen palette
+const Color _teal = Color(0xFF0D3D38);
+const Color _tealMid = Color(0xFF155048);
+const Color _cream = Color(0xFFEDEAE1);
+const Color _gold = Color(0xFFC9A84C);
+const Color _goldLight = Color(0xFFF0D080);
+const Color _white20 = Color(0x33FFFFFF);
 
 class PatientHomeScreen extends ConsumerStatefulWidget {
   const PatientHomeScreen({super.key});
@@ -18,67 +29,90 @@ class PatientHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
-class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
-    with WidgetsBindingObserver {
+class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen> {
   final AuthService _authService = AuthService();
+  final PatientTasksApiService _tasksApiService = PatientTasksApiService();
+  List<PatientTask> _tasks = [];
+  List<Map<String, dynamic>> _taskReminders = [];
+  bool _isLoadingTasks = true;
   bool _isLoadingUpNext = true;
-  Map<String, dynamic>? _upNextReminder;
+  List<Map<String, dynamic>> _upNextReminders = [];
   List<Map<String, dynamic>> _todayReminders = [];
-  List<Map<String, dynamic>> _upcomingReminders = [];
   bool _remindersError = false;
-
-  bool _isLoadingTasks = false;
-  List<_PatientHomeTodoItem> _tasks = [];
-
-  /// Task rows currently sending "complete" to the API.
-  final Set<String> _completingTaskIds = {};
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _fetchUpNextReminder();
+    _refreshHomeData();
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
+  Future<void> _refreshHomeData() async {
+    await Future.wait([_fetchTasks(), _fetchUpNextReminder()]);
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _fetchUpNextReminder();
+  bool _isTaskReminder(Map<String, dynamic> reminder) {
+    final type =
+        (reminder['reminder_type'] ?? reminder['type'] ?? '').toString();
+    return type == 'task';
+  }
+
+  bool _isActiveReminder(Map<String, dynamic> reminder) {
+    final status = (reminder['status'] ?? '').toString().toLowerCase();
+    if (status == 'completed' ||
+        status == 'skipped' ||
+        status == 'cancelled') {
+      return false;
     }
+    return status == 'pending' ||
+        status == 'active' ||
+        status == 'snoozed' ||
+        status.isEmpty;
   }
 
-  Future<void> _rescheduleAllNotifications(List<dynamic> reminders) async {
-    final svc = NotificationService();
-    final now = DateTime.now();
-    for (final raw in reminders) {
-      if (raw is! Map) continue;
-      final scheduledStr = raw['scheduled_time']?.toString() ?? '';
-      final scheduledTime = DateTime.tryParse(scheduledStr)?.toLocal();
-      if (scheduledTime == null || scheduledTime.isBefore(now)) continue;
-      final id = raw['id']?.toString() ?? '';
-      if (id.isEmpty) continue;
-      try {
-        await svc.scheduleFromReminderData(
-          reminderId: id,
-          medicationName: raw['title']?.toString() ?? 'Reminder',
-          dosage: '',
-          scheduledTime: scheduledTime,
-          notificationBody: raw['message']?.toString(),
-        );
-      } catch (_) {}
+  int _scheduledSortKey(Map<String, dynamic> reminder) {
+    final scheduled = DateTime.tryParse(
+          reminder['scheduled_time']?.toString() ?? '',
+        ) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+    return scheduled.millisecondsSinceEpoch;
+  }
+
+  List<Map<String, dynamic>> _dedupeReminders(List<Map<String, dynamic>> items) {
+    final seen = <String>{};
+    final deduped = <Map<String, dynamic>>[];
+    for (final reminder in items) {
+      if (!_isActiveReminder(reminder)) continue;
+      final id = reminder['id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        if (seen.contains(id)) continue;
+        seen.add(id);
+      }
+      deduped.add(reminder);
+    }
+    deduped.sort(
+      (a, b) => _scheduledSortKey(a).compareTo(_scheduledSortKey(b)),
+    );
+    return deduped;
+  }
+
+  Future<void> _fetchTasks() async {
+    try {
+      final tasks = await _tasksApiService.fetchTasks();
+      if (!mounted) return;
+      setState(() {
+        _tasks = tasks;
+        _isLoadingTasks = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _tasks = [];
+        _isLoadingTasks = false;
+      });
     }
   }
 
   Future<void> _fetchUpNextReminder() async {
-    if (mounted) {
-      setState(() => _isLoadingTasks = true);
-    }
     try {
       final accessToken = await _authService.getAccessToken();
       if (accessToken == null) {
@@ -96,894 +130,774 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as Map<String, dynamic>;
-        final upcoming = data['upcoming'] as List<dynamic>? ?? [];
-        final today = data['today'] as List<dynamic>? ?? [];
+        final upcoming = (data['upcoming'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        final today = (data['today'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+        final taskReminders = <Map<String, dynamic>>[];
+        final seenTaskIds = <String>{};
+        for (final reminder in [...today, ...upcoming]) {
+          if (!_isTaskReminder(reminder) || !_isActiveReminder(reminder)) {
+            continue;
+          }
+          final id = reminder['id']?.toString() ?? '';
+          if (id.isNotEmpty && seenTaskIds.contains(id)) continue;
+          if (id.isNotEmpty) seenTaskIds.add(id);
+          taskReminders.add(reminder);
+        }
+
+        final upNextList = _dedupeReminders(
+          upcoming.whereType<Map<String, dynamic>>().toList(),
+        );
+        final todaySchedule = _dedupeReminders(
+          today.whereType<Map<String, dynamic>>().toList(),
+        );
+
         if (!mounted) return;
         setState(() {
-          _upNextReminder = upcoming.isNotEmpty
-              ? upcoming.first as Map<String, dynamic>
-              : null;
-          _todayReminders = today.whereType<Map<String, dynamic>>().toList();
-          _upcomingReminders =
-              upcoming.whereType<Map<String, dynamic>>().toList();
+          _upNextReminders = upNextList;
+          _todayReminders = todaySchedule;
+          _taskReminders = taskReminders;
           _isLoadingUpNext = false;
           _remindersError = false;
-        });
-        // Reschedule notifications immediately on login so nothing is missed
-        _rescheduleAllNotifications([...upcoming, ...today]);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          final openTasks = _collectMyTasks();
-          setState(() {
-            _tasks = openTasks.map((r) {
-              final title = (r['title']?.toString() ?? '').trim();
-              final body = (r['message']?.toString() ?? '').trim();
-              final headline =
-                  title.isNotEmpty ? title : (body.isNotEmpty ? body : 'Task');
-              return _PatientHomeTodoItem(
-                title: headline,
-                createdAt:
-                    DateTime.tryParse(r['scheduled_time']?.toString() ?? ''),
-              );
-            }).toList();
-            _isLoadingTasks = false;
-          });
         });
         return;
       }
       if (!mounted) return;
       setState(() {
-        _upNextReminder = null;
+        _upNextReminders = [];
         _todayReminders = [];
-        _upcomingReminders = [];
-        _tasks = [];
+        _taskReminders = [];
         _isLoadingUpNext = false;
-        _isLoadingTasks = false;
         _remindersError = true;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _upNextReminder = null;
+        _upNextReminders = [];
         _todayReminders = [];
-        _upcomingReminders = [];
-        _tasks = [];
+        _taskReminders = [];
         _isLoadingUpNext = false;
-        _isLoadingTasks = false;
         _remindersError = true;
       });
     }
   }
 
-  List<Map<String, dynamic>> _collectMyTasks() {
-    bool isOpen(Map<String, dynamic> r) {
-      final s = (r['display_status'] ?? r['status'] ?? 'pending')
-          .toString()
-          .toLowerCase();
-      return s != 'completed' &&
-          s != 'complete' &&
-          s != 'skipped' &&
-          s != 'missed';
-    }
+  // ── UI-only helpers (used by build methods below) ──
 
-    bool isTask(Map<String, dynamic> r) {
-      final t =
-          (r['reminder_type'] ?? r['type'] ?? '').toString().toLowerCase();
-      return t == 'task';
-    }
+  TextStyle get _bodyStyle => GoogleFonts.dmSans();
+  TextStyle get _headerStyle => GoogleFonts.dmSerifDisplay();
 
-    final seen = <String>{};
-    final out = <Map<String, dynamic>>[];
-    for (final r in [..._todayReminders, ..._upcomingReminders]) {
-      if (!isTask(r) || !isOpen(r)) continue;
-      final id = r['id']?.toString() ?? '';
-      if (id.isEmpty || seen.contains(id)) continue;
-      seen.add(id);
-      out.add(r);
-    }
-    return out;
+  bool _isReminderDone(Map<String, dynamic> reminder) {
+    final status = (reminder['status'] ?? '').toString().toLowerCase();
+    return status == 'completed';
   }
 
-  Widget _buildMyTasks() {
-    final tasks = _collectMyTasks();
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: _isLoadingUpNext
-          ? const Center(child: CircularProgressIndicator())
-          : tasks.isEmpty
-              ? Text(
-                  'No tasks yet. Add reminders as "Task" from Reminders.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ...tasks.map((r) {
-                      final id = r['id']?.toString() ?? '';
-                      final title = (r['title']?.toString() ?? '').trim();
-                      final body = (r['message']?.toString() ?? '').trim();
-                      final busy = _completingTaskIds.contains(id);
-                      final headline = title.isNotEmpty
-                          ? title
-                          : (body.isNotEmpty ? body : 'Task');
-                      return Padding(
-                        key: ValueKey<String>('my-task-$id'),
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          secondary: busy
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(4.0),
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  ),
-                                )
-                              : null,
-                          value: false,
-                          activeColor:
-                              Theme.of(context).colorScheme.primary,
-                          title: Text(
-                            headline,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          subtitle: body.isNotEmpty && title.isNotEmpty
-                              ? Text(
-                                  body,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .secondary,
-                                  ),
-                                )
-                              : null,
-                          onChanged: busy
-                              ? null
-                              : (v) {
-                                  if (v == true) {
-                                    _completeMyTask(id);
-                                  }
-                                },
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-    );
+  bool _isTaskDone(PatientTask task) {
+    return task.status.toLowerCase() == 'completed';
   }
 
-  Future<void> _completeMyTask(String id) async {
-    if (id.isEmpty) return;
-    setState(() => _completingTaskIds.add(id));
-    try {
-      final accessToken = await _authService.getAccessToken();
-      if (accessToken == null) throw Exception('Authentication required');
-      final response = await http.post(
-        Uri.parse('${Environment.apiBaseUrl}/api/reminders/$id/complete'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-      if (response.statusCode != 200) throw Exception('Action failed');
-      try {
-        await NotificationService().cancelFromReminderId(id);
-      } catch (_) {}
-      await _fetchUpNextReminder();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Task completed')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to update task')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _completingTaskIds.remove(id));
+  Color _reminderAccentColor(Map<String, dynamic> reminder) {
+    final colorValue = reminder['color'];
+    if (colorValue is int) {
+      return Color(colorValue);
+    }
+    if (colorValue is String && colorValue.isNotEmpty) {
+      var hex = colorValue.replaceAll('#', '');
+      if (hex.length == 6) {
+        hex = 'FF$hex';
+      }
+      final parsed = int.tryParse(hex, radix: 16);
+      if (parsed != null) {
+        return Color(parsed);
       }
     }
+    return _goldLight;
+  }
+
+  /// Active reminders for the schedule section: today's plus upcoming future dates.
+  List<Map<String, dynamic>> get _displayScheduleReminders =>
+      _dedupeReminders([..._todayReminders, ..._upNextReminders]);
+
+  int get _todayDoneCount =>
+      _todayReminders.where(_isReminderDone).length;
+
+  int get _todayTotalCount => _todayReminders.length;
+
+  double get _todayProgressValue {
+    if (_todayTotalCount == 0) return 0;
+    return _todayDoneCount / _todayTotalCount;
+  }
+
+  int get _pendingTaskCount {
+    final pendingTasks = _tasks.where((task) => !_isTaskDone(task)).length;
+    final pendingTaskReminders =
+        _taskReminders.where((reminder) => !_isReminderDone(reminder)).length;
+    return pendingTasks + pendingTaskReminders;
+  }
+
+  String _timeBasedGreeting(AppLocalizations l10n) {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return l10n.goodMorning;
+    }
+    if (hour >= 12 && hour < 17) {
+      return l10n.goodAfternoon;
+    }
+    if (hour >= 17 && hour < 22) {
+      return l10n.goodEvening;
+    }
+    return l10n.goodNight;
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
-    final userName = authState.profile?.fullName ?? 'Patient';
-    final greeting =
-        GreetingUtils.getTimeBasedGreeting(); // Just the greeting part
-    final firstName = userName.split(' ').first; // Extract first name only
+    final l10n = AppLocalizations.of(context)!;
+    final userName = LocaleFormat.displayName(
+      context,
+      authState.profile?.fullName ?? '',
+      fallback: l10n.defaultPatient,
+    );
+    final greeting = _timeBasedGreeting(l10n);
+    final firstName = userName.split(' ').first;
 
-    return Column(
-      children: [
-        // App Bar equivalent - convert to a regular Container
-        Container(
-          color: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0)
-              .copyWith(top: MediaQuery.of(context).padding.top + 16.0),
-          child: Row(
-            children: [
-              // Enhanced User Avatar with Gradient (compact)
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Enhanced Welcome Text (greeting + name layout)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Greeting line
-                    Text(
-                      greeting,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    // First name with sparkle
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            firstName,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.3,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          '✨',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ],
-                    ),
-                    // Subtitle
-                    Text(
-                      'How are you feeling today?',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.secondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.notifications_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Coming soon')),
-                  );
-                },
-              ),
-            ],
+    return ColoredBox(
+      color: _cream,
+      child: Column(
+        children: [
+          _buildHeader(
+            greeting: greeting,
+            firstName: firstName,
+            l10n: l10n,
           ),
-        ),
-
-        // Main content
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 24),
-
-                // Up Next Card
-                _buildUpNextCard(),
-
-                const SizedBox(height: 32),
-
-                // Today's Schedule
-                const SectionHeader(
-                  title: 'Today\'s Schedule',
-                  icon: Icons.schedule,
+          Expanded(
+            child: ScrollBottomFade.builder(
+              fadeColor: _cream,
+              builder: (context, controller) => RefreshIndicator(
+                color: _teal,
+                onRefresh: _refreshHomeData,
+                child: SingleChildScrollView(
+                  controller: controller,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildScheduleSectionHeader(l10n),
+                      const SizedBox(height: 12),
+                      _buildTodaysSchedule(l10n),
+                      const SizedBox(height: 28),
+                      _buildTasksSectionHeader(l10n),
+                      const SizedBox(height: 12),
+                      _buildTodoList(l10n),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                _buildTodaysSchedule(),
-
-                const SizedBox(height: 32),
-
-                const SectionHeader(
-                  title: 'My Tasks',
-                  icon: Icons.checklist_outlined,
-                ),
-                const SizedBox(height: 16),
-                _buildMyTasks(),
-
-                // Extra space for bottom navigation - this will be handled by the app shell
-                const SizedBox(height: 120),
-              ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildUpNextCard() {
-    final reminder = _upNextReminder;
-    final title = reminder?['title'] as String?;
-    final message = reminder?['message'] as String?;
-    final previewText = title?.trim().isNotEmpty == true ? title! : (message ?? '');
-    final scheduledTime = reminder?['scheduled_time'] as String?;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final maxPreviewHeight = screenHeight < 700
-        ? 120.0
-        : screenHeight < 850
-            ? 160.0
-            : 220.0;
+  Widget _buildHeader({
+    required String greeting,
+    required String firstName,
+    required AppLocalizations l10n,
+  }) {
+    final topPadding = MediaQuery.of(context).padding.top;
 
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF1A4D4D), // Dark teal-green
-            Color(0xFF051818), // Very dark green/black
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, topPadding + 20, 20, 24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_teal, _tealMid],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: const Border(
-          top: BorderSide(
-            color: Colors.white,
-            width: 0.5,
-          ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.alarm,
-                color: Colors.white,
-                size: 28,
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: _white20,
+                child: Icon(
+                  Icons.person_outline,
+                  color: Colors.white.withValues(alpha: 0.9),
+                  size: 28,
+                ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                'Up Next',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting,
+                      style: _bodyStyle.copyWith(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$firstName ✨',
+                      style: _headerStyle.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.howAreYouFeeling,
+                      style: _bodyStyle.copyWith(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (_isLoadingUpNext)
-            const Center(child: CircularProgressIndicator())
-          else if (reminder == null)
-            Text(
-              'No upcoming reminders',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            )
-          else ...[
-            // Long AI-generated preview text can exceed card height.
-            // Keep it readable by allowing vertical scrolling inside the card.
-            ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: maxPreviewHeight),
-              child: SingleChildScrollView(
-                child: Text(
-                  previewText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _formatDueText(scheduledTime),
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 16,
-              ),
-            ),
-          ],
           const SizedBox(height: 20),
-          if (reminder == null)
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => context.go('/patient/reminders'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: const Text(
-                      'View All',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => context.go('/patient/reminders?add=1'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Theme.of(context).colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: const Text(
-                      'Add Item',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _handleReminderAction(
-                          reminder['id']?.toString(), 'complete');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Theme.of(context).colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: const Text(
-                      'Take Now',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: () {
-                    _handleReminderAction(
-                        reminder['id']?.toString(), 'snooze');
-                  },
-                  icon: const Icon(Icons.snooze, color: Colors.white),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    padding: const EdgeInsets.all(12),
-                  ),
-                ),
-              ],
-            ),
+          _buildProgressCard(l10n),
         ],
       ),
     );
   }
 
-  Widget _buildTodaysSchedule() {
-    final scheduleReminders = _todayReminders.where((reminder) {
-      final rawType = (reminder['reminder_type'] ?? reminder['type'] ?? '')
-          .toString()
-          .trim()
-          .toLowerCase();
-      return rawType == 'medication' || rawType == 'appointment';
-    }).toList();
+  Widget _buildProgressCard(AppLocalizations l10n) {
+    final done = _todayDoneCount;
+    final total = _todayTotalCount;
+    final percent = total == 0 ? 0 : ((done / total) * 100).round();
 
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.todaysProgress,
+                  style: _bodyStyle.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  LocaleFormat.localizeDigitsInText(
+                    context,
+                    l10n.doneCount(done, total),
+                  ),
+                  style: _headerStyle.copyWith(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 58,
+            height: 58,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator.adaptive(
+                  value: _todayProgressValue,
+                  strokeWidth: 5,
+                  backgroundColor: Colors.white.withValues(alpha: 0.12),
+                  valueColor: const AlwaysStoppedAnimation<Color>(_goldLight),
+                ),
+                Text(
+                  LocaleFormat.localizeDigitsInText(context, '$percent%'),
+                  style: _bodyStyle.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScheduleSectionHeader(AppLocalizations l10n) {
+    return Row(
+      children: [
+        const Icon(Icons.access_time_rounded, color: _teal, size: 22),
+        const SizedBox(width: 8),
+        Text(
+          l10n.yourSchedule,
+          style: _headerStyle.copyWith(
+            fontSize: 17,
+            color: _teal,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const Spacer(),
+        TextButton(
+          onPressed: () => context.go('/patient/reminders'),
+          style: TextButton.styleFrom(
+            foregroundColor: _teal,
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(44, 44),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(
+            l10n.seeAll,
+            style: _bodyStyle.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: _teal,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTasksSectionHeader(AppLocalizations l10n) {
+    return Row(
+      children: [
+        const Icon(Icons.check_circle_outline, color: _teal, size: 22),
+        const SizedBox(width: 8),
+        Text(
+          l10n.myTasks,
+          style: _headerStyle.copyWith(
+            fontSize: 17,
+            color: _teal,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: _teal.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            LocaleFormat.localizeDigitsInText(
+              context,
+              l10n.pendingCount(_pendingTaskCount),
+            ),
+            style: _bodyStyle.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _teal,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTodaysSchedule(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: _teal.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         children: [
           if (_isLoadingUpNext)
-            const Center(child: CircularProgressIndicator())
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: CircularProgressIndicator(color: _teal),
+            )
           else if (_remindersError)
-            Text(
-              'Nothing scheduled for today',
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).colorScheme.secondary,
-              ),
-            )
-          else if (scheduleReminders.isEmpty)
-            Text(
-              'Nothing scheduled for today',
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).colorScheme.secondary,
-              ),
-            )
+            _buildEmptyScheduleMessage(l10n.unableToLoadReminders)
+          else if (_displayScheduleReminders.isEmpty)
+            _buildEmptyScheduleMessage(l10n.nothingScheduledYet)
           else
             Column(
-              children: scheduleReminders.map((reminder) {
-                final title = reminder['title'] as String?;
-                final message = reminder['message'] as String?;
-                final scheduledTime = reminder['scheduled_time'] as String?;
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .secondary
-                                .withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.schedule,
-                            color: Theme.of(context).colorScheme.secondary,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title?.trim().isNotEmpty == true
-                                    ? title!
-                                    : (message ?? ''),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                              Text(
-                                _formatScheduleTime(scheduledTime),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .secondary
-                                      .withOpacity(0.7),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+              children: [
+                for (var i = 0; i < _displayScheduleReminders.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 20,
+                      color: _teal.withValues(alpha: 0.06),
                     ),
-                    const Divider(height: 12),
-                  ],
-                );
-              }).toList(),
+                  _buildScheduleRow(_displayScheduleReminders[i], l10n),
+                ],
+              ],
             ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => context.go('/patient/reminders'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.primary,
-                    side: BorderSide(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: const Text(
-                    'View All',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                context.go('/patient/reminders');
+              },
+              icon: const Icon(Icons.add_alert_outlined, color: _gold),
+              label: Text(
+                l10n.addReminder,
+                style: _bodyStyle.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => context.go('/patient/reminders?add=1'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: const Text(
-                    'Add Item',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _teal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                elevation: 0,
               ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTodoList() {
+  Widget _buildEmptyScheduleMessage(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        message,
+        style: _bodyStyle.copyWith(
+          fontSize: 14,
+          color: _teal.withValues(alpha: 0.6),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScheduleRow(
+    Map<String, dynamic> reminder,
+    AppLocalizations l10n,
+  ) {
+    final title = reminder['title'] as String?;
+    final message = reminder['message'] as String?;
+    final scheduledTime = reminder['scheduled_time'] as String?;
+    final label = title?.trim().isNotEmpty == true
+        ? title!
+        : (message ?? 'Reminder');
+    final isDone = _isReminderDone(reminder);
+    final accent = _reminderAccentColor(reminder);
+    final scheduledLocal = _parseScheduledTimeLocal(scheduledTime);
+    final isFutureDay = scheduledLocal != null && !_isScheduledToday(scheduledLocal);
+
+    return Opacity(
+      opacity: isDone ? 0.55 : 1,
+      child: Row(
+        children: [
+          Icon(
+            Icons.check_circle,
+            size: 32,
+            color: isDone ? accent : accent.withValues(alpha: 0.35),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: _bodyStyle.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: _teal,
+                    decoration:
+                        isDone ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                if (LocaleFormat.scheduleTime(
+                  context,
+                  _parseScheduledTimeLocal(scheduledTime),
+                  includeDate: isFutureDay,
+                ).isNotEmpty)
+                  Text(
+                    LocaleFormat.scheduleTime(
+                      context,
+                      _parseScheduledTimeLocal(scheduledTime),
+                      includeDate: isFutureDay,
+                    ),
+                    style: _bodyStyle.copyWith(
+                      fontSize: 12,
+                      color: _teal.withValues(alpha: 0.55),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _buildStatusPill(
+            label: isDone
+                ? l10n.statusDone
+                : (isFutureDay ? l10n.statusScheduled : l10n.statusUpcoming),
+            background: isDone
+                ? _teal.withValues(alpha: 0.1)
+                : _gold.withValues(alpha: 0.15),
+            foreground: isDone ? _teal : _tealMid,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusPill({
+    required String label,
+    required Color background,
+    required Color foreground,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: _bodyStyle.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: foreground,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTodoList(AppLocalizations l10n) {
+    final isLoading = _isLoadingTasks || _isLoadingUpNext;
+    final hasTasks = _tasks.isNotEmpty || _taskReminders.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: _teal.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: _isLoadingTasks
-          ? const Center(child: CircularProgressIndicator())
-          : _tasks.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No tasks yet',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                )
-              : Column(
-                  children: [
-                    ..._tasks.map((task) {
-                      return Column(
-                        children: [
-                          _buildTodoItem(
-                            task.title,
-                            _formatTaskCreatedAt(task.createdAt),
-                            false,
-                          ),
-                          const Divider(height: 12),
-                        ],
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          // TODO: Navigate to full todo list
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Task'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-    );
-  }
-
-  Widget _buildTodoItem(String title, String dueDate, bool isCompleted) {
-    return Row(
-      children: [
-        Checkbox(
-          value: isCompleted,
-          onChanged: (value) {
-            // TODO: Update todo status
-          },
-          activeColor: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
+      child: Column(
+        children: [
+          if (isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: CircularProgressIndicator(color: _teal),
+              ),
+            )
+          else if (!hasTasks)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                l10n.noTasksYet,
+                style: _bodyStyle.copyWith(
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isCompleted
-                      ? Theme.of(context).colorScheme.secondary.withOpacity(0.6)
-                      : Theme.of(context).colorScheme.primary,
-                  decoration: isCompleted ? TextDecoration.lineThrough : null,
+                  color: _teal.withValues(alpha: 0.6),
                 ),
               ),
-              Text(
-                dueDate,
-                style: TextStyle(
-                  fontSize: 12,
-                  color:
-                      Theme.of(context).colorScheme.secondary.withOpacity(0.7),
+            )
+          else
+            Column(
+              children: [
+                for (final reminder in _taskReminders) ...[
+                  _buildTodoItem(
+                    title: (reminder['title'] as String?)?.trim().isNotEmpty ==
+                            true
+                        ? reminder['title'] as String
+                        : (reminder['message'] as String? ?? 'Task'),
+                    subtitle: LocaleFormat.dueLabel(
+                      context,
+                      _parseScheduledTimeLocal(
+                        reminder['scheduled_time'] as String?,
+                      ),
+                      l10n,
+                    ),
+                    tag: l10n.reminder,
+                    isCompleted: _isReminderDone(reminder),
+                  ),
+                  Divider(
+                    height: 20,
+                    color: _teal.withValues(alpha: 0.06),
+                  ),
+                ],
+                for (final task in _tasks) ...[
+                  _buildTodoItem(
+                    title: task.title,
+                    subtitle: task.createdAt != null
+                        ? LocaleFormat.dateShort(context, task.createdAt!)
+                        : l10n.timeNow,
+                    tag: task.type.isNotEmpty ? task.type : l10n.task,
+                    isCompleted: _isTaskDone(task),
+                  ),
+                  Divider(
+                    height: 20,
+                    color: _teal.withValues(alpha: 0.06),
+                  ),
+                ],
+              ],
+            ),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                context.go('/patient/reminders');
+              },
+              icon: const Icon(Icons.add, color: _teal),
+              label: Text(
+                l10n.addTask,
+                style: _bodyStyle.copyWith(
+                  color: _teal,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _teal,
+                side: BorderSide(
+                  color: _teal.withValues(alpha: 0.2),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
           ),
-        ),
-        if (isCompleted)
-          const Icon(
-            Icons.check_circle,
-            color: Colors.green,
-            size: 20,
-          ),
-      ],
+        ],
+      ),
     );
   }
 
-  String _formatTaskCreatedAt(DateTime? createdAt) {
-    if (createdAt == null) {
-      return 'Added recently';
-    }
-    return 'Added ${createdAt.month}/${createdAt.day}/${createdAt.year}';
+  Widget _buildTodoItem({
+    required String title,
+    required String subtitle,
+    required String tag,
+    required bool isCompleted,
+  }) {
+    return Opacity(
+      opacity: isCompleted ? 0.5 : 1,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: Checkbox(
+              value: isCompleted,
+              onChanged: (value) {
+                // TODO: Update todo status
+              },
+              activeColor: _teal,
+              checkColor: Colors.white,
+              side: BorderSide(
+                color: _teal.withValues(alpha: 0.35),
+                width: 1.5,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(7),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: _bodyStyle.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _teal,
+                      decoration:
+                          isCompleted ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  Text(
+                    'Due $subtitle',
+                    style: _bodyStyle.copyWith(
+                      fontSize: 12,
+                      color: _teal.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: _cream,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _teal.withValues(alpha: 0.12)),
+            ),
+            child: Text(
+              tag,
+              style: _bodyStyle.copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _tealMid,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  String _formatDueText(String? scheduledTime) {
+  DateTime? _parseScheduledTimeLocal(String? scheduledTime) {
     if (scheduledTime == null || scheduledTime.trim().isEmpty) {
-      return 'Upcoming';
+      return null;
     }
-    final scheduled = DateTime.tryParse(scheduledTime)?.toLocal();
-    if (scheduled == null) {
-      return 'Upcoming';
-    }
+    return DateTime.tryParse(scheduledTime)?.toLocal();
+  }
+
+  bool _isScheduledToday(DateTime scheduled) {
     final now = DateTime.now();
-    final diff = scheduled.difference(now);
-    if (diff.inMinutes <= 0) {
-      return 'Due now';
-    }
-    if (diff.inMinutes < 60) {
-      return 'Due in ${diff.inMinutes} min';
-    }
-    if (diff.inHours < 24) {
-      return 'Due in ${diff.inHours} hours';
-    }
-    if (diff.inDays < 7) {
-      return 'Due in ${diff.inDays} days';
-    }
-    return 'Due ${scheduled.month}/${scheduled.day}';
+    return scheduled.year == now.year &&
+        scheduled.month == now.month &&
+        scheduled.day == now.day;
   }
-
-  String _formatScheduleTime(String? scheduledTime) {
-    if (scheduledTime == null || scheduledTime.trim().isEmpty) {
-      return '';
-    }
-    final scheduled = DateTime.tryParse(scheduledTime)?.toLocal();
-    if (scheduled == null) {
-      return scheduledTime;
-    }
-    final hour = scheduled.hour;
-    final minute = scheduled.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
-    return '$hour12:$minute $period';
-  }
-
-  Future<void> _handleReminderAction(String? reminderId, String action) async {
-    if (reminderId == null || reminderId.isEmpty) return;
-    try {
-      final accessToken = await _authService.getAccessToken();
-      if (accessToken == null) throw Exception('Authentication required');
-      final response = await http.post(
-        Uri.parse(
-            '${Environment.apiBaseUrl}/api/reminders/$reminderId/$action'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
-      );
-      if (response.statusCode != 200) throw Exception('Action failed');
-      await _fetchUpNextReminder();
-      if (!mounted) return;
-      final actionText = action == 'complete' ? 'taken' : 'snoozed';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reminder $actionText')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to update reminder')),
-      );
-    }
-  }
-
 }
-
-class _PatientHomeTodoItem {
-  const _PatientHomeTodoItem({required this.title, this.createdAt});
-
-  final String title;
-  final DateTime? createdAt;
-}
-

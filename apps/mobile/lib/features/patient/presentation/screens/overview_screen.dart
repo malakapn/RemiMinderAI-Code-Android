@@ -1,9 +1,15 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/config/environment.dart';
+import '../../../../core/utils/locale_format.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../data/services/patient_api_service.dart';
 import '../../data/models/summary_item.dart';
 import '../../../care_team/data/models/care_team_member.dart';
@@ -29,6 +35,9 @@ class _OverviewScreenState extends State<OverviewScreen>
   final Set<String> _seenSummaryIds = {};
   bool _hasLoadedSummariesOnce = false;
   bool _isLatestVisitProcessing = false;
+  String? _latestVisitProcessingError;
+  String? _processingVisitId;
+  Timer? _processingPollTimer;
 
   // Sharing state
   CareTeamMember? _activeCaregiver;
@@ -36,13 +45,14 @@ class _OverviewScreenState extends State<OverviewScreen>
   String? _caregiverError;
   bool _isUpdatingShare = false;
 
-  // Lab / scan state
-  List<Map<String, dynamic>> _labResults = [];
+  // Scanned docs state
   List<Map<String, dynamic>> _scannedDocs = [];
-  bool _isLoadingLabResults = true;
   bool _isLoadingScannedDocs = true;
-  String? _labResultsError;
   String? _scannedDocsError;
+
+  // Lab results state (filtered from scanned docs)
+  List<Map<String, dynamic>> _labResults = [];
+  bool _isLoadingLabResults = true;
 
   // Selection state
   bool _isSelectionMode = false;
@@ -55,15 +65,30 @@ class _OverviewScreenState extends State<OverviewScreen>
     _searchController.addListener(_onSearchChanged);
     _loadSeenSummaryIds().then((_) => _fetchSummaries());
     _loadCaregiver();
-    _fetchLabResults();
     _fetchScannedDocs();
   }
 
   @override
   void dispose() {
+    _processingPollTimer?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _syncProcessingPollTimer() {
+    final shouldPoll =
+        _isLatestVisitProcessing && (_latestVisitProcessingError?.isEmpty ?? true);
+    if (shouldPoll) {
+      _processingPollTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
+        if (mounted) {
+          _fetchSummaries();
+        }
+      });
+    } else {
+      _processingPollTimer?.cancel();
+      _processingPollTimer = null;
+    }
   }
 
   void _onSearchChanged() {
@@ -96,7 +121,12 @@ class _OverviewScreenState extends State<OverviewScreen>
           _isLoadingSummaries = false;
           _summariesError = null;
           _isLatestVisitProcessing = cachedStatus?['processing'] == true;
+          _latestVisitProcessingError = cachedStatus?['failed'] == true
+              ? (cachedStatus?['error']?.toString())
+              : null;
+          _processingVisitId = cachedStatus?['visit_id']?.toString();
         });
+        _syncProcessingPollTimer();
       } else {
         setState(() {
           _isLoadingSummaries = true;
@@ -104,25 +134,20 @@ class _OverviewScreenState extends State<OverviewScreen>
         });
       }
 
-      final authToken = await AuthService().getAccessToken();
-      if (authToken == null) {
-        throw Exception('Authentication required');
-      }
+      // Force fresh Firebase ID token — never use cached/expired token
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) throw Exception('Authentication required');
+      final authToken = await firebaseUser.getIdToken(true);
+      if (authToken == null) throw Exception('Failed to get auth token');
 
       final apiService = PatientApiService(
         baseUrl: Environment.apiBaseUrl,
         authToken: authToken,
       );
 
-      Map<String, dynamic> status = {'processing': false};
-      try {
-        status = await apiService.getLatestVisitStatus();
-        PatientApiService.setCachedLatestVisitStatus(status);
-      } catch (_) {
-        // Keep summaries usable even if status endpoint is down.
-      }
-
+      final status = await apiService.getLatestVisitStatus();
       final summaries = await apiService.getSummaries();
+      PatientApiService.setCachedLatestVisitStatus(status);
       PatientApiService.setCachedSummaries(summaries);
       final newSummaryIds = summaries
           .map((summary) => summary.summaryId)
@@ -131,18 +156,24 @@ class _OverviewScreenState extends State<OverviewScreen>
 
       if (!mounted) return;
       final summariesChanged = _summariesChanged(summaries);
-      final statusChanged = _statusChanged(status);
-      if (summariesChanged || statusChanged) {
-        setState(() {
-          _summaries = summaries;
-          _isLoadingSummaries = false;
-          _isLatestVisitProcessing = status['processing'] == true;
-        });
-      }
+      setState(() {
+        _summaries = summaries;
+        _isLoadingSummaries = false;
+        _summariesError = null;
+        _isLatestVisitProcessing = status['processing'] == true;
+        _latestVisitProcessingError = status['failed'] == true
+            ? status['error']?.toString()
+            : null;
+        _processingVisitId = status['visit_id']?.toString();
+      });
+      _syncProcessingPollTimer();
 
       _seenSummaryIds.addAll(summaries.map((summary) => summary.summaryId));
       await _persistSeenSummaryIds();
-      if (_hasLoadedSummariesOnce && newSummaryIds.isNotEmpty && mounted) {
+      if (_hasLoadedSummariesOnce &&
+          summariesChanged &&
+          newSummaryIds.isNotEmpty &&
+          mounted) {
         final newSummary = summaries.firstWhere(
           (summary) => newSummaryIds.contains(summary.summaryId),
           orElse: () => summaries.first,
@@ -152,11 +183,7 @@ class _OverviewScreenState extends State<OverviewScreen>
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('🎉 Your visit summary is ready!'),
-            content: const Text(
-              'After your recording, the pipeline writes a structured summary '
-              '(summary, decisions, medications, and actions). '
-              'Would you like to view it now?',
-            ),
+            content: const Text('Would you like to view it now?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -181,7 +208,38 @@ class _OverviewScreenState extends State<OverviewScreen>
         _summariesError = e.toString();
         _isLoadingSummaries = false;
         _isLatestVisitProcessing = false;
+        _latestVisitProcessingError = null;
       });
+    }
+  }
+
+  Future<void> _retryAudioProcessing(String visitId) async {
+    try {
+      final authToken = await AuthService().getAccessToken();
+      if (authToken == null) {
+        throw Exception('Authentication required');
+      }
+      final apiService = PatientApiService(
+        baseUrl: Environment.apiBaseUrl,
+        authToken: authToken,
+      );
+      await apiService.triggerVisitAudioProcessing(visitId);
+      if (!mounted) return;
+      setState(() {
+        _isLatestVisitProcessing = true;
+        _latestVisitProcessingError = null;
+      });
+      _syncProcessingPollTimer();
+      await _fetchSummaries();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Summary generation restarted')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Retry failed: $e')),
+      );
     }
   }
 
@@ -191,22 +249,6 @@ class _OverviewScreenState extends State<OverviewScreen>
     }
     for (var i = 0; i < next.length; i++) {
       if (_summaries[i].summaryId != next[i].summaryId) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool _statusChanged(Map<String, dynamic> next) {
-    final currentProcessing = _isLatestVisitProcessing;
-    final nextProcessing = next['processing'] == true;
-    if (currentProcessing != nextProcessing) {
-      return true;
-    }
-    if (nextProcessing) {
-      final currentVisitId = _summaries.isNotEmpty ? _summaries.first.visitId : null;
-      final nextVisitId = next['visit_id'];
-      if (currentVisitId != null && nextVisitId != currentVisitId) {
         return true;
       }
     }
@@ -236,60 +278,9 @@ class _OverviewScreenState extends State<OverviewScreen>
     }
   }
 
-  Future<void> _fetchLabResults() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoadingLabResults = true;
-      _labResultsError = null;
-    });
-    try {
-      final token = await AuthService().getAccessToken();
-      if (token == null) throw Exception('Authentication required');
-      final apiService =
-          PatientApiService(baseUrl: Environment.apiBaseUrl, authToken: token);
-      final rows = await apiService.getLabResults();
-      if (!mounted) return;
-      setState(() {
-        _labResults = rows;
-        _isLoadingLabResults = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _labResultsError = e.toString();
-        _isLoadingLabResults = false;
-      });
-    }
-  }
-
-  Future<void> _fetchScannedDocs() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoadingScannedDocs = true;
-      _scannedDocsError = null;
-    });
-    try {
-      final token = await AuthService().getAccessToken();
-      if (token == null) throw Exception('Authentication required');
-      final apiService =
-          PatientApiService(baseUrl: Environment.apiBaseUrl, authToken: token);
-      final rows = await apiService.getScannedDocs();
-      if (!mounted) return;
-      setState(() {
-        _scannedDocs = rows;
-        _isLoadingScannedDocs = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _scannedDocsError = e.toString();
-        _isLoadingScannedDocs = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -313,14 +304,17 @@ class _OverviewScreenState extends State<OverviewScreen>
                 children: [
                   const SizedBox(width: 48),
                   Expanded(
-                    child: const Text(
-                      'Overview',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        l10n.navOverview,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
                   IconButton(
@@ -342,7 +336,7 @@ class _OverviewScreenState extends State<OverviewScreen>
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Search summaries...',
+                  hintText: l10n.searchSummariesHint,
                   prefixIcon: const Icon(Icons.search),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -359,15 +353,16 @@ class _OverviewScreenState extends State<OverviewScreen>
             // Tabs
             TabBar(
               controller: _tabController,
-              isScrollable: false,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               labelColor: Theme.of(context).colorScheme.primary,
               unselectedLabelColor: Theme.of(context).colorScheme.secondary,
               indicatorColor: Theme.of(context).colorScheme.primary,
               indicatorWeight: 3,
-              tabs: const [
-                Tab(text: 'SUMMARIES'),
-                Tab(text: 'LAB RESULTS'),
-                Tab(text: 'SCANNED DOCS'),
+              tabs: [
+                Tab(text: l10n.tabSummaries),
+                Tab(text: l10n.tabLabResults),
+                Tab(text: l10n.tabScannedDocs),
               ],
             ),
 
@@ -612,7 +607,117 @@ class _OverviewScreenState extends State<OverviewScreen>
     });
   }
 
+  Future<void> _fetchScannedDocs() async {
+    try {
+      setState(() {
+        _isLoadingScannedDocs = true;
+        _isLoadingLabResults = true;
+        _scannedDocsError = null;
+      });
+
+      final user = await AuthService().getCurrentUser();
+      final uid = user?.authUid ?? user?.id;
+      if (uid == null) throw Exception('Not authenticated');
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('scanned_docs')
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      final docs = snapshot.docs
+          .map((d) => {'id': d.id, ...d.data()})
+          .toList();
+
+      final labs = docs.where((d) {
+        final text = (d['parsed_text'] ?? '').toString().toLowerCase();
+        return text.contains('lab') ||
+            text.contains('result') ||
+            text.contains('test') ||
+            text.contains('blood') ||
+            text.contains('cholesterol') ||
+            text.contains('glucose');
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _scannedDocs = docs;
+        _labResults = labs;
+        _isLoadingScannedDocs = false;
+        _isLoadingLabResults = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _scannedDocsError = e.toString();
+        _isLoadingScannedDocs = false;
+        _isLoadingLabResults = false;
+      });
+    }
+  }
+
+  Widget _buildScannedDocCard(Map<String, dynamic> doc) {
+    final l10n = AppLocalizations.of(context)!;
+    final timestamp = doc['timestamp'];
+    String dateStr = '';
+    if (timestamp is Timestamp) {
+      final dt = timestamp.toDate();
+      dateStr = _formatSmartTime(dt, l10n);
+    }
+    final parsedText = (doc['parsed_text'] ?? '').toString();
+    final preview = parsedText.length > 120
+        ? '${parsedText.substring(0, 120)}...'
+        : parsedText;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showScannedDocDetail(context, dateStr, parsedText),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.description_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      dateStr.isNotEmpty
+                          ? l10n.scannedOn(dateStr)
+                          : l10n.scannedDocument,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                ],
+              ),
+              if (preview.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  preview,
+                  style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 13,
+                      height: 1.4),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSummariesTab() {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingSummaries) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -631,7 +736,7 @@ class _OverviewScreenState extends State<OverviewScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'Failed to load summaries',
+              l10n.failedToLoadSummaries,
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 16,
@@ -649,7 +754,7 @@ class _OverviewScreenState extends State<OverviewScreen>
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _fetchSummaries,
-              child: const Text('Retry'),
+              child: Text(l10n.retry),
             ),
           ],
         ),
@@ -668,7 +773,7 @@ class _OverviewScreenState extends State<OverviewScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              'No summaries yet',
+              l10n.noSummariesYet,
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 16,
@@ -676,7 +781,7 @@ class _OverviewScreenState extends State<OverviewScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Your visit summaries will appear here',
+              l10n.summariesWillAppearHere,
               style: TextStyle(
                 color: Colors.grey[500],
                 fontSize: 12,
@@ -695,7 +800,9 @@ class _OverviewScreenState extends State<OverviewScreen>
                 summary.summaryPreview.toLowerCase().contains(_searchQuery);
           }).toList();
 
-    final processingOffset = _isLatestVisitProcessing ? 1 : 0;
+    final showProcessingBanner =
+        _isLatestVisitProcessing || (_latestVisitProcessingError?.isNotEmpty ?? false);
+    final processingOffset = showProcessingBanner ? 1 : 0;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 200),
@@ -707,44 +814,71 @@ class _OverviewScreenState extends State<OverviewScreen>
           padding: const EdgeInsets.all(20),
           itemCount: filteredSummaries.length + processingOffset,
           itemBuilder: (context, index) {
-            if (_isLatestVisitProcessing && index == 0) {
-              return _buildProcessingCard();
+            if (showProcessingBanner && index == 0) {
+              return _buildProcessingCard(l10n);
             }
             final summary = filteredSummaries[index - processingOffset];
-            return _buildSummaryCard(summary);
+            return _buildSummaryCard(summary, l10n);
           },
         ),
       ),
     );
   }
 
-  Widget _buildProcessingCard() {
+  Widget _buildProcessingCard(AppLocalizations l10n) {
+    final failed = _latestVisitProcessingError?.isNotEmpty ?? false;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: Colors.orange.withOpacity(0.08),
+      color: failed
+          ? Colors.red.withOpacity(0.08)
+          : Colors.orange.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.orange.withOpacity(0.3)),
+        side: BorderSide(
+          color: failed
+              ? Colors.red.withOpacity(0.3)
+              : Colors.orange.withOpacity(0.3),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(
-              Icons.access_time,
-              color: Colors.orange,
+            Icon(
+              failed ? Icons.error_outline : Icons.access_time,
+              color: failed ? Colors.red : Colors.orange,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    '🕒 Your latest visit is being processed',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    failed
+                        ? l10n.summaryCouldNotGenerate
+                        : '🕒 ${l10n.preparingVisitSummary}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  SizedBox(height: 4),
-                  Text('We’ll notify you when it’s ready.'),
+                  const SizedBox(height: 4),
+                  Text(
+                    failed
+                        ? (_latestVisitProcessingError ?? l10n.summaryCouldNotGenerate)
+                        : l10n.summaryProcessingHint,
+                  ),
+                  if (_processingVisitId != null) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: _isLoadingSummaries
+                            ? null
+                            : () => _retryAudioProcessing(_processingVisitId!),
+                        child: Text(
+                          failed ? l10n.retrySummary : l10n.stuckRetrySummary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -754,13 +888,13 @@ class _OverviewScreenState extends State<OverviewScreen>
     );
   }
 
-  Widget _buildSummaryCard(SummaryItem summary) {
+  Widget _buildSummaryCard(SummaryItem summary, AppLocalizations l10n) {
     final summaryId = summary.summaryId;
     final isSelected = _selectedSummaryIds.contains(summaryId);
     final isShared = _activeCaregiver?.permission == 'full';
     final isShareDisabled =
         _activeCaregiver == null || _isUpdatingShare || _isLoadingCaregiver;
-    final doctorText = _formatDoctorName(summary.doctorName);
+    final doctorText = _formatDoctorName(summary.doctorName, l10n);
     final hasTitle = (summary.title ?? '').trim().isNotEmpty;
 
     return Card(
@@ -858,11 +992,15 @@ class _OverviewScreenState extends State<OverviewScreen>
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Share',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.secondary,
+                        Flexible(
+                          child: Text(
+                            l10n.shareLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.secondary,
+                            ),
                           ),
                         ),
                         Switch(
@@ -893,7 +1031,7 @@ class _OverviewScreenState extends State<OverviewScreen>
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      _formatSmartTime(DateTime.parse(summary.visitDate!)),
+                      _formatSmartTime(DateTime.parse(summary.visitDate!), l10n),
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,
@@ -915,6 +1053,15 @@ class _OverviewScreenState extends State<OverviewScreen>
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(height: 8),
+              Text(
+                'AI-generated summary. Not a substitute for professional medical advice.',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey[600],
+                ),
+              ),
             ],
           ),
         ),
@@ -922,10 +1069,10 @@ class _OverviewScreenState extends State<OverviewScreen>
     );
   }
 
-  String _formatDoctorName(String? doctorName) {
+  String _formatDoctorName(String? doctorName, AppLocalizations l10n) {
     final rawName = (doctorName ?? '').trim();
     if (rawName.isEmpty || rawName.toLowerCase() == 'unknown doctor') {
-      return 'Doctor Visit';
+      return l10n.doctorVisit;
     }
 
     final normalized = rawName
@@ -933,157 +1080,70 @@ class _OverviewScreenState extends State<OverviewScreen>
         .trim();
 
     if (normalized.isEmpty) {
-      return 'Doctor Visit';
+      return l10n.doctorVisit;
     }
     return 'Dr. $normalized';
   }
 
-  String _formatSmartTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inMinutes < 60) {
-      final minutes = difference.inMinutes < 1 ? 1 : difference.inMinutes;
-      return '$minutes min ago';
-    }
-
-    final isSameDay = now.year == dateTime.year &&
-        now.month == dateTime.month &&
-        now.day == dateTime.day;
-    if (isSameDay) {
-      return 'Today, ${_formatTimeOfDay(dateTime)}';
-    }
-
-    final yesterday = now.subtract(const Duration(days: 1));
-    final isYesterday = yesterday.year == dateTime.year &&
-        yesterday.month == dateTime.month &&
-        yesterday.day == dateTime.day;
-    if (isYesterday) {
-      return 'Yesterday, ${_formatTimeOfDay(dateTime)}';
-    }
-
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final month = months[dateTime.month - 1];
-    return '$month ${dateTime.day}, ${dateTime.year}';
-  }
-
-  String _formatTimeOfDay(DateTime dateTime) {
-    final hour = dateTime.hour;
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
-    return '$hour12:$minute $period';
-  }
-
-  Future<void> _openDocumentUrl(String rawUrl) async {
-    final uri = Uri.tryParse(rawUrl);
-    if (uri == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid document URL')),
-      );
-      return;
-    }
-
-    try {
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to open document')),
-        );
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to open document')),
-      );
-    }
+  String _formatSmartTime(DateTime dateTime, AppLocalizations l10n) {
+    return LocaleFormat.smartDateTime(context, dateTime, l10n);
   }
 
   Widget _buildLabResultsTab() {
     if (_isLoadingLabResults) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_labResultsError != null) {
+    if (_scannedDocsError != null) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Failed to load lab results',
-                style: TextStyle(color: Colors.grey[700])),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _fetchLabResults,
-              child: const Text('Retry'),
-            ),
+            Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+            const SizedBox(height: 12),
+            Text(_scannedDocsError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: _fetchScannedDocs, child: const Text('Retry')),
           ],
         ),
       );
     }
     if (_labResults.isEmpty) {
       return Center(
-        child: Text('No lab results found',
-            style: TextStyle(color: Colors.grey[600])),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.biotech_outlined, size: 64,
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
+              const SizedBox(height: 16),
+              Text('No lab results yet',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text('Scan a lab report using Capture & Scan to see results here.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/patient/visits'),
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: const Text('Capture & Scan'),
+              ),
+            ],
+          ),
+        ),
       );
     }
     return RefreshIndicator(
-      onRefresh: _fetchLabResults,
+      onRefresh: _fetchScannedDocs,
       child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         itemCount: _labResults.length,
-        itemBuilder: (context, index) {
-          final item = _labResults[index];
-          final title = (item['visit_title'] ?? 'Lab report').toString();
-          final preview = (item['result_preview'] ?? '').toString();
-          final imageUrl = (item['image_url'] ?? '').toString();
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: const Icon(Icons.science),
-              title: Text(title),
-              subtitle: Text(
-                preview.isEmpty ? 'OCR pending' : preview,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: imageUrl.isNotEmpty
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Open',
-                          icon: const Icon(Icons.open_in_new, size: 20),
-                          onPressed: () => _openDocumentUrl(imageUrl),
-                        ),
-                        IconButton(
-                          tooltip: 'Download',
-                          icon: const Icon(Icons.download_rounded, size: 20),
-                          onPressed: () => _openDocumentUrl(imageUrl),
-                        ),
-                      ],
-                    )
-                  : null,
-              onTap: imageUrl.isNotEmpty ? () => _openDocumentUrl(imageUrl) : null,
-            ),
-          );
-        },
+        itemBuilder: (context, index) => _buildScannedDocCard(_labResults[index]),
       ),
     );
   }
@@ -1095,67 +1155,114 @@ class _OverviewScreenState extends State<OverviewScreen>
     if (_scannedDocsError != null) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Failed to load scanned documents',
-                style: TextStyle(color: Colors.grey[700])),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _fetchScannedDocs,
-              child: const Text('Retry'),
-            ),
+            Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+            const SizedBox(height: 12),
+            Text(_scannedDocsError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: _fetchScannedDocs, child: const Text('Retry')),
           ],
         ),
       );
     }
     if (_scannedDocs.isEmpty) {
       return Center(
-        child: Text('No scanned documents yet',
-            style: TextStyle(color: Colors.grey[600])),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.document_scanner_outlined, size: 64,
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
+              const SizedBox(height: 16),
+              Text('No scanned documents yet',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text('Documents scanned during your visits will appear here.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/patient/visits'),
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: const Text('Capture & Scan'),
+              ),
+            ],
+          ),
+        ),
       );
     }
     return RefreshIndicator(
       onRefresh: _fetchScannedDocs,
       child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         itemCount: _scannedDocs.length,
-        itemBuilder: (context, index) {
-          final item = _scannedDocs[index];
-          final title = (item['visit_title'] ?? 'Scanned report').toString();
-          final preview = (item['ocr_preview'] ?? '').toString();
-          final imageUrl = (item['image_url'] ?? '').toString();
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: const Icon(Icons.description_outlined),
-              title: Text(title),
-              subtitle: Text(
-                preview.isEmpty ? 'Saved image report' : preview,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+        itemBuilder: (context, index) => _buildScannedDocCard(_scannedDocs[index]),
+      ),
+    );
+  }
+
+  void _showScannedDocDetail(BuildContext context, String dateStr, String parsedText) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.4,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
-              trailing: imageUrl.isNotEmpty
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Open',
-                          icon: const Icon(Icons.open_in_new, size: 20),
-                          onPressed: () => _openDocumentUrl(imageUrl),
-                        ),
-                        IconButton(
-                          tooltip: 'Download',
-                          icon: const Icon(Icons.download_rounded, size: 20),
-                          onPressed: () => _openDocumentUrl(imageUrl),
-                        ),
-                      ],
-                    )
-                  : null,
-              onTap: imageUrl.isNotEmpty ? () => _openDocumentUrl(imageUrl) : null,
             ),
-          );
-        },
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.description_outlined,
+                      color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      dateStr.isNotEmpty ? 'Scanned $dateStr' : 'Scanned document',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  parsedText,
+                  style: const TextStyle(fontSize: 14, height: 1.6),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
