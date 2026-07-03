@@ -85,6 +85,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         .toLowerCase();
     return status != 'completed' &&
         status != 'complete' &&
+        status != 'done' &&
         status != 'skipped' &&
         status != 'cancelled';
   }
@@ -214,8 +215,13 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   TextStyle get _headerStyle => GoogleFonts.dmSerifDisplay();
 
   bool _isReminderDone(Map<String, dynamic> reminder) {
-    final status = (reminder['status'] ?? '').toString().toLowerCase();
-    return status == 'completed';
+    final status =
+        (reminder['display_status'] ?? reminder['status'] ?? '')
+            .toString()
+            .toLowerCase();
+    return status == 'completed' ||
+        status == 'complete' ||
+        status == 'done';
   }
 
   bool _isTaskDone(PatientTask task) {

@@ -13,6 +13,7 @@ List<Map<String, dynamic>> mergeScheduleReminders({
             .toLowerCase();
     return status != 'completed' &&
         status != 'complete' &&
+        status != 'done' &&
         status != 'skipped' &&
         status != 'cancelled';
   }
@@ -124,5 +125,20 @@ void main() {
 
     expect(merged.length, 1);
     expect(merged.first['id'], 'shared-1');
+  });
+
+  test('treats display_status Done as completed for schedule filter', () {
+    final today = [
+      {
+        'id': 'done-display',
+        'status': 'pending',
+        'display_status': 'Done',
+        'scheduled_time': '2026-06-14T10:00:00Z',
+      },
+    ];
+
+    final merged = mergeScheduleReminders(today: today, upcoming: const []);
+
+    expect(merged, isEmpty);
   });
 }
