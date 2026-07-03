@@ -1210,4 +1210,92 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get relationshipOther => 'Andere';
+
+  @override
+  String get visitActionTitle => 'Was möchten Sie tun?';
+
+  @override
+  String get visitActionAudioTitle => 'Gespräch als Audio aufnehmen';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'Nehmen Sie Ihren Arztbesuch für eine automatische Zusammenfassung auf';
+
+  @override
+  String get visitActionCaptureTitle => 'Erfassen und scannen';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'Fotografieren Sie Berichte, Medikamentenflaschen und Dokumente';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'Betreuer einladen';
+
+  @override
+  String get caregiverNameHint => 'Vollständigen Namen des Betreuers eingeben';
+
+  @override
+  String get caregiverEmailHint => 'E-Mail-Adresse des Betreuers eingeben';
+
+  @override
+  String get relationshipLabel => 'Beziehung';
+
+  @override
+  String get relationshipHint =>
+      'z. B. Sohn, Tochter, Freund, Krankenschwester';
+
+  @override
+  String get sendInvite => 'Einladung senden';
+
+  @override
+  String get emailAndRoleRequired => 'E-Mail und Rolle sind erforderlich';
+
+  @override
+  String get summaryReadyTitle => 'Ihre Besuchszusammenfassung ist fertig!';
+
+  @override
+  String get summaryReadyBody => 'Möchten Sie sie jetzt ansehen?';
+
+  @override
+  String get later => 'Später';
+
+  @override
+  String get viewSummary => 'Zusammenfassung anzeigen';
+
+  @override
+  String get noLabResultsYet => 'Noch keine Laborergebnisse';
+
+  @override
+  String get labResultsScanHint =>
+      'Scannen Sie einen Laborbericht mit Erfassen und scannen, um die Ergebnisse hier zu sehen.';
+
+  @override
+  String get captureAndScan => 'Erfassen und scannen';
+
+  @override
+  String get noScannedDocsYet => 'Noch keine gescannten Dokumente';
+
+  @override
+  String get scannedDocsHint =>
+      'Während Ihrer Besuche gescannte Dokumente erscheinen hier.';
+
+  @override
+  String get selectAtLeastOneSummary =>
+      'Wählen Sie mindestens eine Zusammenfassung aus';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'Zusammenfassungen konnten nicht gelöscht werden. Bitte erneut versuchen.';
+
+  @override
+  String get noCaregiverAddedYet => 'Noch kein Betreuer hinzugefügt';
+
+  @override
+  String get summaryGenerationRestarted =>
+      'Zusammenfassungserstellung neu gestartet';
+
+  @override
+  String retryFailed(String error) {
+    return 'Wiederholung fehlgeschlagen: $error';
+  }
 }

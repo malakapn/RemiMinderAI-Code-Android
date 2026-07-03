@@ -478,5 +478,38 @@
   "relationshipCaregiver": "Cuidador",
   "relationshipSister": "Hermana",
   "relationshipBrother": "Hermano",
-  "relationshipOther": "Otro"
+  "relationshipOther": "Otro",
+  "caregiverNameHint": "Ingresa el nombre completo del cuidador",
+  "retryFailed": "Reintento fallido: {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noLabResultsYet": "Aún no hay resultados de laboratorio",
+  "visitActionCaptureTitle": "Capturar y escanear",
+  "caregiverEmailHint": "Ingresa el correo del cuidador",
+  "visitActionTitle": "¿Qué te gustaría hacer?",
+  "visitActionAudioSubtitle": "Graba tu visita médica para obtener un resumen automático",
+  "noScannedDocsYet": "Aún no hay documentos escaneados",
+  "scannedDocsHint": "Los documentos escaneados durante tus visitas aparecerán aquí.",
+  "summaryReadyBody": "¿Te gustaría verlo ahora?",
+  "noCaregiverAddedYet": "Aún no se ha agregado un cuidador",
+  "summaryGenerationRestarted": "La generación del resumen se reinició",
+  "labResultsScanHint": "Escanea un informe de laboratorio con Capturar y escanear para ver los resultados aquí.",
+  "visitActionAudioTitle": "Grabar conversación de audio",
+  "relationshipLabel": "Relación",
+  "later": "Más tarde",
+  "failedToDeleteSummaries": "No se pudieron eliminar los resúmenes. Inténtalo de nuevo.",
+  "inviteCaregiverDialogTitle": "Invitar cuidador",
+  "visitActionCaptureSubtitle": "Toma fotos de informes, frascos de pastillas y documentos",
+  "sendInvite": "Enviar invitación",
+  "viewSummary": "Ver resumen",
+  "selectAtLeastOneSummary": "Selecciona al menos un resumen",
+  "captureAndScan": "Capturar y escanear",
+  "relationshipHint": "p. ej., Hijo, Hija, Amigo, Enfermera",
+  "emailAndRoleRequired": "El correo y el rol son obligatorios",
+  "summaryReadyTitle": "¡Tu resumen de visita está listo!"
 }

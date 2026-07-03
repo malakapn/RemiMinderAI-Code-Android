@@ -1197,4 +1197,90 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get relationshipOther => 'Otro';
+
+  @override
+  String get visitActionTitle => '¿Qué te gustaría hacer?';
+
+  @override
+  String get visitActionAudioTitle => 'Grabar conversación de audio';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'Graba tu visita médica para obtener un resumen automático';
+
+  @override
+  String get visitActionCaptureTitle => 'Capturar y escanear';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'Toma fotos de informes, frascos de pastillas y documentos';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'Invitar cuidador';
+
+  @override
+  String get caregiverNameHint => 'Ingresa el nombre completo del cuidador';
+
+  @override
+  String get caregiverEmailHint => 'Ingresa el correo del cuidador';
+
+  @override
+  String get relationshipLabel => 'Relación';
+
+  @override
+  String get relationshipHint => 'p. ej., Hijo, Hija, Amigo, Enfermera';
+
+  @override
+  String get sendInvite => 'Enviar invitación';
+
+  @override
+  String get emailAndRoleRequired => 'El correo y el rol son obligatorios';
+
+  @override
+  String get summaryReadyTitle => '¡Tu resumen de visita está listo!';
+
+  @override
+  String get summaryReadyBody => '¿Te gustaría verlo ahora?';
+
+  @override
+  String get later => 'Más tarde';
+
+  @override
+  String get viewSummary => 'Ver resumen';
+
+  @override
+  String get noLabResultsYet => 'Aún no hay resultados de laboratorio';
+
+  @override
+  String get labResultsScanHint =>
+      'Escanea un informe de laboratorio con Capturar y escanear para ver los resultados aquí.';
+
+  @override
+  String get captureAndScan => 'Capturar y escanear';
+
+  @override
+  String get noScannedDocsYet => 'Aún no hay documentos escaneados';
+
+  @override
+  String get scannedDocsHint =>
+      'Los documentos escaneados durante tus visitas aparecerán aquí.';
+
+  @override
+  String get selectAtLeastOneSummary => 'Selecciona al menos un resumen';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'No se pudieron eliminar los resúmenes. Inténtalo de nuevo.';
+
+  @override
+  String get noCaregiverAddedYet => 'Aún no se ha agregado un cuidador';
+
+  @override
+  String get summaryGenerationRestarted =>
+      'La generación del resumen se reinició';
+
+  @override
+  String retryFailed(String error) {
+    return 'Reintento fallido: $error';
+  }
 }

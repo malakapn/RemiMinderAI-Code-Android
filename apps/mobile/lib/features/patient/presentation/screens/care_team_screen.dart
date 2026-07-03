@@ -322,6 +322,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
   }
 
   void _showInviteDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final relationshipController = TextEditingController();
@@ -330,32 +331,32 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Invite Caregiver'),
+          title: Text(l10n.inviteCaregiverDialogTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  hintText: 'Enter caregiver\'s full name',
+                decoration: InputDecoration(
+                  labelText: l10n.nameLabel,
+                  hintText: l10n.caregiverNameHint,
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'Enter caregiver\'s email address',
+                decoration: InputDecoration(
+                  labelText: l10n.emailLabel,
+                  hintText: l10n.caregiverEmailHint,
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: relationshipController,
-                decoration: const InputDecoration(
-                  labelText: 'Relationship',
-                  hintText: 'e.g., Son, Daughter, Friend, Nurse',
+                decoration: InputDecoration(
+                  labelText: l10n.relationshipLabel,
+                  hintText: l10n.relationshipHint,
                 ),
               ),
             ],
@@ -365,7 +366,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
               onPressed: () {
                 Navigator.of(dialogContext).pop();
               },
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -373,15 +374,14 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
                 final role = relationshipController.text.trim();
                 if (email.isEmpty || role.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Email and role are required')),
+                    SnackBar(content: Text(l10n.emailAndRoleRequired)),
                   );
                   return;
                 }
                 Navigator.of(dialogContext).pop();
                 _inviteCaregiver(email: email, role: role);
               },
-              child: const Text('Send Invite'),
+              child: Text(l10n.sendInvite),
             ),
           ],
         );

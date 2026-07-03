@@ -144,6 +144,7 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
     });
 
     return MaterialApp.router(
+      key: ValueKey(locale.languageCode),
       title: 'RemiMinder',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
@@ -151,19 +152,6 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       locale: locale,
-      localeListResolutionCallback: (locales, supportedLocales) {
-        if (locales == null || locales.isEmpty) {
-          return locale;
-        }
-        for (final deviceLocale in locales) {
-          for (final supported in supportedLocales) {
-            if (supported.languageCode == deviceLocale.languageCode) {
-              return supported;
-            }
-          }
-        }
-        return locale;
-      },
 
       // Localization
       localizationsDelegates: const [

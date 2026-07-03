@@ -478,5 +478,38 @@
   "relationshipCaregiver": "Aidant",
   "relationshipSister": "Sœur",
   "relationshipBrother": "Frère",
-  "relationshipOther": "Autre"
+  "relationshipOther": "Autre",
+  "caregiverNameHint": "Entrez le nom complet de l'aidant",
+  "retryFailed": "Nouvelle tentative échouée : {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noLabResultsYet": "Pas encore de résultats de laboratoire",
+  "visitActionCaptureTitle": "Capturer et numériser",
+  "caregiverEmailHint": "Entrez l'adresse e-mail de l'aidant",
+  "visitActionTitle": "Que souhaitez-vous faire ?",
+  "visitActionAudioSubtitle": "Enregistrez votre visite médicale pour un résumé automatique",
+  "noScannedDocsYet": "Pas encore de documents numérisés",
+  "scannedDocsHint": "Les documents numérisés lors de vos visites apparaîtront ici.",
+  "summaryReadyBody": "Souhaitez-vous le consulter maintenant ?",
+  "noCaregiverAddedYet": "Aucun aidant ajouté pour le moment",
+  "summaryGenerationRestarted": "La génération du résumé a redémarré",
+  "labResultsScanHint": "Numérisez un rapport de laboratoire avec Capturer et numériser pour voir les résultats ici.",
+  "visitActionAudioTitle": "Enregistrer une conversation audio",
+  "relationshipLabel": "Relation",
+  "later": "Plus tard",
+  "failedToDeleteSummaries": "Échec de la suppression des résumés. Veuillez réessayer.",
+  "inviteCaregiverDialogTitle": "Inviter un aidant",
+  "visitActionCaptureSubtitle": "Prenez des photos de rapports, flacons de médicaments et documents",
+  "sendInvite": "Envoyer l'invitation",
+  "viewSummary": "Voir le résumé",
+  "selectAtLeastOneSummary": "Sélectionnez au moins un résumé",
+  "captureAndScan": "Capturer et numériser",
+  "relationshipHint": "ex. : Fils, Fille, Ami, Infirmière",
+  "emailAndRoleRequired": "L'e-mail et le rôle sont requis",
+  "summaryReadyTitle": "Votre résumé de visite est prêt !"
 }

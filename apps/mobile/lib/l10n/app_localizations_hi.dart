@@ -1193,4 +1193,89 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get relationshipOther => 'अन्य';
+
+  @override
+  String get visitActionTitle => 'आप क्या करना चाहेंगे?';
+
+  @override
+  String get visitActionAudioTitle => 'ऑडियो बातचीत रिकॉर्ड करें';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'स्वचालित सारांश के लिए अपनी डॉक्टर विज़िट रिकॉर्ड करें';
+
+  @override
+  String get visitActionCaptureTitle => 'कैप्चर और स्कैन';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'रिपोर्ट, दवा की बोतलों और दस्तावेज़ों की तस्वीरें लें';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'केयरगिवर को आमंत्रित करें';
+
+  @override
+  String get caregiverNameHint => 'केयरगिवर का पूरा नाम दर्ज करें';
+
+  @override
+  String get caregiverEmailHint => 'केयरगिवर का ईमेल पता दर्ज करें';
+
+  @override
+  String get relationshipLabel => 'संबंध';
+
+  @override
+  String get relationshipHint => 'जैसे, बेटा, बेटी, मित्र, नर्स';
+
+  @override
+  String get sendInvite => 'आमंत्रण भेजें';
+
+  @override
+  String get emailAndRoleRequired => 'ईमेल और भूमिका आवश्यक हैं';
+
+  @override
+  String get summaryReadyTitle => 'आपका विज़िट सारांश तैयार है!';
+
+  @override
+  String get summaryReadyBody => 'क्या आप इसे अभी देखना चाहेंगे?';
+
+  @override
+  String get later => 'बाद में';
+
+  @override
+  String get viewSummary => 'सारांश देखें';
+
+  @override
+  String get noLabResultsYet => 'अभी तक कोई लैब परिणाम नहीं';
+
+  @override
+  String get labResultsScanHint =>
+      'यहाँ परिणाम देखने के लिए कैप्चर और स्कैन से लैब रिपोर्ट स्कैन करें।';
+
+  @override
+  String get captureAndScan => 'कैप्चर और स्कैन';
+
+  @override
+  String get noScannedDocsYet => 'अभी तक कोई स्कैन किए गए दस्तावेज़ नहीं';
+
+  @override
+  String get scannedDocsHint =>
+      'आपकी विज़िट के दौरान स्कैन किए गए दस्तावेज़ यहाँ दिखाई देंगे।';
+
+  @override
+  String get selectAtLeastOneSummary => 'कम से कम एक सारांश चुनें';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'सारांश हटाने में विफल। कृपया पुनः प्रयास करें।';
+
+  @override
+  String get noCaregiverAddedYet => 'अभी तक कोई केयरगिवर नहीं जोड़ा गया';
+
+  @override
+  String get summaryGenerationRestarted => 'सारांश जनरेशन पुनः शुरू हुआ';
+
+  @override
+  String retryFailed(String error) {
+    return 'पुनः प्रयास विफल: $error';
+  }
 }

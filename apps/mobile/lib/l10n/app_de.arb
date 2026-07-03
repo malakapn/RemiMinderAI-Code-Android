@@ -478,5 +478,38 @@
   "relationshipCaregiver": "Betreuer/in",
   "relationshipSister": "Schwester",
   "relationshipBrother": "Bruder",
-  "relationshipOther": "Andere"
+  "relationshipOther": "Andere",
+  "caregiverNameHint": "Vollständigen Namen des Betreuers eingeben",
+  "retryFailed": "Wiederholung fehlgeschlagen: {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noLabResultsYet": "Noch keine Laborergebnisse",
+  "visitActionCaptureTitle": "Erfassen und scannen",
+  "caregiverEmailHint": "E-Mail-Adresse des Betreuers eingeben",
+  "visitActionTitle": "Was möchten Sie tun?",
+  "visitActionAudioSubtitle": "Nehmen Sie Ihren Arztbesuch für eine automatische Zusammenfassung auf",
+  "noScannedDocsYet": "Noch keine gescannten Dokumente",
+  "scannedDocsHint": "Während Ihrer Besuche gescannte Dokumente erscheinen hier.",
+  "summaryReadyBody": "Möchten Sie sie jetzt ansehen?",
+  "noCaregiverAddedYet": "Noch kein Betreuer hinzugefügt",
+  "summaryGenerationRestarted": "Zusammenfassungserstellung neu gestartet",
+  "labResultsScanHint": "Scannen Sie einen Laborbericht mit Erfassen und scannen, um die Ergebnisse hier zu sehen.",
+  "visitActionAudioTitle": "Gespräch als Audio aufnehmen",
+  "relationshipLabel": "Beziehung",
+  "later": "Später",
+  "failedToDeleteSummaries": "Zusammenfassungen konnten nicht gelöscht werden. Bitte erneut versuchen.",
+  "inviteCaregiverDialogTitle": "Betreuer einladen",
+  "visitActionCaptureSubtitle": "Fotografieren Sie Berichte, Medikamentenflaschen und Dokumente",
+  "sendInvite": "Einladung senden",
+  "viewSummary": "Zusammenfassung anzeigen",
+  "selectAtLeastOneSummary": "Wählen Sie mindestens eine Zusammenfassung aus",
+  "captureAndScan": "Erfassen und scannen",
+  "relationshipHint": "z. B. Sohn, Tochter, Freund, Krankenschwester",
+  "emailAndRoleRequired": "E-Mail und Rolle sind erforderlich",
+  "summaryReadyTitle": "Ihre Besuchszusammenfassung ist fertig!"
 }

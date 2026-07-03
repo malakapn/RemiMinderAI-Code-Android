@@ -181,24 +181,27 @@ class _OverviewScreenState extends State<OverviewScreen>
         if (!mounted) return;
         await showDialog<void>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('🎉 Your visit summary is ready!'),
-            content: const Text('Would you like to view it now?'),
+          builder: (dialogContext) {
+            final l10n = AppLocalizations.of(dialogContext)!;
+            return AlertDialog(
+            title: Text(l10n.summaryReadyTitle),
+            content: Text(l10n.summaryReadyBody),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Later'),
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(l10n.later),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
                   context.go(
                       '/patient/visit-details?visitId=${newSummary.visitId}');
                 },
-                child: const Text('View Summary'),
+                child: Text(l10n.viewSummary),
               ),
             ],
-          ),
+          );
+          },
         );
       }
       _hasLoadedSummariesOnce = true;
@@ -233,12 +236,12 @@ class _OverviewScreenState extends State<OverviewScreen>
       await _fetchSummaries();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Summary generation restarted')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.summaryGenerationRestarted)),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Retry failed: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.retryFailed('$e'))),
       );
     }
   }
@@ -401,9 +404,10 @@ class _OverviewScreenState extends State<OverviewScreen>
   }
 
   void _deleteSelectedSummaries() {
+    final l10n = AppLocalizations.of(context)!;
     if (_selectedSummaryIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one summary')),
+        SnackBar(content: Text(l10n.selectAtLeastOneSummary)),
       );
       return;
     }
@@ -423,7 +427,7 @@ class _OverviewScreenState extends State<OverviewScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -433,7 +437,7 @@ class _OverviewScreenState extends State<OverviewScreen>
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -491,8 +495,8 @@ class _OverviewScreenState extends State<OverviewScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Failed to delete summaries. Please try again.')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!.failedToDeleteSummaries)),
       );
     } finally {
       if (!mounted) return;
@@ -504,7 +508,7 @@ class _OverviewScreenState extends State<OverviewScreen>
     if (_activeCaregiver == null || _isUpdatingShare) {
       if (!_isLoadingCaregiver && _caregiverError == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No caregiver added yet')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.noCaregiverAddedYet)),
         );
       }
       return;
@@ -1090,6 +1094,7 @@ class _OverviewScreenState extends State<OverviewScreen>
   }
 
   Widget _buildLabResultsTab() {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingLabResults) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -1104,7 +1109,7 @@ class _OverviewScreenState extends State<OverviewScreen>
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 13)),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _fetchScannedDocs, child: const Text('Retry')),
+            ElevatedButton(onPressed: _fetchScannedDocs, child: Text(l10n.retry)),
           ],
         ),
       );
@@ -1119,11 +1124,11 @@ class _OverviewScreenState extends State<OverviewScreen>
               Icon(Icons.biotech_outlined, size: 64,
                   color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
               const SizedBox(height: 16),
-              Text('No lab results yet',
+              Text(l10n.noLabResultsYet,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              Text('Scan a lab report using Capture & Scan to see results here.',
+              Text(l10n.labResultsScanHint,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
@@ -1131,7 +1136,7 @@ class _OverviewScreenState extends State<OverviewScreen>
               ElevatedButton.icon(
                 onPressed: () => context.go('/patient/visits'),
                 icon: const Icon(Icons.camera_alt_outlined),
-                label: const Text('Capture & Scan'),
+                label: Text(l10n.captureAndScan),
               ),
             ],
           ),
@@ -1149,6 +1154,7 @@ class _OverviewScreenState extends State<OverviewScreen>
   }
 
   Widget _buildScannedDocsTab() {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingScannedDocs) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -1163,7 +1169,7 @@ class _OverviewScreenState extends State<OverviewScreen>
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 13)),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _fetchScannedDocs, child: const Text('Retry')),
+            ElevatedButton(onPressed: _fetchScannedDocs, child: Text(l10n.retry)),
           ],
         ),
       );
@@ -1178,11 +1184,11 @@ class _OverviewScreenState extends State<OverviewScreen>
               Icon(Icons.document_scanner_outlined, size: 64,
                   color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
               const SizedBox(height: 16),
-              Text('No scanned documents yet',
+              Text(l10n.noScannedDocsYet,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              Text('Documents scanned during your visits will appear here.',
+              Text(l10n.scannedDocsHint,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
@@ -1190,7 +1196,7 @@ class _OverviewScreenState extends State<OverviewScreen>
               ElevatedButton.icon(
                 onPressed: () => context.go('/patient/visits'),
                 icon: const Icon(Icons.camera_alt_outlined),
-                label: const Text('Capture & Scan'),
+                label: Text(l10n.captureAndScan),
               ),
             ],
           ),

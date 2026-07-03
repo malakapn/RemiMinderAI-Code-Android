@@ -1198,4 +1198,89 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get relationshipOther => 'Outro';
+
+  @override
+  String get visitActionTitle => 'O que você gostaria de fazer?';
+
+  @override
+  String get visitActionAudioTitle => 'Gravar conversa em áudio';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'Grave sua consulta médica para um resumo automático';
+
+  @override
+  String get visitActionCaptureTitle => 'Capturar e digitalizar';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'Tire fotos de relatórios, frascos de remédios e documentos';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'Convidar cuidador';
+
+  @override
+  String get caregiverNameHint => 'Digite o nome completo do cuidador';
+
+  @override
+  String get caregiverEmailHint => 'Digite o e-mail do cuidador';
+
+  @override
+  String get relationshipLabel => 'Relacionamento';
+
+  @override
+  String get relationshipHint => 'ex.: Filho, Filha, Amigo, Enfermeira';
+
+  @override
+  String get sendInvite => 'Enviar convite';
+
+  @override
+  String get emailAndRoleRequired => 'E-mail e função são obrigatórios';
+
+  @override
+  String get summaryReadyTitle => 'Seu resumo da visita está pronto!';
+
+  @override
+  String get summaryReadyBody => 'Gostaria de visualizá-lo agora?';
+
+  @override
+  String get later => 'Mais tarde';
+
+  @override
+  String get viewSummary => 'Ver resumo';
+
+  @override
+  String get noLabResultsYet => 'Ainda não há resultados de laboratório';
+
+  @override
+  String get labResultsScanHint =>
+      'Digitalize um relatório de laboratório com Capturar e digitalizar para ver os resultados aqui.';
+
+  @override
+  String get captureAndScan => 'Capturar e digitalizar';
+
+  @override
+  String get noScannedDocsYet => 'Ainda não há documentos digitalizados';
+
+  @override
+  String get scannedDocsHint =>
+      'Documentos digitalizados durante suas visitas aparecerão aqui.';
+
+  @override
+  String get selectAtLeastOneSummary => 'Selecione pelo menos um resumo';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'Falha ao excluir resumos. Tente novamente.';
+
+  @override
+  String get noCaregiverAddedYet => 'Nenhum cuidador adicionado ainda';
+
+  @override
+  String get summaryGenerationRestarted => 'A geração do resumo foi reiniciada';
+
+  @override
+  String retryFailed(String error) {
+    return 'Nova tentativa falhou: $error';
+  }
 }
