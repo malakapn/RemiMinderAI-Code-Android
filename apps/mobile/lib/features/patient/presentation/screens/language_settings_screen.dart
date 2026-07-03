@@ -137,6 +137,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                 fadeColor: theme.scaffoldBackgroundColor,
                 builder: (context, controller) => ListView.separated(
                   controller: controller,
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
                   itemCount: kSupportedLanguages.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),

@@ -627,5 +627,38 @@
   "relationshipCaregiver": "ਦੇਖਭਾਲ ਕਰਨ ਵਾਲਾ",
   "relationshipSister": "ਭੈਣ",
   "relationshipBrother": "ਭਰਾ",
-  "relationshipOther": "ਹੋਰ"
+  "relationshipOther": "ਹੋਰ",
+  "caregiverNameHint": "ਦੇਖਭਾਲ ਕਰਨ ਵਾਲੇ ਦਾ ਪੂਰਾ ਨਾਮ ਦਰਜ ਕਰੋ",
+  "retryFailed": "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਅਸਫਲ: {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noLabResultsYet": "ਅਜੇ ਤੱਕ ਕੋਈ ਲੈਬ ਨਤੀਜੇ ਨਹੀਂ",
+  "visitActionCaptureTitle": "ਕੈਪਚਰ ਅਤੇ ਸਕੈਨ",
+  "caregiverEmailHint": "ਦੇਖਭਾਲ ਕਰਨ ਵਾਲੇ ਦਾ ਈਮੇਲ ਪਤਾ ਦਰਜ ਕਰੋ",
+  "visitActionTitle": "ਤੁਸੀਂ ਕੀ ਕਰਨਾ ਚਾਹੋਗੇ?",
+  "visitActionAudioSubtitle": "ਸਵੈਚਾਲਿਤ ਸਾਰਾਂਸ਼ ਲਈ ਆਪਣੀ ਡਾਕਟਰ ਮੁਲਾਕਾਤ ਰਿਕਾਰਡ ਕਰੋ",
+  "noScannedDocsYet": "ਅਜੇ ਤੱਕ ਕੋਈ ਸਕੈਨ ਕੀਤੇ ਦਸਤਾਵੇਜ਼ ਨਹੀਂ",
+  "scannedDocsHint": "ਤੁਹਾਡੀਆਂ ਮੁਲਾਕਾਤਾਂ ਦੌਰਾਨ ਸਕੈਨ ਕੀਤੇ ਦਸਤਾਵੇਜ਼ ਇੱਥੇ ਦਿਖਾਈ ਦੇਣਗੇ।",
+  "summaryReadyBody": "ਕੀ ਤੁਸੀਂ ਇਸਨੂੰ ਹੁਣੇ ਦੇਖਣਾ ਚਾਹੋਗੇ?",
+  "noCaregiverAddedYet": "ਅਜੇ ਤੱਕ ਕੋਈ ਦੇਖਭਾਲ ਕਰਨ ਵਾਲਾ ਨਹੀਂ ਜੋੜਿਆ ਗਿਆ",
+  "summaryGenerationRestarted": "ਸਾਰਾਂਸ਼ ਜਨਰੇਸ਼ਨ ਮੁੜ ਸ਼ੁਰੂ ਹੋਈ",
+  "labResultsScanHint": "ਨਤੀਜੇ ਇੱਥੇ ਦੇਖਣ ਲਈ ਕੈਪਚਰ ਅਤੇ ਸਕੈਨ ਨਾਲ ਲੈਬ ਰਿਪੋਰਟ ਸਕੈਨ ਕਰੋ।",
+  "visitActionAudioTitle": "ਆਡੀਓ ਗੱਲਬਾਤ ਰਿਕਾਰਡ ਕਰੋ",
+  "relationshipLabel": "ਰਿਸ਼ਤਾ",
+  "later": "ਬਾਅਦ ਵਿੱਚ",
+  "failedToDeleteSummaries": "ਸਾਰਾਂਸ਼ ਮਿਟਾਉਣ ਵਿੱਚ ਅਸਫਲ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+  "inviteCaregiverDialogTitle": "ਦੇਖਭਾਲ ਕਰਨ ਵਾਲੇ ਨੂੰ ਸੱਦਾ ਦਿਓ",
+  "visitActionCaptureSubtitle": "ਰਿਪੋਰਟਾਂ, ਦਵਾਈ ਦੀਆਂ ਬੋਤਲਾਂ ਅਤੇ ਦਸਤਾਵੇਜ਼ਾਂ ਦੀਆਂ ਫੋਟੋਆਂ ਲਓ",
+  "sendInvite": "ਸੱਦਾ ਭੇਜੋ",
+  "viewSummary": "ਸਾਰਾਂਸ਼ ਦੇਖੋ",
+  "selectAtLeastOneSummary": "ਘੱਟੋ-ਘੱਟ ਇੱਕ ਸਾਰਾਂਸ਼ ਚੁਣੋ",
+  "captureAndScan": "ਕੈਪਚਰ ਅਤੇ ਸਕੈਨ",
+  "relationshipHint": "ਜਿਵੇਂ, ਪੁੱਤਰ, ਧੀ, ਦੋਸਤ, ਨਰਸ",
+  "emailAndRoleRequired": "ਈਮੇਲ ਅਤੇ ਭੂਮਿਕਾ ਲੋੜੀਂਦੀ ਹੈ",
+  "summaryReadyTitle": "ਤੁਹਾਡਾ ਮੁਲਾਕਾਤ ਸਾਰਾਂਸ਼ ਤਿਆਰ ਹੈ!"
 }

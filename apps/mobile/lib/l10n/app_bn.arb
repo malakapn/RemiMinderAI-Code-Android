@@ -478,5 +478,38 @@
   "relationshipCaregiver": "কেয়ারগিভার",
   "relationshipSister": "বোন",
   "relationshipBrother": "ভাই",
-  "relationshipOther": "অন্যান্য"
+  "relationshipOther": "অন্যান্য",
+  "caregiverNameHint": "যত্নকারীর পুরো নাম লিখুন",
+  "retryFailed": "পুনরায় চেষ্টা ব্যর্থ: {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noLabResultsYet": "এখনও কোনো ল্যাব ফলাফল নেই",
+  "visitActionCaptureTitle": "ক্যাপচার ও স্ক্যান",
+  "caregiverEmailHint": "যত্নকারীর ইমেইল ঠিকানা লিখুন",
+  "visitActionTitle": "আপনি কী করতে চান?",
+  "visitActionAudioSubtitle": "স্বয়ংক্রিয় সারাংশের জন্য আপনার ডাক্তারের ভিজিট রেকর্ড করুন",
+  "noScannedDocsYet": "এখনও কোনো স্ক্যান করা নথি নেই",
+  "scannedDocsHint": "আপনার ভিজিটের সময় স্ক্যান করা নথি এখানে দেখা যাবে।",
+  "summaryReadyBody": "আপনি কি এখনই দেখতে চান?",
+  "noCaregiverAddedYet": "এখনও কোনো যত্নকারী যোগ করা হয়নি",
+  "summaryGenerationRestarted": "সারাংশ তৈরি পুনরায় শুরু হয়েছে",
+  "labResultsScanHint": "এখানে ফলাফল দেখতে ক্যাপচার ও স্ক্যান দিয়ে ল্যাব রিপোর্ট স্ক্যান করুন।",
+  "visitActionAudioTitle": "অডিও কথোপকথন রেকর্ড করুন",
+  "relationshipLabel": "সম্পর্ক",
+  "later": "পরে",
+  "failedToDeleteSummaries": "সারাংশ মুছতে ব্যর্থ। আবার চেষ্টা করুন।",
+  "inviteCaregiverDialogTitle": "যত্নকারীকে আমন্ত্রণ",
+  "visitActionCaptureSubtitle": "রিপোর্ট, ওষুধের বোতল ও নথির ছবি তুলুন",
+  "sendInvite": "আমন্ত্রণ পাঠান",
+  "viewSummary": "সারাংশ দেখুন",
+  "selectAtLeastOneSummary": "অন্তত একটি সারাংশ নির্বাচন করুন",
+  "captureAndScan": "ক্যাপচার ও স্ক্যান",
+  "relationshipHint": "যেমন, ছেলে, মেয়ে, বন্ধু, নার্স",
+  "emailAndRoleRequired": "ইমেইল ও ভূমিকা প্রয়োজন",
+  "summaryReadyTitle": "আপনার ভিজিট সারাংশ প্রস্তুত!"
 }

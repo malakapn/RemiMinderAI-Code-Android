@@ -627,5 +627,38 @@
   "relationshipCaregiver": "સંભાળ રાખનાર",
   "relationshipSister": "બહેન",
   "relationshipBrother": "ભાઈ",
-  "relationshipOther": "અન્ય"
+  "relationshipOther": "અન્ય",
+  "caregiverNameHint": "સંભાળ રાખનારનું પૂરું નામ દાખલ કરો",
+  "retryFailed": "પુનઃપ્રયાસ નિષ્ફળ: {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noLabResultsYet": "હજી સુધી કોઈ લેબ પરિણામો નથી",
+  "visitActionCaptureTitle": "કેપ્ચર અને સ્કેન",
+  "caregiverEmailHint": "સંભાળ રાખનારનું ઇમેઇલ સરનામું દાખલ કરો",
+  "visitActionTitle": "તમે શું કરવા માંગો છો?",
+  "visitActionAudioSubtitle": "સ્વચાલિત સારાંશ માટે તમારી ડૉક્ટરની મુલાકાત રેકોર્ડ કરો",
+  "noScannedDocsYet": "હજી સુધી કોઈ સ્કેન કરેલા દસ્તાવેજો નથી",
+  "scannedDocsHint": "તમારી મુલાકાતો દરમિયાન સ્કેન કરેલા દસ્તાવેજો અહીં દેખાશે.",
+  "summaryReadyBody": "શું તમે તે હમણાં જોવા માંગો છો?",
+  "noCaregiverAddedYet": "હજી સુધી કોઈ સંભાળ રાખનાર ઉમેરાયો નથી",
+  "summaryGenerationRestarted": "સારાંશ જનરેશન ફરી શરૂ થયું",
+  "labResultsScanHint": "પરિણામો અહીં જોવા કેપ્ચર અને સ્કેનથી લેબ રિપોર્ટ સ્કેન કરો.",
+  "visitActionAudioTitle": "ઑડિયો વાતચીત રેકોર્ડ કરો",
+  "relationshipLabel": "સંબંધ",
+  "later": "પછી",
+  "failedToDeleteSummaries": "સારાંશો કાઢી શકાયા નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.",
+  "inviteCaregiverDialogTitle": "સંભાળ રાખનારને આમંત્રિત કરો",
+  "visitActionCaptureSubtitle": "રિપોર્ટ, દવાની બોટલો અને દસ્તાવેજોની ફોટો લો",
+  "sendInvite": "આમંત્રણ મોકલો",
+  "viewSummary": "સારાંશ જુઓ",
+  "selectAtLeastOneSummary": "ઓછામાં ઓછું એક સારાંશ પસંદ કરો",
+  "captureAndScan": "કેપ્ચર અને સ્કેન",
+  "relationshipHint": "દા.ત., પુત્ર, પુત્રી, મિત્ર, નર્સ",
+  "emailAndRoleRequired": "ઇમેઇલ અને ભૂમિકા જરૂરી છે",
+  "summaryReadyTitle": "તમારો મુલાકાત સારાંશ તૈયાર છે!"
 }

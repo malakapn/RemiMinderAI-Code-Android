@@ -40,10 +40,12 @@ class LocaleNotifier extends Notifier<Locale> {
 
   /// Set locale from a BCP-47 language code (e.g. en, es, hi).
   Future<void> setLocaleFromString(String languageCode) async {
-    state = Locale(normalizeLanguageCode(languageCode));
+    final normalized = normalizeLanguageCode(languageCode);
+    if (state.languageCode == normalized) return;
+    state = Locale(normalized);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(kPreferredLanguagePrefsKey, languageCode);
+      await prefs.setString(kPreferredLanguagePrefsKey, normalized);
     } catch (_) {
       // Ignore persistence failures; in-memory locale still updates.
     }
@@ -52,7 +54,7 @@ class LocaleNotifier extends Notifier<Locale> {
     if (uid != null) {
       try {
         await FirebaseFirestore.instance.collection('users').doc(uid).set(
-          {'preferredLanguage': languageCode},
+          {'preferredLanguage': normalized},
           SetOptions(merge: true),
         );
       } catch (_) {

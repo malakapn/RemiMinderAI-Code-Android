@@ -478,5 +478,38 @@
   "relationshipCaregiver": "केयरगिवर",
   "relationshipSister": "बहन",
   "relationshipBrother": "भाई",
-  "relationshipOther": "अन्य"
+  "relationshipOther": "अन्य",
+  "caregiverNameHint": "केयरगिवर का पूरा नाम दर्ज करें",
+  "retryFailed": "पुनः प्रयास विफल: {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noLabResultsYet": "अभी तक कोई लैब परिणाम नहीं",
+  "visitActionCaptureTitle": "कैप्चर और स्कैन",
+  "caregiverEmailHint": "केयरगिवर का ईमेल पता दर्ज करें",
+  "visitActionTitle": "आप क्या करना चाहेंगे?",
+  "visitActionAudioSubtitle": "स्वचालित सारांश के लिए अपनी डॉक्टर विज़िट रिकॉर्ड करें",
+  "noScannedDocsYet": "अभी तक कोई स्कैन किए गए दस्तावेज़ नहीं",
+  "scannedDocsHint": "आपकी विज़िट के दौरान स्कैन किए गए दस्तावेज़ यहाँ दिखाई देंगे।",
+  "summaryReadyBody": "क्या आप इसे अभी देखना चाहेंगे?",
+  "noCaregiverAddedYet": "अभी तक कोई केयरगिवर नहीं जोड़ा गया",
+  "summaryGenerationRestarted": "सारांश जनरेशन पुनः शुरू हुआ",
+  "labResultsScanHint": "यहाँ परिणाम देखने के लिए कैप्चर और स्कैन से लैब रिपोर्ट स्कैन करें।",
+  "visitActionAudioTitle": "ऑडियो बातचीत रिकॉर्ड करें",
+  "relationshipLabel": "संबंध",
+  "later": "बाद में",
+  "failedToDeleteSummaries": "सारांश हटाने में विफल। कृपया पुनः प्रयास करें।",
+  "inviteCaregiverDialogTitle": "केयरगिवर को आमंत्रित करें",
+  "visitActionCaptureSubtitle": "रिपोर्ट, दवा की बोतलों और दस्तावेज़ों की तस्वीरें लें",
+  "sendInvite": "आमंत्रण भेजें",
+  "viewSummary": "सारांश देखें",
+  "selectAtLeastOneSummary": "कम से कम एक सारांश चुनें",
+  "captureAndScan": "कैप्चर और स्कैन",
+  "relationshipHint": "जैसे, बेटा, बेटी, मित्र, नर्स",
+  "emailAndRoleRequired": "ईमेल और भूमिका आवश्यक हैं",
+  "summaryReadyTitle": "आपका विज़िट सारांश तैयार है!"
 }

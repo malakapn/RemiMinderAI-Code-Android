@@ -478,5 +478,38 @@
   "relationshipCaregiver": "Cuidador",
   "relationshipSister": "Irmã",
   "relationshipBrother": "Irmão",
-  "relationshipOther": "Outro"
+  "relationshipOther": "Outro",
+  "caregiverNameHint": "Digite o nome completo do cuidador",
+  "retryFailed": "Nova tentativa falhou: {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noLabResultsYet": "Ainda não há resultados de laboratório",
+  "visitActionCaptureTitle": "Capturar e digitalizar",
+  "caregiverEmailHint": "Digite o e-mail do cuidador",
+  "visitActionTitle": "O que você gostaria de fazer?",
+  "visitActionAudioSubtitle": "Grave sua consulta médica para um resumo automático",
+  "noScannedDocsYet": "Ainda não há documentos digitalizados",
+  "scannedDocsHint": "Documentos digitalizados durante suas visitas aparecerão aqui.",
+  "summaryReadyBody": "Gostaria de visualizá-lo agora?",
+  "noCaregiverAddedYet": "Nenhum cuidador adicionado ainda",
+  "summaryGenerationRestarted": "A geração do resumo foi reiniciada",
+  "labResultsScanHint": "Digitalize um relatório de laboratório com Capturar e digitalizar para ver os resultados aqui.",
+  "visitActionAudioTitle": "Gravar conversa em áudio",
+  "relationshipLabel": "Relacionamento",
+  "later": "Mais tarde",
+  "failedToDeleteSummaries": "Falha ao excluir resumos. Tente novamente.",
+  "inviteCaregiverDialogTitle": "Convidar cuidador",
+  "visitActionCaptureSubtitle": "Tire fotos de relatórios, frascos de remédios e documentos",
+  "sendInvite": "Enviar convite",
+  "viewSummary": "Ver resumo",
+  "selectAtLeastOneSummary": "Selecione pelo menos um resumo",
+  "captureAndScan": "Capturar e digitalizar",
+  "relationshipHint": "ex.: Filho, Filha, Amigo, Enfermeira",
+  "emailAndRoleRequired": "E-mail e função são obrigatórios",
+  "summaryReadyTitle": "Seu resumo da visita está pronto!"
 }

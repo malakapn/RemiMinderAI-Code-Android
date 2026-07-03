@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/models/user.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,16 +65,33 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
             authToken: authToken,
           );
 
-          final languagePrefs = await apiService
-              .getLanguagePreferences()
-              .timeout(const Duration(seconds: 3));
-          if (!mounted) return;
-          final appLanguage =
-              normalizeLanguageCode(languagePrefs['app_language'] ?? 'en');
-
-          if (kDebugMode) print('🔄 LoadingScreen: Setting app language to: $appLanguage');
-          if (!mounted) return;
-          await ref.read(localeProvider.notifier).setLocaleFromString(appLanguage);
+          final prefs = await SharedPreferences.getInstance();
+          final savedCode = prefs.getString(kPreferredLanguagePrefsKey);
+          if (savedCode != null && savedCode.trim().isNotEmpty) {
+            if (kDebugMode) {
+              print(
+                  '🔄 LoadingScreen: Applying saved language preference: $savedCode');
+            }
+            if (!mounted) return;
+            await ref
+                .read(localeProvider.notifier)
+                .setLocaleFromString(savedCode);
+          } else {
+            final languagePrefs = await apiService
+                .getLanguagePreferences()
+                .timeout(const Duration(seconds: 3));
+            if (!mounted) return;
+            final appLanguage =
+                normalizeLanguageCode(languagePrefs['app_language'] ?? 'en');
+            if (kDebugMode) {
+              print(
+                  '🔄 LoadingScreen: Setting app language from API: $appLanguage');
+            }
+            if (!mounted) return;
+            await ref
+                .read(localeProvider.notifier)
+                .setLocaleFromString(appLanguage);
+          }
         }
       } catch (e) {
         if (kDebugMode) print('🔄 LoadingScreen: Failed to fetch language preferences: $e');

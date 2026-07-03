@@ -1189,4 +1189,89 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get relationshipOther => 'Other';
+
+  @override
+  String get visitActionTitle => 'What would you like to do?';
+
+  @override
+  String get visitActionAudioTitle => 'Audio Record Conversation';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'Record your doctor visit for automatic summary';
+
+  @override
+  String get visitActionCaptureTitle => 'Capture & Scan';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'Take photos of reports, pill bottles, and documents';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'Invite Caregiver';
+
+  @override
+  String get caregiverNameHint => 'Enter caregiver\'s full name';
+
+  @override
+  String get caregiverEmailHint => 'Enter caregiver\'s email address';
+
+  @override
+  String get relationshipLabel => 'Relationship';
+
+  @override
+  String get relationshipHint => 'e.g., Son, Daughter, Friend, Nurse';
+
+  @override
+  String get sendInvite => 'Send Invite';
+
+  @override
+  String get emailAndRoleRequired => 'Email and role are required';
+
+  @override
+  String get summaryReadyTitle => 'Your visit summary is ready!';
+
+  @override
+  String get summaryReadyBody => 'Would you like to view it now?';
+
+  @override
+  String get later => 'Later';
+
+  @override
+  String get viewSummary => 'View Summary';
+
+  @override
+  String get noLabResultsYet => 'No lab results yet';
+
+  @override
+  String get labResultsScanHint =>
+      'Scan a lab report using Capture & Scan to see results here.';
+
+  @override
+  String get captureAndScan => 'Capture & Scan';
+
+  @override
+  String get noScannedDocsYet => 'No scanned documents yet';
+
+  @override
+  String get scannedDocsHint =>
+      'Documents scanned during your visits will appear here.';
+
+  @override
+  String get selectAtLeastOneSummary => 'Select at least one summary';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'Failed to delete summaries. Please try again.';
+
+  @override
+  String get noCaregiverAddedYet => 'No caregiver added yet';
+
+  @override
+  String get summaryGenerationRestarted => 'Summary generation restarted';
+
+  @override
+  String retryFailed(String error) {
+    return 'Retry failed: $error';
+  }
 }

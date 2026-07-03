@@ -2291,6 +2291,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other'**
   String get relationshipOther;
+
+  /// No description provided for @visitActionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What would you like to do?'**
+  String get visitActionTitle;
+
+  /// No description provided for @visitActionAudioTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Record Conversation'**
+  String get visitActionAudioTitle;
+
+  /// No description provided for @visitActionAudioSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Record your doctor visit for automatic summary'**
+  String get visitActionAudioSubtitle;
+
+  /// No description provided for @visitActionCaptureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture & Scan'**
+  String get visitActionCaptureTitle;
+
+  /// No description provided for @visitActionCaptureSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Take photos of reports, pill bottles, and documents'**
+  String get visitActionCaptureSubtitle;
+
+  /// No description provided for @inviteCaregiverDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite Caregiver'**
+  String get inviteCaregiverDialogTitle;
+
+  /// No description provided for @caregiverNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter caregiver\'s full name'**
+  String get caregiverNameHint;
+
+  /// No description provided for @caregiverEmailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter caregiver\'s email address'**
+  String get caregiverEmailHint;
+
+  /// No description provided for @relationshipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Relationship'**
+  String get relationshipLabel;
+
+  /// No description provided for @relationshipHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Son, Daughter, Friend, Nurse'**
+  String get relationshipHint;
+
+  /// No description provided for @sendInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Invite'**
+  String get sendInvite;
+
+  /// No description provided for @emailAndRoleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Email and role are required'**
+  String get emailAndRoleRequired;
+
+  /// No description provided for @summaryReadyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your visit summary is ready!'**
+  String get summaryReadyTitle;
+
+  /// No description provided for @summaryReadyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Would you like to view it now?'**
+  String get summaryReadyBody;
+
+  /// No description provided for @later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get later;
+
+  /// No description provided for @viewSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'View Summary'**
+  String get viewSummary;
+
+  /// No description provided for @noLabResultsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No lab results yet'**
+  String get noLabResultsYet;
+
+  /// No description provided for @labResultsScanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a lab report using Capture & Scan to see results here.'**
+  String get labResultsScanHint;
+
+  /// No description provided for @captureAndScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture & Scan'**
+  String get captureAndScan;
+
+  /// No description provided for @noScannedDocsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No scanned documents yet'**
+  String get noScannedDocsYet;
+
+  /// No description provided for @scannedDocsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Documents scanned during your visits will appear here.'**
+  String get scannedDocsHint;
+
+  /// No description provided for @selectAtLeastOneSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one summary'**
+  String get selectAtLeastOneSummary;
+
+  /// No description provided for @failedToDeleteSummaries.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete summaries. Please try again.'**
+  String get failedToDeleteSummaries;
+
+  /// No description provided for @noCaregiverAddedYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No caregiver added yet'**
+  String get noCaregiverAddedYet;
+
+  /// No description provided for @summaryGenerationRestarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary generation restarted'**
+  String get summaryGenerationRestarted;
+
+  /// No description provided for @retryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry failed: {error}'**
+  String retryFailed(String error);
 }
 
 class _AppLocalizationsDelegate

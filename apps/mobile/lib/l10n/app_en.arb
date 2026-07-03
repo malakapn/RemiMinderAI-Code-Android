@@ -627,5 +627,38 @@
   "relationshipCaregiver": "Caregiver",
   "relationshipSister": "Sister",
   "relationshipBrother": "Brother",
-  "relationshipOther": "Other"
+  "relationshipOther": "Other",
+  "visitActionTitle": "What would you like to do?",
+  "visitActionAudioTitle": "Audio Record Conversation",
+  "visitActionAudioSubtitle": "Record your doctor visit for automatic summary",
+  "visitActionCaptureTitle": "Capture & Scan",
+  "visitActionCaptureSubtitle": "Take photos of reports, pill bottles, and documents",
+  "inviteCaregiverDialogTitle": "Invite Caregiver",
+  "caregiverNameHint": "Enter caregiver's full name",
+  "caregiverEmailHint": "Enter caregiver's email address",
+  "relationshipLabel": "Relationship",
+  "relationshipHint": "e.g., Son, Daughter, Friend, Nurse",
+  "sendInvite": "Send Invite",
+  "emailAndRoleRequired": "Email and role are required",
+  "summaryReadyTitle": "Your visit summary is ready!",
+  "summaryReadyBody": "Would you like to view it now?",
+  "later": "Later",
+  "viewSummary": "View Summary",
+  "noLabResultsYet": "No lab results yet",
+  "labResultsScanHint": "Scan a lab report using Capture & Scan to see results here.",
+  "captureAndScan": "Capture & Scan",
+  "noScannedDocsYet": "No scanned documents yet",
+  "scannedDocsHint": "Documents scanned during your visits will appear here.",
+  "selectAtLeastOneSummary": "Select at least one summary",
+  "failedToDeleteSummaries": "Failed to delete summaries. Please try again.",
+  "noCaregiverAddedYet": "No caregiver added yet",
+  "summaryGenerationRestarted": "Summary generation restarted",
+  "retryFailed": "Retry failed: {error}",
+  "@retryFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -57,6 +57,7 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
   }
 
   void _showVisitActionSelection() {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -101,7 +102,7 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'What would you like to do?',
+                            l10n.visitActionTitle,
                             style: TextStyle(
                               fontSize: compactLayout ? 18 : 20,
                               fontWeight: FontWeight.w600,
@@ -118,8 +119,8 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
                       children: [
                         _buildVisitActionOption(
                           sheetContext,
-                          'Audio Record Conversation',
-                          'Record your doctor visit for automatic summary',
+                          l10n.visitActionAudioTitle,
+                          l10n.visitActionAudioSubtitle,
                           Icons.mic,
                           Colors.blue,
                           compactLayout: compactLayout,
@@ -132,8 +133,8 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
                         SizedBox(height: gapBetweenOptions),
                         _buildVisitActionOption(
                           sheetContext,
-                          'Capture & Scan',
-                          'Take photos of reports, pill bottles, and documents',
+                          l10n.visitActionCaptureTitle,
+                          l10n.visitActionCaptureSubtitle,
                           Icons.camera_alt,
                           Colors.green,
                           compactLayout: compactLayout,
@@ -166,7 +167,7 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Cancel'),
+                        child: Text(l10n.cancel),
                       ),
                     ),
                   ),

@@ -1203,4 +1203,91 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get relationshipOther => 'மற்றவை';
+
+  @override
+  String get visitActionTitle => 'நீங்கள் என்ன செய்ய விரும்புகிறீர்கள்?';
+
+  @override
+  String get visitActionAudioTitle => 'ஆடியோ உரையாடலை பதிவு செய்';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'தானியங்கி சுருக்கத்திற்கு உங்கள் மருத்துவர் வருகையை பதிவு செய்யுங்கள்';
+
+  @override
+  String get visitActionCaptureTitle => 'பிடித்து ஸ்கேன் செய்';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'அறிக்கைகள், மருந்து பாட்டில்கள் மற்றும் ஆவணங்களின் புகைப்படங்களை எடுக்கவும்';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'பராமரிப்பாளரை அழை';
+
+  @override
+  String get caregiverNameHint => 'பராமரிப்பாளரின் முழு பெயரை உள்ளிடவும்';
+
+  @override
+  String get caregiverEmailHint => 'பராமரிப்பாளரின் மின்னஞ்சலை உள்ளிடவும்';
+
+  @override
+  String get relationshipLabel => 'உறவு';
+
+  @override
+  String get relationshipHint => 'எ.கா., மகன், மகள், நண்பர், செவிலியர்';
+
+  @override
+  String get sendInvite => 'அழைப்பு அனுப்பு';
+
+  @override
+  String get emailAndRoleRequired => 'மின்னஞ்சல் மற்றும் பாத்திரம் தேவை';
+
+  @override
+  String get summaryReadyTitle => 'உங்கள் வருகை சுருக்கம் தயார்!';
+
+  @override
+  String get summaryReadyBody => 'இப்போது பார்க்க விரும்புகிறீர்களா?';
+
+  @override
+  String get later => 'பின்னர்';
+
+  @override
+  String get viewSummary => 'சுருக்கத்தைப் பார்';
+
+  @override
+  String get noLabResultsYet => 'இன்னும் ஆய்வக முடிவுகள் இல்லை';
+
+  @override
+  String get labResultsScanHint =>
+      'முடிவுகளை இங்கே பார்க்க பிடித்து ஸ்கேன் மூலம் ஆய்வக அறிக்கையை ஸ்கேன் செய்யுங்கள்.';
+
+  @override
+  String get captureAndScan => 'பிடித்து ஸ்கேன் செய்';
+
+  @override
+  String get noScannedDocsYet => 'இன்னும் ஸ்கேன் செய்யப்பட்ட ஆவணங்கள் இல்லை';
+
+  @override
+  String get scannedDocsHint =>
+      'உங்கள் வருகைகளின் போது ஸ்கேன் செய்யப்பட்ட ஆவணங்கள் இங்கே தோன்றும்.';
+
+  @override
+  String get selectAtLeastOneSummary =>
+      'குறைந்தது ஒரு சுருக்கத்தைத் தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'சுருக்கங்களை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String get noCaregiverAddedYet => 'இன்னும் பராமரிப்பாளர் சேர்க்கப்படவில்லை';
+
+  @override
+  String get summaryGenerationRestarted =>
+      'சுருக்க உருவாக்கம் மீண்டும் தொடங்கியது';
+
+  @override
+  String retryFailed(String error) {
+    return 'மீண்டும் முயற்சி தோல்வி: $error';
+  }
 }

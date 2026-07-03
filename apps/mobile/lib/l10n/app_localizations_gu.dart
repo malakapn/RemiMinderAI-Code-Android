@@ -1203,4 +1203,89 @@ class AppLocalizationsGu extends AppLocalizations {
 
   @override
   String get relationshipOther => 'અન્ય';
+
+  @override
+  String get visitActionTitle => 'તમે શું કરવા માંગો છો?';
+
+  @override
+  String get visitActionAudioTitle => 'ઑડિયો વાતચીત રેકોર્ડ કરો';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'સ્વચાલિત સારાંશ માટે તમારી ડૉક્ટરની મુલાકાત રેકોર્ડ કરો';
+
+  @override
+  String get visitActionCaptureTitle => 'કેપ્ચર અને સ્કેન';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'રિપોર્ટ, દવાની બોટલો અને દસ્તાવેજોની ફોટો લો';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'સંભાળ રાખનારને આમંત્રિત કરો';
+
+  @override
+  String get caregiverNameHint => 'સંભાળ રાખનારનું પૂરું નામ દાખલ કરો';
+
+  @override
+  String get caregiverEmailHint => 'સંભાળ રાખનારનું ઇમેઇલ સરનામું દાખલ કરો';
+
+  @override
+  String get relationshipLabel => 'સંબંધ';
+
+  @override
+  String get relationshipHint => 'દા.ત., પુત્ર, પુત્રી, મિત્ર, નર્સ';
+
+  @override
+  String get sendInvite => 'આમંત્રણ મોકલો';
+
+  @override
+  String get emailAndRoleRequired => 'ઇમેઇલ અને ભૂમિકા જરૂરી છે';
+
+  @override
+  String get summaryReadyTitle => 'તમારો મુલાકાત સારાંશ તૈયાર છે!';
+
+  @override
+  String get summaryReadyBody => 'શું તમે તે હમણાં જોવા માંગો છો?';
+
+  @override
+  String get later => 'પછી';
+
+  @override
+  String get viewSummary => 'સારાંશ જુઓ';
+
+  @override
+  String get noLabResultsYet => 'હજી સુધી કોઈ લેબ પરિણામો નથી';
+
+  @override
+  String get labResultsScanHint =>
+      'પરિણામો અહીં જોવા કેપ્ચર અને સ્કેનથી લેબ રિપોર્ટ સ્કેન કરો.';
+
+  @override
+  String get captureAndScan => 'કેપ્ચર અને સ્કેન';
+
+  @override
+  String get noScannedDocsYet => 'હજી સુધી કોઈ સ્કેન કરેલા દસ્તાવેજો નથી';
+
+  @override
+  String get scannedDocsHint =>
+      'તમારી મુલાકાતો દરમિયાન સ્કેન કરેલા દસ્તાવેજો અહીં દેખાશે.';
+
+  @override
+  String get selectAtLeastOneSummary => 'ઓછામાં ઓછું એક સારાંશ પસંદ કરો';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'સારાંશો કાઢી શકાયા નહીં. કૃપા કરીને ફરી પ્રયાસ કરો.';
+
+  @override
+  String get noCaregiverAddedYet => 'હજી સુધી કોઈ સંભાળ રાખનાર ઉમેરાયો નથી';
+
+  @override
+  String get summaryGenerationRestarted => 'સારાંશ જનરેશન ફરી શરૂ થયું';
+
+  @override
+  String retryFailed(String error) {
+    return 'પુનઃપ્રયાસ નિષ્ફળ: $error';
+  }
 }

@@ -1207,4 +1207,90 @@ class AppLocalizationsPa extends AppLocalizations {
 
   @override
   String get relationshipOther => 'ਹੋਰ';
+
+  @override
+  String get visitActionTitle => 'ਤੁਸੀਂ ਕੀ ਕਰਨਾ ਚਾਹੋਗੇ?';
+
+  @override
+  String get visitActionAudioTitle => 'ਆਡੀਓ ਗੱਲਬਾਤ ਰਿਕਾਰਡ ਕਰੋ';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'ਸਵੈਚਾਲਿਤ ਸਾਰਾਂਸ਼ ਲਈ ਆਪਣੀ ਡਾਕਟਰ ਮੁਲਾਕਾਤ ਰਿਕਾਰਡ ਕਰੋ';
+
+  @override
+  String get visitActionCaptureTitle => 'ਕੈਪਚਰ ਅਤੇ ਸਕੈਨ';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'ਰਿਪੋਰਟਾਂ, ਦਵਾਈ ਦੀਆਂ ਬੋਤਲਾਂ ਅਤੇ ਦਸਤਾਵੇਜ਼ਾਂ ਦੀਆਂ ਫੋਟੋਆਂ ਲਓ';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'ਦੇਖਭਾਲ ਕਰਨ ਵਾਲੇ ਨੂੰ ਸੱਦਾ ਦਿਓ';
+
+  @override
+  String get caregiverNameHint => 'ਦੇਖਭਾਲ ਕਰਨ ਵਾਲੇ ਦਾ ਪੂਰਾ ਨਾਮ ਦਰਜ ਕਰੋ';
+
+  @override
+  String get caregiverEmailHint => 'ਦੇਖਭਾਲ ਕਰਨ ਵਾਲੇ ਦਾ ਈਮੇਲ ਪਤਾ ਦਰਜ ਕਰੋ';
+
+  @override
+  String get relationshipLabel => 'ਰਿਸ਼ਤਾ';
+
+  @override
+  String get relationshipHint => 'ਜਿਵੇਂ, ਪੁੱਤਰ, ਧੀ, ਦੋਸਤ, ਨਰਸ';
+
+  @override
+  String get sendInvite => 'ਸੱਦਾ ਭੇਜੋ';
+
+  @override
+  String get emailAndRoleRequired => 'ਈਮੇਲ ਅਤੇ ਭੂਮਿਕਾ ਲੋੜੀਂਦੀ ਹੈ';
+
+  @override
+  String get summaryReadyTitle => 'ਤੁਹਾਡਾ ਮੁਲਾਕਾਤ ਸਾਰਾਂਸ਼ ਤਿਆਰ ਹੈ!';
+
+  @override
+  String get summaryReadyBody => 'ਕੀ ਤੁਸੀਂ ਇਸਨੂੰ ਹੁਣੇ ਦੇਖਣਾ ਚਾਹੋਗੇ?';
+
+  @override
+  String get later => 'ਬਾਅਦ ਵਿੱਚ';
+
+  @override
+  String get viewSummary => 'ਸਾਰਾਂਸ਼ ਦੇਖੋ';
+
+  @override
+  String get noLabResultsYet => 'ਅਜੇ ਤੱਕ ਕੋਈ ਲੈਬ ਨਤੀਜੇ ਨਹੀਂ';
+
+  @override
+  String get labResultsScanHint =>
+      'ਨਤੀਜੇ ਇੱਥੇ ਦੇਖਣ ਲਈ ਕੈਪਚਰ ਅਤੇ ਸਕੈਨ ਨਾਲ ਲੈਬ ਰਿਪੋਰਟ ਸਕੈਨ ਕਰੋ।';
+
+  @override
+  String get captureAndScan => 'ਕੈਪਚਰ ਅਤੇ ਸਕੈਨ';
+
+  @override
+  String get noScannedDocsYet => 'ਅਜੇ ਤੱਕ ਕੋਈ ਸਕੈਨ ਕੀਤੇ ਦਸਤਾਵੇਜ਼ ਨਹੀਂ';
+
+  @override
+  String get scannedDocsHint =>
+      'ਤੁਹਾਡੀਆਂ ਮੁਲਾਕਾਤਾਂ ਦੌਰਾਨ ਸਕੈਨ ਕੀਤੇ ਦਸਤਾਵੇਜ਼ ਇੱਥੇ ਦਿਖਾਈ ਦੇਣਗੇ।';
+
+  @override
+  String get selectAtLeastOneSummary => 'ਘੱਟੋ-ਘੱਟ ਇੱਕ ਸਾਰਾਂਸ਼ ਚੁਣੋ';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'ਸਾਰਾਂਸ਼ ਮਿਟਾਉਣ ਵਿੱਚ ਅਸਫਲ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।';
+
+  @override
+  String get noCaregiverAddedYet =>
+      'ਅਜੇ ਤੱਕ ਕੋਈ ਦੇਖਭਾਲ ਕਰਨ ਵਾਲਾ ਨਹੀਂ ਜੋੜਿਆ ਗਿਆ';
+
+  @override
+  String get summaryGenerationRestarted => 'ਸਾਰਾਂਸ਼ ਜਨਰੇਸ਼ਨ ਮੁੜ ਸ਼ੁਰੂ ਹੋਈ';
+
+  @override
+  String retryFailed(String error) {
+    return 'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਅਸਫਲ: $error';
+  }
 }

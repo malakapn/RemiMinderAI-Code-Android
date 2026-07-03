@@ -1187,4 +1187,89 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get relationshipOther => 'অন্যান্য';
+
+  @override
+  String get visitActionTitle => 'আপনি কী করতে চান?';
+
+  @override
+  String get visitActionAudioTitle => 'অডিও কথোপকথন রেকর্ড করুন';
+
+  @override
+  String get visitActionAudioSubtitle =>
+      'স্বয়ংক্রিয় সারাংশের জন্য আপনার ডাক্তারের ভিজিট রেকর্ড করুন';
+
+  @override
+  String get visitActionCaptureTitle => 'ক্যাপচার ও স্ক্যান';
+
+  @override
+  String get visitActionCaptureSubtitle =>
+      'রিপোর্ট, ওষুধের বোতল ও নথির ছবি তুলুন';
+
+  @override
+  String get inviteCaregiverDialogTitle => 'যত্নকারীকে আমন্ত্রণ';
+
+  @override
+  String get caregiverNameHint => 'যত্নকারীর পুরো নাম লিখুন';
+
+  @override
+  String get caregiverEmailHint => 'যত্নকারীর ইমেইল ঠিকানা লিখুন';
+
+  @override
+  String get relationshipLabel => 'সম্পর্ক';
+
+  @override
+  String get relationshipHint => 'যেমন, ছেলে, মেয়ে, বন্ধু, নার্স';
+
+  @override
+  String get sendInvite => 'আমন্ত্রণ পাঠান';
+
+  @override
+  String get emailAndRoleRequired => 'ইমেইল ও ভূমিকা প্রয়োজন';
+
+  @override
+  String get summaryReadyTitle => 'আপনার ভিজিট সারাংশ প্রস্তুত!';
+
+  @override
+  String get summaryReadyBody => 'আপনি কি এখনই দেখতে চান?';
+
+  @override
+  String get later => 'পরে';
+
+  @override
+  String get viewSummary => 'সারাংশ দেখুন';
+
+  @override
+  String get noLabResultsYet => 'এখনও কোনো ল্যাব ফলাফল নেই';
+
+  @override
+  String get labResultsScanHint =>
+      'এখানে ফলাফল দেখতে ক্যাপচার ও স্ক্যান দিয়ে ল্যাব রিপোর্ট স্ক্যান করুন।';
+
+  @override
+  String get captureAndScan => 'ক্যাপচার ও স্ক্যান';
+
+  @override
+  String get noScannedDocsYet => 'এখনও কোনো স্ক্যান করা নথি নেই';
+
+  @override
+  String get scannedDocsHint =>
+      'আপনার ভিজিটের সময় স্ক্যান করা নথি এখানে দেখা যাবে।';
+
+  @override
+  String get selectAtLeastOneSummary => 'অন্তত একটি সারাংশ নির্বাচন করুন';
+
+  @override
+  String get failedToDeleteSummaries =>
+      'সারাংশ মুছতে ব্যর্থ। আবার চেষ্টা করুন।';
+
+  @override
+  String get noCaregiverAddedYet => 'এখনও কোনো যত্নকারী যোগ করা হয়নি';
+
+  @override
+  String get summaryGenerationRestarted => 'সারাংশ তৈরি পুনরায় শুরু হয়েছে';
+
+  @override
+  String retryFailed(String error) {
+    return 'পুনরায় চেষ্টা ব্যর্থ: $error';
+  }
 }
