@@ -179,9 +179,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/register',
-        builder: (context, state) => RegisterScreen(
-          inviteToken: state.uri.queryParameters['inviteToken'],
-        ),
+        builder: (context, state) {
+          final q = state.uri.queryParameters;
+          final invite = q['inviteToken'] ?? q['token'];
+          return RegisterScreen(
+            inviteToken: invite,
+          );
+        },
       ),
       GoRoute(
         path: '/forgot-password',

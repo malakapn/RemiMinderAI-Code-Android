@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
+import 'deep_link_service.dart';
 import 'notification_service.dart';
 
 @pragma('vm:entry-point')
@@ -24,6 +25,7 @@ class FCMService {
   static bool _backgroundHandlerRegistered = false;
 
   StreamSubscription<RemoteMessage>? _onMessageSub;
+  StreamSubscription<RemoteMessage>? _onMessageOpenedSub;
   StreamSubscription<String>? _onTokenRefreshSub;
 
   Future<void> _persistToken(String userId, String token) async {
@@ -31,6 +33,19 @@ class FCMService {
       {'fcmToken': token},
       SetOptions(merge: true),
     );
+  }
+
+  String? _deepLinkFromMessage(RemoteMessage message) {
+    final link = message.data['deep_link']?.toString().trim();
+    if (link != null && link.isNotEmpty) return link;
+    return null;
+  }
+
+  void _navigateFromMessage(RemoteMessage message) {
+    final link = _deepLinkFromMessage(message);
+    if (link != null) {
+      DeepLinkService.instance.navigate(link);
+    }
   }
 
   /// Registers background handler (once), saves token to
@@ -43,12 +58,21 @@ class FCMService {
     }
 
     await _onMessageSub?.cancel();
+    await _onMessageOpenedSub?.cancel();
     await _onTokenRefreshSub?.cancel();
 
     final token = await _messaging.getToken();
     if (token != null) {
       await _persistToken(userId, token);
     }
+
+    final initial = await _messaging.getInitialMessage();
+    if (initial != null) {
+      _navigateFromMessage(initial);
+    }
+
+    _onMessageOpenedSub =
+        FirebaseMessaging.onMessageOpenedApp.listen(_navigateFromMessage);
 
     _onMessageSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       final id = message.hashCode;
@@ -59,6 +83,7 @@ class FCMService {
         title: title,
         body: body,
         scheduledTime: DateTime.now(),
+        payload: _deepLinkFromMessage(message),
       );
     });
 

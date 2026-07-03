@@ -5,11 +5,16 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../config/environment.dart';
 import 'auth_service.dart';
+
+/// Callback for notification tap navigation (set from app bootstrap).
+typedef NotificationNavigateCallback = void Function(String route);
+NotificationNavigateCallback? notificationNavigateCallback;
 
 /// Local scheduled notifications (Android foreground/background).
 class NotificationService {
@@ -63,7 +68,22 @@ class NotificationService {
   }
 
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('Notification tapped: ${response.payload}');
+    final payload = response.payload?.trim();
+    debugPrint('Notification tapped: $payload');
+    if (payload != null && payload.isNotEmpty) {
+      notificationNavigateCallback?.call(payload);
+    }
+  }
+
+  /// Android 13+: request POST_NOTIFICATIONS before scheduling or showing alerts.
+  Future<bool> requestNotificationPermission() async {
+    await initialize();
+    if (kIsWeb) return true;
+    if (!Platform.isAndroid) return true;
+    final status = await Permission.notification.status;
+    if (status.isGranted) return true;
+    final result = await Permission.notification.request();
+    return result.isGranted;
   }
 
   /// Stable notification id derived from API reminder id (may include prefixes).
@@ -86,6 +106,10 @@ class NotificationService {
     String? notificationBody,
   }) async {
     await initialize();
+    if (!kIsWeb && Platform.isAndroid) {
+      await requestNotificationPermission();
+      await requestExactAlarmPermission();
+    }
 
     final now = DateTime.now();
     if (scheduledTime.isBefore(now.subtract(const Duration(seconds: 1)))) {
@@ -114,6 +138,7 @@ class NotificationService {
     );
 
     final when = tz.TZDateTime.from(scheduledTime, tz.local);
+    final payload = '/patient/reminder/$reminderId';
 
     if (!isRecurring || recurrencePattern == 'once') {
       await _plugin.zonedSchedule(
@@ -125,6 +150,7 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
       );
       return;
     }
@@ -143,6 +169,7 @@ class NotificationService {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: match,
+      payload: payload,
     );
   }
 
@@ -163,6 +190,7 @@ class NotificationService {
     required String title,
     required String body,
     required DateTime scheduledTime,
+    String? payload,
   }) async {
     await initialize();
 
@@ -197,6 +225,7 @@ class NotificationService {
       details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload,
     );
   }
 

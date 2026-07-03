@@ -122,10 +122,14 @@ class RoleSelectionScreen extends ConsumerWidget {
   }
 
   void _onContinue(BuildContext context, WidgetRef ref, UserRole selectedRole) {
-    // Pass the selected role to the login/register screens
     final roleParam =
         selectedRole == UserRole.patient ? 'patient' : 'caregiver';
-    context.go('/login?role=$roleParam');
+    final uri = GoRouterState.of(context).uri;
+    final raw = uri.queryParameters['token'] ?? uri.queryParameters['inviteToken'];
+    final tokenQ = (raw != null && raw.trim().isNotEmpty)
+        ? '&inviteToken=${Uri.encodeQueryComponent(raw.trim())}'
+        : '';
+    context.go('/login?role=$roleParam$tokenQ');
   }
 }
 

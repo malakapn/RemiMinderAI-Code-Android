@@ -145,9 +145,7 @@ class AuthNotifier extends Notifier<AuthState> {
       );
 
       state = AuthState.authenticated(resolvedUser, profile: profile);
-      await _syncFcmTokenAndAttachRefreshListener();
-      await _syncLocalReminderNotifications(resolvedUser);
-      await _tryLinkPendingCareTeamInvite(resolvedUser);
+      await _completeAuthenticatedSession(resolvedUser);
     } catch (e) {
       print('🔐 AuthNotifier: _checkAuthStatus failed: $e');
       state = AuthState.unauthenticated();
@@ -219,12 +217,12 @@ class AuthNotifier extends Notifier<AuthState> {
 
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
-        await _tryLinkPendingCareTeamInvite(user);
+        await _completeAuthenticatedSession(user);
       } catch (_) {
         // Backend profile load failed but Firebase account is valid
         // Do NOT sign out — authenticate with Firebase user only
         state = AuthState.authenticated(user);
-        await _tryLinkPendingCareTeamInvite(user);
+        await _completeAuthenticatedSession(user);
       }
     } catch (e) {
       if (!state.hasError) {
@@ -254,12 +252,12 @@ class AuthNotifier extends Notifier<AuthState> {
 
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
-        await _tryLinkPendingCareTeamInvite(user);
+        await _completeAuthenticatedSession(user);
       } catch (_) {
         // Backend profile load failed; Firebase session is still valid
         // Do NOT sign out — authenticate with Firebase user only
         state = AuthState.authenticated(user);
-        await _tryLinkPendingCareTeamInvite(user);
+        await _completeAuthenticatedSession(user);
       }
     } catch (e) {
       state = AuthState.error(e.toString());
@@ -292,12 +290,12 @@ class AuthNotifier extends Notifier<AuthState> {
         }
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
-        await _tryLinkPendingCareTeamInvite(user);
+        await _completeAuthenticatedSession(user);
       } catch (_) {
         // Same as email sign-in: backend optional when Firebase session is valid
         await storage.saveUserRole(user.role.name);
         state = AuthState.authenticated(user);
-        await _tryLinkPendingCareTeamInvite(user);
+        await _completeAuthenticatedSession(user);
       }
     } catch (e, st) {
       // Catches all errors including PlatformException from Google Sign-In.
@@ -376,6 +374,13 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _syncLocalReminderNotifications(User user) async {
     final auth = ref.read(_authServiceProvider);
     await ReminderNotificationSync.syncAfterAuth(auth, user);
+  }
+
+  /// FCM registration, local reminder sync, and pending care-invite after auth.
+  Future<void> _completeAuthenticatedSession(User user) async {
+    await _syncFcmTokenAndAttachRefreshListener();
+    await _syncLocalReminderNotifications(user);
+    await _tryLinkPendingCareTeamInvite(user);
   }
 
   /// Ensures caregivers have at least one roster patient or pending invite (non-blocking).

@@ -507,6 +507,15 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
 
   Future<void> _sendTestNotification() async {
     try {
+      final granted = await NotificationService().requestNotificationPermission();
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enable notifications in system settings to receive alerts.'),
+          ),
+        );
+        return;
+      }
       await NotificationService().showInstantNotification(
         notificationId: 90001,
         title: '💊 Test Notification',

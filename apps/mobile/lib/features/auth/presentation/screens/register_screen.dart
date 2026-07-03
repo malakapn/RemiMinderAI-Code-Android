@@ -33,7 +33,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final q = GoRouterState.of(context).uri.queryParameters;
-    final tok = widget.inviteToken ?? q['inviteToken'];
+    final tok = widget.inviteToken ?? q['inviteToken'] ?? q['token'];
     if (tok != null && tok.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         PendingCareInviteToken.save(tok);

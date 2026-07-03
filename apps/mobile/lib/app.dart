@@ -4,6 +4,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/config/theme.dart';
 import 'core/providers/locale_provider.dart';
+import 'core/services/deep_link_service.dart';
+import 'core/services/notification_service.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/data/models/auth_state.dart';
 import 'l10n/app_localizations.dart';
@@ -18,6 +20,26 @@ class RemiMinderApp extends ConsumerStatefulWidget {
 }
 
 class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _wireDeepLinks());
+  }
+
+  Future<void> _wireDeepLinks() async {
+    final router = ref.read(appRouterProvider);
+    DeepLinkService.instance.attach(router);
+    notificationNavigateCallback = DeepLinkService.instance.navigate;
+    await DeepLinkService.instance.initialize();
+  }
+
+  @override
+  void dispose() {
+    DeepLinkService.instance.dispose();
+    notificationNavigateCallback = null;
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);

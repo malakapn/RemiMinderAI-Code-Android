@@ -65,7 +65,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Get role from navigation parameters
     final uri = Uri.parse(GoRouterState.of(context).uri.toString());
     _userRole = uri.queryParameters['role'];
-    final inviteTok = uri.queryParameters['inviteToken'];
+    final inviteTok = uri.queryParameters['inviteToken'] ??
+        uri.queryParameters['token'];
     if (inviteTok != null && inviteTok.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         PendingCareInviteToken.save(inviteTok);
