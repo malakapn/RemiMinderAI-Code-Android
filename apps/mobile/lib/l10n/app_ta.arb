@@ -1,0 +1,482 @@
+{
+  "appTitle": "RemiMinder",
+  "login": "உள்நுழை",
+  "logout": "வெளியேறு",
+  "settings": "அமைப்புகள்",
+  "language": "மொழி",
+  "profileSettings": "சுயவிவர அமைப்புகள்",
+  "languageSettings": "மொழி",
+  "languageUpdated": "மொழி புதுப்பிக்கப்பட்டது. பயன்பாடு இப்போது {language} மொழியில் காட்டப்படும்.",
+  "navHome": "முகப்பு",
+  "navVisits": "வருகைகள்",
+  "navOverview": "சுருக்கம்",
+  "navCareTeam": "குழு",
+  "navProfile": "சுயவிவரம்",
+  "navPatients": "நோயாளிகள்",
+  "goodMorning": "காலை வணக்கம்",
+  "goodAfternoon": "மதிய வணக்கம்",
+  "goodEvening": "மாலை வணக்கம்",
+  "goodNight": "இரவு வணக்கம்",
+  "howAreYouFeeling": "இன்று நீங்கள் எப்படி உணர்கிறீர்கள்?",
+  "todaysProgress": "இன்றைய முன்னேற்றம்",
+  "doneCount": "{done}/{total} முடிந்தது",
+  "yourSchedule": "உங்கள் அட்டவணை",
+  "seeAll": "அனைத்தும் →",
+  "nothingScheduledYet": "இன்னும் எதுவும் திட்டமிடப்படவில்லை",
+  "unableToLoadReminders": "நினைவூட்டல்களை ஏற்ற முடியவில்லை",
+  "addReminder": "நினைவூட்டல் சேர்",
+  "myTasks": "என் பணிகள்",
+  "pendingCount": "{count} நிலுவையில்",
+  "noTasksYet": "இன்னும் பணிகள் இல்லை",
+  "addTask": "பணி சேர்",
+  "statusUpcoming": "வரவிருக்கும்",
+  "statusScheduled": "திட்டமிடப்பட்டது",
+  "statusDone": "முடிந்தது",
+  "reminder": "நினைவூட்டல்",
+  "task": "பணி",
+  "careTeamTitle": "பராமரிப்பு குழு",
+  "careTeamSubtitle": "கட்டுப்பாடு உங்களிடம். கீழே பகிர்வு அனுமதிகளைப் பாருங்கள்.",
+  "sectionPending": "நிலுவையில்",
+  "sectionAddNew": "புதிதாக சேர்",
+  "inviteCaregiver": "பராமரிப்பாளரை அழை",
+  "inviteCaregiverSubtitle": "உங்கள் சுகாதார தகவல்களுக்கான அணுகலைப் பகிர்",
+  "invitationPending": "அழைப்பு நிலுவையில்",
+  "resend": "மீண்டும் அனுப்பு",
+  "cancel": "ரத்து",
+  "activeCaregivers": "செயலில் உள்ள பராமரிப்பாளர்கள்",
+  "noCaregiversYet": "இன்னும் பராமரிப்பாளர் சேர்க்கப்படவில்லை",
+  "english": "ஆங்கிலம்",
+  "spanish": "ஸ்பானிஷ்",
+  "hindi": "ஹிந்தி",
+  "french": "பிரெஞ்சு",
+  "portuguese": "போர்த்துகீசியம்",
+  "german": "ஜெர்மன்",
+  "bangla": "வங்காளம்",
+  "tamil": "தமிழ்",
+  "gujarati": "ગુજરાતી",
+  "punjabi": "ਪੰਜਾਬੀ",
+  "accountDetails": "கணக்கு விவரங்கள்",
+  "accountDetailsSubtitle": "உங்கள் சுயவிவர தகவலைப் பார்",
+  "accountSecurity": "கணக்கு பாதுகாப்பு",
+  "accountSecuritySubtitle": "கடவுச்சொல் மற்றும் தனியுரிமையை நிர்வகி",
+  "notificationsLabel": "அறிவிப்புகள்",
+  "mobileLabel": "மொபைல்",
+  "emailLabel": "மின்னஞ்சல்",
+  "upgrade": "மேம்படுத்து",
+  "signOut": "வெளியேறு",
+  "deleteAccount": "கணக்கை நீக்கு",
+  "deleteAccountTitle": "கணக்கை நீக்கு",
+  "deleteAccountMessage": "இது உங்கள் கணக்கையும் அனைத்து தரவையும் நிரந்தரமாக நீக்கும். இதை மீளமுடியாது. நிச்சயமா?",
+  "delete": "நீக்கு",
+  "searchSummariesHint": "சுருக்கங்களைத் தேடு...",
+  "tabSummaries": "சுருக்கங்கள்",
+  "tabLabResults": "ஆய்வகம்",
+  "tabScannedDocs": "ஸ்கேன்",
+  "noSummariesYet": "இன்னும் சுருக்கங்கள் இல்லை",
+  "summariesWillAppearHere": "உங்கள் வருகை சுருக்கங்கள் இங்கே தோன்றும்",
+  "failedToLoadSummaries": "சுருக்கங்களை ஏற்ற முடியவில்லை",
+  "retry": "மீண்டும் முயற்சி",
+  "shareLabel": "பகிர்",
+  "doctorVisit": "மருத்துவ வருகை",
+  "timeToday": "இன்று, {time}",
+  "timeYesterday": "நேற்று, {time}",
+  "summaryProcessingHint": "புதுப்பிக்க கீழே இழுக்கவும். பொதுவாக 30–60 வினாடிகள் ஆகும்.",
+  "summaryCouldNotGenerate": "சுருக்கம் உருவாக்க முடியவில்லை",
+  "retrySummary": "சுருக்கத்தை மீண்டும் முயற்சி",
+  "stuckRetrySummary": "சிக்கியதா? மீண்டும் முயற்சி",
+  "scannedDocument": "ஸ்கேன் செய்யப்பட்ட ஆவணம்",
+  "scannedOn": "ஸ்கேன் {date}",
+  "visitDetails": "வருகை விவரங்கள்",
+  "healthVisitSummary": "சுகாதார வருகை சுருக்கம்",
+  "refreshSummaryTooltip": "சுருக்கத்தைப் புதுப்பி",
+  "preparingVisitSummary": "வருகை சுருக்கம் தயாராகிறது...",
+  "preparingVisitSubtitle": "ஒரு நிமிடம் ஆகலாம்.",
+  "unableToLoadVisitSummary": "வருகை சுருக்கத்தை ஏற்ற முடியவில்லை",
+  "visitSummaryUnavailable": "வருகை சுருக்கம் கிடைக்கவில்லை",
+  "visitSummary": "வருகை சுருக்கம்",
+  "visitProcessingTitle": "உங்கள் வருகை செயலாக்கப்படுகிறது",
+  "visitProcessingBody": "30–60 வினாடிகள் ஆகலாம்.\nபயன்பாட்டைத் தொடரலாம். முன்னேற்றத்தைப் பார்க்க சுருக்கத்தைத் திறக்கவும்.",
+  "viewOverviewAction": "சுருக்கத்தைப் பார்",
+  "goToHome": "முகப்புக்குச் செல்",
+  "medication": "மருந்து",
+  "nextToDo": "அடுத்த படி",
+  "conditionsDiscussed": "விவாதிக்கப்பட்ட நிலைகள்",
+  "followUp": "பின்தொடர்தல்",
+  "nameLabel": "பெயர்",
+  "notSet": "அமைக்கப்படவில்லை",
+  "appleIdHidden": "Apple ID (மறைக்கப்பட்டது)",
+  "accountType": "கணக்கு வகை",
+  "patientRole": "நோயாளி",
+  "caregiverRole": "பராமரிப்பாளர்",
+  "phoneLabel": "தொலைபேசி",
+  "edit": "திருத்து",
+  "add": "சேர்",
+  "planLabel": "திட்டம்",
+  "planFree": "இலவசம்",
+  "planPremium": "பிரீமியம்",
+  "usageLabel": "பயன்பாடு",
+  "freePlanUsage": "இலவச திட்டம் — {used} / {limit} சுருக்கங்கள் பயன்படுத்தப்பட்டது",
+  "unlimited": "வரம்பற்றது",
+  "editPhoneNumber": "தொலைபேசி எண்ணைத் திருத்து",
+  "phoneNumber": "தொலைபேசி எண்",
+  "save": "சேமி",
+  "phoneMinLength": "தொலைபேசி எண் குறைந்தது 8 எழுத்துகள் இருக்க வேண்டும்",
+  "phoneUpdatedSuccess": "தொலைபேசி எண் வெற்றிகரமாக புதுப்பிக்கப்பட்டது",
+  "phoneUpdateFailed": "தொலைபேசி புதுப்பிப்பு தோல்வி: {error}",
+  "changePassword": "கடவுச்சொல் மாற்று",
+  "changePasswordSubtitle": "பாதுகாப்புக்காக கடவுச்சொல்லைப் புதுப்பி",
+  "privacySettings": "தனியுரிமை அமைப்புகள்",
+  "privacySettingsSubtitle": "தரவு பகிர்வு விருப்பங்களை நிர்வகி",
+  "managePrivacy": "தனியுரிமையை நிர்வகி",
+  "changePasswordProviderMessage": "நீங்கள் {provider} மூலம் உள்நுழைந்தீர்கள். {provider} கணக்கில் கடவுச்சொல்லை மாற்றவும்.",
+  "ok": "சரி",
+  "changePasswordIntro": "கணக்கைப் பாதுகாக்க கடவுச்சொல்லைப் புதுப்பிக்கவும்.",
+  "currentPassword": "தற்போதைய கடவுச்சொல்",
+  "currentPasswordHint": "தற்போதைய கடவுச்சொல்லை உள்ளிடவும்",
+  "enterCurrentPassword": "தற்போதைய கடவுச்சொல்லை உள்ளிடவும்",
+  "newPassword": "புதிய கடவுச்சொல்",
+  "newPasswordHint": "புதிய கடவுச்சொல்லை உள்ளிடவும்",
+  "enterNewPassword": "புதிய கடவுச்சொல்லை உள்ளிடவும்",
+  "passwordMinLength": "கடவுச்சொல் குறைந்தது 8 எழுத்துகள் இருக்க வேண்டும்",
+  "confirmNewPassword": "புதிய கடவுச்சொல்லை உறுதிசெய்",
+  "confirmNewPasswordHint": "புதிய கடவுச்சொல்லை மீண்டும் உள்ளிடவும்",
+  "confirmNewPasswordRequired": "புதிய கடவுச்சொல்லை உறுதிசெய்யவும்",
+  "passwordsDoNotMatch": "கடவுச்சொற்கள் பொருந்தவில்லை",
+  "updatePassword": "கடவுச்சொல்லைப் புதுப்பி",
+  "passwordUpdatedSuccess": "கடவுச்சொல் வெற்றிகரமாக புதுப்பிக்கப்பட்டது",
+  "passwordUpdateFailed": "கடவுச்சொல் புதுப்பிப்பு தோல்வி",
+  "wrongPassword": "தற்போதைய கடவுச்சொல் தவறானது",
+  "weakPassword": "கடவுச்சொல் மிகவும் பலவீனமானது",
+  "requiresRecentLogin": "மீண்டும் உள்நுழைந்து முயற்சிக்கவும்",
+  "checkInternetConnection": "இணைய இணைப்பைச் சரிபார்க்கவும்",
+  "dataSharing": "தரவு பகிர்வு",
+  "allowCaregiverSummaries": "பராமரிப்பாளர் சுருக்கங்களைப் பார்க்க அனுமதி",
+  "allowCaregiverMedications": "பராமரிப்பாளர் மருந்துகளைப் பார்க்க அனுமதி",
+  "allowCaregiverReminders": "பராமரிப்பாளர் நினைவூட்டல்களைப் பார்க்க அனுமதி",
+  "allowAiImprovement": "AI என் தரவை தயாரிப்பு மேம்பாட்டுக்கு பயன்படுத்த அனுமதி",
+  "communicationAndConsent": "தொடர்பு & ஒப்புதல்",
+  "allowEmailNotifications": "மின்னஞ்சல் அறிவிப்புகளை அனுமதி",
+  "allowSmsNotifications": "SMS அறிவிப்புகளை அனுமதி",
+  "allowPushNotifications": "புஷ் அறிவிப்புகளை அனுமதி",
+  "dataControl": "தரவு கட்டுப்பாடு",
+  "exportMyData": "என் தரவை ஏற்றுமதி செய்",
+  "deleteAllMedicalRecords": "என் அனைத்து மருத்துவ பதிவுகளையும் நீக்கு",
+  "deleteMedicalRecordsTitle": "மருத்துவ பதிவுகளை நீக்கு",
+  "deleteMedicalRecordsMessage": "இது உங்கள் அனைத்து மருத்துவ பதிவுகளையும் நிரந்தரமாக நீக்கும். இதை மீளமுடியாது.",
+  "deleteRecords": "பதிவுகளை நீக்கு",
+  "deleteMyAccount": "என் கணக்கை நீக்கு",
+  "legal": "சட்டம்",
+  "viewPrivacyPolicy": "தனியுரிமைக் கொள்கையைப் பார்",
+  "viewTermsOfService": "சேவை விதிமுறைகளைப் பார்",
+  "termsOfService": "சேவை விதிமுறைகள்",
+  "termsOfServiceBody": "RemiMinder சேவை விதிமுறைகள்\n\n1. விதிமுறை ஏற்பு\nRemiMinder பயன்படுத்துவதன் மூலம் இந்த விதிமுறைகளை ஏற்கிறீர்கள்.\n\n2. சேவை பயன்பாடு\nRemiMinder சுகாதாரம் மற்றும் மருந்து நினைவூட்டல்களை நிர்வகிக்க உதவுகிறது.\n\n3. தனியுரிமை\nஉங்கள் தனியுரிமை முக்கியம். அனைத்து சுகாதார தரவும் பாதுகாப்பாக கையாளப்படுகிறது.\n\nமுழு விதிமுறைகளுக்கு எங்கள் வலைத்தளத்தைப் பாருங்கள்.",
+  "privacyPolicy": "தனியுரிமைக் கொள்கை",
+  "privacyPolicyBody": "RemiMinder தனியுரிமைக் கொள்கை\n\n1. நாங்கள் சேகரிக்கும் தகவல்\nநீங்கள் வழங்கும் தகவல் மற்றும் பயன்பாட்டு தரவை சேகரிக்கிறோம்.\n\n2. தகவல் பயன்பாடு\nசுகாதார நிர்வாக சேவைகளுக்கு தகவல் பயன்படுத்தப்படுகிறது.\n\n3. தகவல் பகிர்வு\nஉங்கள் தனிப்பட்ட தகவலை விற்க மாட்டோம்.\n\nமுழு கொள்கைக்கு எங்கள் வலைத்தளத்தைப் பாருங்கள்.",
+  "close": "மூடு",
+  "featureComingSoon": "{feature} விரைவில் வரும்",
+  "caregiverSharingEnabled": "பராமரிப்பாளர் பகிர்வு இயக்கப்பட்டது",
+  "caregiverSharingDisabled": "பராமரிப்பாளர் பகிர்வு முடக்கப்பட்டது",
+  "dataExport": "தரவு ஏற்றுமதி",
+  "remindersTitle": "நினைவூட்டல்கள்",
+  "tabAll": "அனைத்தும்",
+  "tabToday": "இன்று",
+  "tabPending": "நிலுவை",
+  "tabCompleted": "முடிந்தது",
+  "searchRemindersHint": "நினைவூட்டல்களைத் தேடு...",
+  "failedToLoadRemindersRetry": "ஏற்ற முடியவில்லை. மீண்டும்",
+  "deleteReminderTitle": "நினைவூட்டலை நீக்கு",
+  "deleteReminderMessage": "இந்த நினைவூட்டலை நீக்க விரும்புகிறீர்களா?",
+  "markDone": "முடிந்தது",
+  "snooze": "தள்ளிப்போடு",
+  "snoozedUntil": "{time} வரை தள்ளிப்போடு",
+  "@snoozedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "statusDueNow": "இப்போது",
+  "statusActive": "செயலில்",
+  "statusMissed": "தவறியது",
+  "statusSnoozed": "தள்ளிப்போடு",
+  "statusSkipped": "தவிர்க்கப்பட்டது",
+  "statusPending": "நிலுவை",
+  "noRemindersFound": "நினைவூட்டல்கள் இல்லை",
+  "noRemindersMatchSearch": "பொருந்தவில்லை",
+  "createFirstReminder": "தொடங்க முதல் நினைவூட்டலை உருவாக்குங்கள்",
+  "tryAdjustSearch": "வேறு தேடல் சொற்களை முயற்சிக்கவும்",
+  "createReminder": "நினைவூட்டல் உருவாக்கு",
+  "newReminder": "புதிய நினைவூட்டல்",
+  "editReminder": "நினைவூட்டலைத் திருத்து",
+  "reminderTitleLabel": "தலைப்பு",
+  "dosageOptional": "அளவு (விரும்பினால்)",
+  "dosageHint": "எ.கா. 10 mg நாளொன்றுக்கு ஒருமுறை",
+  "reminderTypeLabel": "வகை",
+  "appointment": "சந்திப்பு",
+  "repeatLabel": "மீண்டும்",
+  "once": "ஒருமுறை",
+  "daily": "தினசரி",
+  "weekly": "வாராந்திர",
+  "pleaseEnterTitle": "தலைப்பை உள்ளிடவும்",
+  "reminderCreated": "நினைவூட்டல் உருவாக்கப்பட்டது!",
+  "failedToCreateReminder": "உருவாக்க முடியவில்லை: {error}",
+  "@failedToCreateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "saveChanges": "மாற்றங்களைச் சேமி",
+  "cannotRescheduleMissingType": "மறுதிட்டமிட முடியாது: வகை இல்லை",
+  "reminderUpdated": "நினைவூட்டல் புதுப்பிக்கப்பட்டது!",
+  "failedToUpdateReminder": "புதுப்பிப்பு தோல்வி: {error}",
+  "@failedToUpdateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderMarkedCompleted": "நினைவூட்டல் முடிந்தது!",
+  "reminderSnoozed30": "30 நிமிடம் தள்ளிப்போடு",
+  "timeInHours": "{hours} மணி நேரத்தில் ({time})",
+  "@timeInHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeInMinutes": "{minutes} நிமிடத்தில் ({time})",
+  "@timeInMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeNow": "இப்போது",
+  "timeHoursAgo": "{hours} மணி நேரம் முன்பு",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMinutesAgo": "{minutes} நிமிடம் முன்பு",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInDays": "{days} நாட்களில்",
+  "@timeInDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInHoursShort": "{hours} மணி நேரத்தில்",
+  "@timeInHoursShort": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInMinutesShort": "{minutes} நிமிடத்தில்",
+  "@timeInMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "selectTime": "நேரம் தேர்வு",
+  "presetMorning": "காலை (8:00)",
+  "presetNoon": "மதியம் (12:00)",
+  "presetEvening": "மாலை (6:00)",
+  "presetNight": "இரவு (8:00)",
+  "hourLabel": "மணி",
+  "minuteLabel": "நிமி",
+  "amPmLabel": "AM / PM",
+  "amLabel": "AM",
+  "pmLabel": "PM",
+  "selectedTimeLabel": "தேர்ந்தெடுத்த நேரம்: {time}",
+  "@selectedTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "setForTime": "{time} அமை ✓",
+  "@setForTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "medicationAdherence": "மருந்து adherence",
+  "thisWeek": "இந்த வாரம்",
+  "thisMonth": "இந்த மாதம்",
+  "overall": "மொத்தம்",
+  "dosesCount": "{done}/{total} doses",
+  "@dosesCount": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "byMedication": "மருந்து வாரியாக",
+  "noPastRemindersAnalyze": "பகுப்பாய்வுக்கு பழைய நினைவூட்டல்கள் இல்லை",
+  "adherenceTips": "Adherence குறிப்புகள்",
+  "adherenceTipsBody": "• மருந்து நேரத்திற்கு ஃபோன் நினைவூட்டல்\n• மருந்துகளை தெரியும் இடத்தில் வைக்க\n• pill organizer பயன்படுத்த\n• முன்னேற்றத்தை கண்காணி",
+  "actionFailed": "செயல் தோல்வி",
+  "reminderDeleted": "நினைவூட்டல் நீக்கப்பட்டது",
+  "deleteFailed": "நீக்குதல் தோல்வி",
+  "selectDate": "தேதியைத் தேர்வு",
+  "snoozeAlreadyUsed": "இந்த நினைவூட்டல் ஏற்கனவே ஒருமுறை தள்ளிப்போடப்பட்டது",
+  "sectionRecentAlerts": "சமீபத்திய எச்சரிக்கைகள்",
+  "viewAll": "அனைத்தையும் காண்க",
+  "sectionInvitations": "அழைப்புகள்",
+  "summaryPatients": "நோயாளிகள்",
+  "summaryAlerts": "எச்சரிக்கைகள்",
+  "summaryPending": "நிலுவையில்",
+  "noAlertsAtThisTime": "இப்போது எச்சரிக்கைகள் இல்லை",
+  "noPendingInvitations": "நிலுவையில் அழைப்புகள் இல்லை",
+  "pendingInvitationsTitle": "நிலுவையில் அழைப்புகள்",
+  "invitationsWaiting": "{count} அழைப்பு(கள்) காத்திருக்கின்றன",
+  "reviewAcceptInvitations": "பராமரிப்பாளர் அழைப்புகளை மதிப்பாய்வு செய்து ஏற்கவும்.",
+  "viewInvitations": "அழைப்புகளைக் காண்க",
+  "defaultPatient": "நோயாளி",
+  "defaultCaregiver": "பராமரிப்பாளர்",
+  "caregiverPatientTime": "நோயாளி: {name} • {time}",
+  "timeDaysAgo": "{days} நாட்களுக்கு முன்",
+  "alertsTitle": "எச்சரிக்கைகள்",
+  "filterUnread": "படிக்காதவை",
+  "filterRead": "படித்தவை",
+  "filterHighPriority": "உயர் முன்னுரிமை",
+  "filterActionRequired": "நடவடிக்கை தேவை",
+  "alertSingular": "எச்சரிக்கை",
+  "alertsPlural": "எச்சரிக்கைகள்",
+  "clearFilter": "வடிகட்டியை அழிக்க",
+  "noAlertsMatchFilter": "இந்த வடிகட்டிக்கு எச்சரிக்கைகள் பொருந்தவில்லை",
+  "allPatientActivitiesSmooth": "அனைத்து நோயாளி செயல்பாடுகளும் சீராக உள்ளன",
+  "tryAdjustingFilter": "மேலும் எச்சரிக்கைகளைக் காண வடிகட்டியை சரிசெய்யவும்",
+  "viewAllAlerts": "அனைத்து எச்சரிக்கைகளையும் காண்க",
+  "alertMarkedAsRead": "எச்சரிக்கை படித்ததாகக் குறிக்கப்பட்டது",
+  "alertsMarkedAsRead": "{count} எச்சரிக்கைகள் படித்ததாகக் குறிக்கப்பட்டன",
+  "allAlertsAlreadyRead": "அனைத்து எச்சரிக்கைகளும் ஏற்கனவே படிக்கப்பட்டவை",
+  "myPatientsTitle": "என் நோயாளிகள்",
+  "patientsConnectedSubtitle": "உங்களுடன் இணைக்கப்பட்ட நோயாளிகள்",
+  "myPatientsSection": "என் நோயாளிகள்",
+  "connectedCount": "{count} இணைக்கப்பட்டது",
+  "searchPatientsHint": "நோயாளிகளைத் தேடுங்கள்...",
+  "noPatientsMatchSearch": "உங்கள் தேடலுக்கு நோயாளிகள் பொருந்தவில்லை.",
+  "noPatientsConnectedYet": "இன்னும் நோயாளிகள் இணைக்கப்படவில்லை",
+  "acceptInvitationToSeePatient": "நோயாளியைக் காண அழைப்பை ஏற்கவும்.",
+  "badgeNew": "புதிய",
+  "joinedOn": "சேர்ந்தது {date}",
+  "neverSynced": "இன்னும் ஏற்றப்படவில்லை",
+  "privacyDataRequestMessage": "உங்கள் தரவை ஏற்றுமதி அல்லது நீக்க privacy@remiminder.ai ஐ தொடர்பு கொள்ளுங்கள்.",
+  "syncMinutesAgo": "{minutes} நி. முன்",
+  "syncHoursAgo": "{hours} ம. முன்",
+  "syncDaysAgo": "{days} நா. முன்",
+  "primaryCondition": "முதன்மை நிலை",
+  "lastSynced": "கடைசி ஒத்திசைவு",
+  "allergiesLabel": "ஒவ்வாமை",
+  "dateOfBirth": "பிறந்த தேதி",
+  "currentMedications": "தற்போதைய மருந்துகள்",
+  "viewCarePlan": "பராமரிப்பு திட்டத்தைக் காண்க",
+  "remindersButton": "நினைவூட்டல்கள்",
+  "caregiverCareTeamSubtitle": "குடும்பம் அல்லது மருத்துவ பணியாளர்களை அழைக்கவும்",
+  "invitationsReceived": "பெறப்பட்ட அழைப்புகள்",
+  "pendingBadge": "{count} நிலுவையில்",
+  "patientOverviewTitle": "நோயாளி கண்ணோட்டம்",
+  "patientOverviewTabVisits": "வருகைகள்",
+  "patientOverviewTabReminders": "நினைவூட்டல்கள்",
+  "patientOverviewNoVisits": "வருகைகள் இல்லை",
+  "patientOverviewNoReminders": "நினைவூட்டல்கள் இல்லை",
+  "patientOverviewMissingPatientId": "நோயாளி தகவல் இல்லை",
+  "patientOverviewLastVisit": "கடைசி வருகை",
+  "patientOverviewCareTeam": "பராமரிப்பு குழு உறுப்பினர்",
+  "patientOverviewScheduledReminder": "திட்டமிடப்பட்ட நினைவூட்டல்",
+  "patientOverviewNever": "ஒருபோதும் இல்லை",
+  "patientOverviewYesterday": "நேற்று",
+  "statusViewed": "பார்க்கப்பட்டது",
+  "statusExpired": "காலாவதி",
+  "statusJoined": "சேர்ந்தார்",
+  "noInvitationsToShow": "காட்ட எந்த அழைப்பும் இல்லை",
+  "invitedByLabel": "அழைத்தவர்: {name}",
+  "@invitedByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptInvitation": "ஏற்க",
+  "declineInvitation": "நிராகரி",
+  "invitationDeclined": "அழைப்பு நிராகரிக்கப்பட்டது",
+  "joinedCareTeamSnackbar": "{patientName} பராமரிப்பு குழுவில் {role} ஆக சேர்ந்தார்",
+  "@joinedCareTeamSnackbar": {
+    "placeholders": {
+      "patientName": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "manageAccess": "அணுகலை நிர்வகி",
+  "manageAccessDescription": "பராமரிப்பாளர் அனுமதியை புதுப்பிக்கவும் அல்லது அணுகலை நீக்கவும்.",
+  "manage": "நிர்வகி",
+  "accessUpdatedSuccess": "அணுகல் வெற்றிகரமாக புதுப்பிக்கப்பட்டது",
+  "accessUpdateFailed": "அணுகலை புதுப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+  "removeCaregiverTitle": "பராமரிப்பாளரை நீக்கவா?",
+  "removeCaregiverMessage": "இந்த பராமரிப்பாளரை நீக்க விரும்புகிறீர்களா? அவர்களின் அணுகல் உடனடியாக நிறுத்தப்படும்.",
+  "remove": "நீக்கு",
+  "updatingAccess": "அணுகல் புதுப்பிக்கப்படுகிறது...",
+  "removingCaregiver": "பராமரிப்பாளர் நீக்கப்படுகிறார்...",
+  "removeCaregiverFailed": "பராமரிப்பாளரை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+  "viewAccess": "பார்வை அணுகல்",
+  "fullAccess": "முழு அணுகல்",
+  "viewOnly": "பார்வை மட்டும்",
+  "resendingInvitation": "அழைப்பு மீண்டும் அனுப்பப்படுகிறது...",
+  "invitationResent": "அழைப்பு மீண்டும் அனுப்பப்பட்டது",
+  "failedToResendInvitation": "அழைப்பை மீண்டும் அனுப்ப முடியவில்லை",
+  "cancelingInvitation": "அழைப்பு ரத்து செய்யப்படுகிறது...",
+  "invitationCanceled": "அழைப்பு ரத்து",
+  "failedToCancelInvitation": "அழைப்பை ரத்து செய்ய முடியவில்லை",
+  "relationshipSon": "மகன்",
+  "relationshipDaughter": "மகள்",
+  "relationshipFriend": "நண்பர்",
+  "relationshipSpousePartner": "வாழ்க்கைத் துணை/துணை",
+  "relationshipParent": "பெற்றோர்",
+  "relationshipChild": "குழந்தை",
+  "relationshipFamilyMember": "குடும்ப உறுப்பினர்",
+  "relationshipHealthcareProfessional": "சுகாதார நிபுணர்",
+  "relationshipCaregiver": "பராமரிப்பாளர்",
+  "relationshipSister": "சகோதரி",
+  "relationshipBrother": "சகோதரர்",
+  "relationshipOther": "மற்றவை"
+}

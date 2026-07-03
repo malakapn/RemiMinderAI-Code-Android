@@ -35,6 +35,12 @@ class AuthRepository {
     return await _authService.signInWithGoogle(selectedRole: selectedRole);
   }
 
+
+  /// Sign in with Apple
+  Future<User> signInWithApple({UserRole? selectedRole}) async {
+    return await _authService.signInWithApple(selectedRole: selectedRole);
+  }
+
   /// Sign out current user
   Future<void> signOut() async {
     await _authService.signOut();

@@ -1,16 +1,20 @@
+import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../../data/services/visit_summary_gemini_prompt.dart';
-import 'visit_recording_two_party_consent_screen.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/auth_service.dart';
-import '../../../../core/services/consent_service.dart';
 import '../../../../core/services/visit_context.dart';
 import '../../../../core/config/environment.dart';
+import '../../../../core/utils/locale_format.dart';
 
 class VisitRecordingScreen extends StatefulWidget {
   final String visitId;
@@ -25,15 +29,23 @@ class VisitRecordingScreen extends StatefulWidget {
 }
 
 class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
+  static const String _consentVersion = 'v1';
+  static final Uri _privacyPolicyUri =
+      Uri.parse('https://remiminderai.com/privacy');
+
   final AudioService _audioService = AudioService();
   final AuthService _authService = AuthService();
-  final ConsentService _consentService = ConsentService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   RecordingState _recordingState = RecordingState.idle;
   Timer? _timer;
   int _secondsElapsed = 0;
   String _formattedTime = '00:00';
   String? _audioFilePath;
-  bool _isSaving = false;
+  bool _microphoneConsentGiven = false;
+  bool _aiConsentGiven = false;
+  bool _isStartingRecording = false;
+  bool _isStoppingRecording = false;
+  bool _isSavingRecording = false;
 
   @override
   void initState() {
@@ -46,7 +58,9 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    _audioService.dispose();
+    if (_recordingState == RecordingState.recording) {
+      unawaited(_audioService.cancelRecording());
+    }
     super.dispose();
   }
 
@@ -73,7 +87,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
         actions: [
           if (_recordingState == RecordingState.completed)
             TextButton(
-              onPressed: _saveRecording,
+              onPressed: _isSavingRecording ? null : _saveRecording,
               child: Text(
                 'Save',
                 style: TextStyle(
@@ -86,16 +100,14 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: SizedBox(
-            width: double.infinity,
-            child: Padding(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  AnimatedSwitcher(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
                     transitionBuilder:
                         (Widget child, Animation<double> animation) {
@@ -109,10 +121,10 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
                     },
                     child: _buildStateContent(_recordingState),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -121,8 +133,13 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   Widget _buildStateContent(RecordingState state) {
     // Use MediaQuery to determine screen size and adjust layout
     final screenHeight = MediaQuery.of(context).size.height;
-    final isSmallScreen =
+    final compactLayout =
         screenHeight < 700; // iPhone SE and similar small screens
+
+    final gapAfterTimer = compactLayout ? 10.0 : 20.0;
+    final gapAfterStatus = compactLayout ? 8.0 : 16.0;
+    final gapAfterConsent = compactLayout ? 8.0 : 16.0;
+    final gapAfterMic = compactLayout ? 6.0 : 16.0;
 
     return Column(
       key: ValueKey(state), // Required for AnimatedSwitcher
@@ -130,18 +147,19 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       children: [
         // Timer Display - Always visible, hero element
         Container(
-          width:
-              isSmallScreen ? 200 : 250, // Fixed width for consistent alignment
+          width: compactLayout
+              ? 200
+              : 250, // Fixed width for consistent alignment
           padding: EdgeInsets.symmetric(
-            horizontal: isSmallScreen ? 24 : 32,
-            vertical: isSmallScreen ? 12 : 16,
+            horizontal: compactLayout ? 24 : 32,
+            vertical: compactLayout ? 8 : 16,
           ),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(isSmallScreen ? 20 : 24),
+            borderRadius: BorderRadius.circular(compactLayout ? 20 : 24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -150,7 +168,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
           child: Text(
             _formattedTime,
             style: TextStyle(
-              fontSize: isSmallScreen ? 36 : 48,
+              fontSize: compactLayout ? 32 : 48,
               fontWeight: FontWeight.bold,
               color: _getTimerColor(),
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -159,16 +177,19 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
           ),
         ),
 
-        SizedBox(height: isSmallScreen ? 16 : 20),
+        SizedBox(height: gapAfterTimer),
 
         // Recording Status
         Container(
           constraints: BoxConstraints(
-            minWidth: isSmallScreen ? 140 : 160, // Fixed minimum width
+            minWidth: compactLayout ? 140 : 160, // Fixed minimum width
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: compactLayout ? 6 : 8,
+          ),
           decoration: BoxDecoration(
-            color: _getStatusColor().withOpacity(0.1),
+            color: _getStatusColor().withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -176,75 +197,185 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
             style: TextStyle(
               color: _getStatusColor(),
               fontWeight: FontWeight.w600,
-              fontSize: isSmallScreen ? 14 : 16,
+              fontSize: compactLayout ? 14 : 16,
             ),
             textAlign: TextAlign.center,
           ),
         ),
 
-        SizedBox(height: isSmallScreen ? 12 : 16),
+        SizedBox(height: gapAfterStatus),
+
+        if (state == RecordingState.idle) ...[
+          _buildConsentBlock(compactLayout),
+          SizedBox(height: gapAfterConsent),
+        ],
 
         // State-specific content - All buttons use identical width constraints
         SizedBox(
-          width: isSmallScreen ? 200 : 240, // Fixed width for all button areas
+          width: compactLayout ? 200 : 240, // Fixed width for all button areas
           child: state == RecordingState.idle
-              ? _buildMicButtonContent(isSmallScreen)
+              ? _buildMicButtonContent(compactLayout)
               : state == RecordingState.recording
-                  ? _buildStopButtonContent(isSmallScreen)
-                  : _buildCompletedButtonsContent(isSmallScreen),
+                  ? _buildStopButtonContent(compactLayout)
+                  : _buildCompletedButtonsContent(compactLayout),
         ),
 
-        SizedBox(height: isSmallScreen ? 12 : 16),
+        SizedBox(height: gapAfterMic),
 
         // Recording Instructions - state-specific
         SizedBox(
-          width: isSmallScreen
+          width: compactLayout
               ? 280
               : 320, // Fixed width for consistent text alignment
           child: Text(
-            _getRecordingInstructions(),
+            _getRecordingInstructions(compact: compactLayout),
             style: TextStyle(
               color: Theme.of(context).colorScheme.secondary,
-              fontSize: isSmallScreen ? 13 : 15,
+              fontSize: compactLayout ? 13 : 15,
               fontWeight: FontWeight.w500,
               height: 1.2,
             ),
             textAlign: TextAlign.center,
-            maxLines: 3,
+            maxLines: compactLayout ? 2 : 3,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMicButtonContent(bool isSmallScreen) {
-    return GestureDetector(
-      onTap: _toggleRecording,
+  Widget _buildConsentBlock(bool compactLayout) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: compactLayout ? 300 : 360,
       child: Container(
-        width: double.infinity,
-        height: isSmallScreen ? 100 : 120,
+        padding: EdgeInsets.all(compactLayout ? 10 : 18),
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [
-              Theme.of(context).colorScheme.primary,
-              Theme.of(context).colorScheme.secondary,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.12),
           ),
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              blurRadius: 25,
-              offset: const Offset(0, 10),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Icon(
-          Icons.mic,
-          color: Colors.white,
-          size: isSmallScreen ? 40 : 52,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Consent required before recording',
+              style: TextStyle(
+                color: theme.colorScheme.primary,
+                fontSize: compactLayout ? 14 : 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(height: compactLayout ? 6 : 8),
+            Text(
+              'Please review and accept both items to enable the Record button.',
+              style: TextStyle(
+                color: theme.colorScheme.secondary,
+                fontSize: compactLayout ? 12 : 13,
+                height: 1.3,
+              ),
+            ),
+            SizedBox(height: compactLayout ? 8 : 12),
+            _ConsentCheckboxTile(
+              value: _microphoneConsentGiven,
+              enabled: !_isStartingRecording,
+              compactLayout: compactLayout,
+              label:
+                  'I consent to this conversation being recorded and transcribed.',
+              onChanged: (value) {
+                setState(() {
+                  _microphoneConsentGiven = value;
+                });
+              },
+              onPrivacyPolicyTap: _openPrivacyPolicy,
+            ),
+            SizedBox(height: compactLayout ? 4 : 8),
+            _ConsentCheckboxTile(
+              value: _aiConsentGiven,
+              enabled: !_isStartingRecording,
+              compactLayout: compactLayout,
+              label:
+                  'I understand this recording will be processed by AI (Google Speech-to-Text and Gemini) to generate a summary.',
+              onChanged: (value) {
+                setState(() {
+                  _aiConsentGiven = value;
+                });
+              },
+              onPrivacyPolicyTap: _openPrivacyPolicy,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMicButtonContent(bool compactLayout) {
+    final canStartRecording =
+        _hasRequiredRecordingConsents && !_isStartingRecording;
+    final disabledColor = Colors.grey.shade400;
+
+    return Semantics(
+      button: true,
+      enabled: canStartRecording,
+      label: 'Record',
+      child: GestureDetector(
+        onTap: canStartRecording ? _toggleRecording : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: double.infinity,
+          height: compactLayout ? 88 : 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: canStartRecording
+                  ? [
+                      Theme.of(context).colorScheme.primary,
+                      Theme.of(context).colorScheme.secondary,
+                    ]
+                  : [
+                      disabledColor,
+                      Colors.grey.shade500,
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: canStartRecording
+                ? [
+                    BoxShadow(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 25,
+                      offset: const Offset(0, 10),
+                    ),
+                  ]
+                : const [],
+          ),
+          child: _isStartingRecording
+              ? Center(
+                  child: SizedBox(
+                    width: compactLayout ? 30 : 36,
+                    height: compactLayout ? 30 : 36,
+                    child: const CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  ),
+                )
+              : Icon(
+                  Icons.mic,
+                  color: Colors.white,
+                  size: compactLayout ? 36 : 52,
+                ),
         ),
       ),
     );
@@ -253,7 +384,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   Widget _buildStopButtonContent(bool isSmallScreen) {
     return _PulsingButton(
       child: GestureDetector(
-        onTap: _toggleRecording,
+        onTap: _isStoppingRecording ? null : _stopRecording,
         child: Container(
           width: double.infinity,
           height: isSmallScreen ? 100 : 120,
@@ -266,17 +397,26 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.red.withOpacity(0.3),
+                color: Colors.red.withValues(alpha: 0.3),
                 blurRadius: 25,
                 offset: const Offset(0, 10),
               ),
             ],
           ),
-          child: Icon(
-            Icons.stop,
-            color: Colors.white,
-            size: isSmallScreen ? 40 : 52,
-          ),
+          child: _isStoppingRecording
+              ? SizedBox(
+                  width: isSmallScreen ? 36 : 44,
+                  height: isSmallScreen ? 36 : 44,
+                  child: const CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                )
+              : Icon(
+                  Icons.stop,
+                  color: Colors.white,
+                  size: isSmallScreen ? 40 : 52,
+                ),
         ),
       ),
     );
@@ -304,7 +444,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
 
         // Save Button
         ElevatedButton.icon(
-          onPressed: _saveRecording,
+          onPressed: _isSavingRecording ? null : _saveRecording,
           icon: const Icon(Icons.save, size: 20),
           label: const Text('Generate Summary'),
           style: ElevatedButton.styleFrom(
@@ -352,13 +492,15 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     }
   }
 
-  void _toggleRecording() {
+  void _toggleRecording() async {
     switch (_recordingState) {
       case RecordingState.idle:
-        _startRecording();
+        if (_hasRequiredRecordingConsents && !_isStartingRecording) {
+          _startRecording();
+        }
         break;
       case RecordingState.recording:
-        _stopRecording();
+        await _stopRecording();
         break;
       case RecordingState.completed:
         _resetRecording();
@@ -366,54 +508,46 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     }
   }
 
-  void _startRecording() async {
-    // Check if user has accepted audio consent
-    final hasConsent = await _consentService.hasAcceptedAudioConsent();
-    if (!mounted) return;
+  bool get _hasRequiredRecordingConsents =>
+      _microphoneConsentGiven && _aiConsentGiven;
 
-    if (!hasConsent) {
-      final accepted = await _showAudioConsentDialog();
-      if (!mounted) return;
-
-      if (!accepted) {
-        return; // User declined consent
-      }
-    }
-
-    final twoPartyAccepted = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (context) => const VisitRecordingTwoPartyConsentScreen(),
-      ),
-    );
-    if (!mounted) return;
-    if (twoPartyAccepted != true) {
+  Future<void> _startRecording() async {
+    if (!_hasRequiredRecordingConsents || _isStartingRecording) {
       return;
     }
 
-    print('🎬 Starting recording...');
-    final success = await _audioService.startRecording(context);
-    if (!mounted) return;
+    setState(() {
+      _isStartingRecording = true;
+    });
 
-    print('🎬 Recording start success: $success');
-    if (success) {
-      setState(() {
-        _recordingState = RecordingState.recording;
-        _secondsElapsed = 0;
-        _updateFormattedTime();
-      });
+    try {
+      await _logRecordingConsents();
+      if (!mounted) return;
 
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (mounted) {
-          setState(() {
-            _secondsElapsed++;
-            _updateFormattedTime();
-          });
-        }
-      });
-    } else {
-      // Permission denied or initialization failed
-      print('🎬 Recording failed - permission denied or initialization error');
-      if (mounted) {
+      if (kDebugMode) print('🎬 Starting recording...');
+      final success = await _audioService.startRecording(context);
+      if (!mounted) return;
+
+      if (kDebugMode) print('🎬 Recording start success: $success');
+      if (success) {
+        setState(() {
+          _recordingState = RecordingState.recording;
+          _secondsElapsed = 0;
+          _updateFormattedTime();
+        });
+
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (mounted) {
+            setState(() {
+              _secondsElapsed++;
+              _updateFormattedTime();
+            });
+          }
+        });
+      } else {
+        // Permission denied or initialization failed
+        if (kDebugMode) print(
+            '🎬 Recording failed - permission denied or initialization error');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -422,27 +556,63 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
           ),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to start recording: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isStartingRecording = false;
+        });
+      }
     }
   }
 
   Future<void> _stopRecording() async {
-    final recordingPath = await _audioService.stopRecording();
-    if (!mounted) return;
+    if (_isStoppingRecording || _recordingState != RecordingState.recording) {
+      return;
+    }
 
     setState(() {
-      _recordingState = RecordingState.completed;
-      _audioFilePath = recordingPath;
+      _isStoppingRecording = true;
     });
 
-    _timer?.cancel();
+    try {
+      final recordingPath = await _audioService.stopRecording();
+      if (!mounted) return;
 
-    if (recordingPath != null) {
+      _timer?.cancel();
+      setState(() {
+        _recordingState = RecordingState.completed;
+        _audioFilePath = recordingPath;
+        _isStoppingRecording = false;
+      });
+
+      if (recordingPath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recording completed!')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Failed to save recording. Please try recording again.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isStoppingRecording = false;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recording completed!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save recording')),
+        SnackBar(content: Text('Unable to stop recording: $e')),
       );
     }
   }
@@ -454,7 +624,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     setState(() {
       _recordingState = RecordingState.idle;
       _secondsElapsed = 0;
-      _formattedTime = '00:00';
+      _updateFormattedTime();
     });
 
     _timer?.cancel();
@@ -465,12 +635,13 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     if (_audioFilePath != null) {
       await _audioService.deleteRecording(_audioFilePath!);
     }
+    if (!mounted) return;
 
     // Reset to idle state
     setState(() {
       _recordingState = RecordingState.idle;
       _secondsElapsed = 0;
-      _formattedTime = '00:00';
+      _updateFormattedTime();
       _audioFilePath = null;
     });
 
@@ -482,10 +653,64 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     );
   }
 
-  void _saveRecording() async {
-    if (_isSaving) return;
-    setState(() => _isSaving = true);
-    print("🧪 SAVE BUTTON PRESSED");
+  Future<void> _logRecordingConsents() async {
+    final currentUser = await _authService.getCurrentUser();
+    final uid = currentUser?.authUid ?? currentUser?.id;
+
+    if (uid == null || uid.isEmpty) {
+      throw Exception('Please sign in again before recording.');
+    }
+
+    final sessionId = DateTime.now().toUtc().millisecondsSinceEpoch.toString();
+
+    await _firestore
+        .collection('consents')
+        .doc(uid)
+        .collection('recording_sessions')
+        .doc(sessionId)
+        .set({
+      'microphoneConsentGiven': true,
+      'aiConsentGiven': true,
+      'consentVersion': _consentVersion,
+      'platform': _platformLabel,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  String get _platformLabel {
+    if (Platform.isIOS) {
+      return 'ios';
+    }
+    if (Platform.isAndroid) {
+      return 'android';
+    }
+    return Platform.operatingSystem;
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    try {
+      final launched = await launchUrl(
+        _privacyPolicyUri,
+        mode: LaunchMode.inAppBrowserView,
+      );
+
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open the Privacy Policy.')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open the Privacy Policy.')),
+      );
+    }
+  }
+
+  Future<void> _saveRecording() async {
+    if (_isSavingRecording) {
+      return;
+    }
 
     if (_audioFilePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -494,19 +719,23 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       return;
     }
 
+    setState(() {
+      _isSavingRecording = true;
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Uploading audio...')),
     );
 
     try {
-      print("🧪 Starting upload...");
+      if (kDebugMode) print("🧪 Starting upload...");
       await _uploadAudioToBackend(_audioFilePath!);
       if (!mounted) return;
 
-      print("🧪 Upload finished");
+      if (kDebugMode) print("🧪 Upload finished");
 
       // Trigger audio processing pipeline (returns immediately)
-      print("🧪 Triggering processing...");
+      if (kDebugMode) print("🧪 Triggering processing...");
       await _triggerAudioProcessing();
       if (!mounted) return;
 
@@ -514,33 +743,48 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       await _audioService.deleteRecording(_audioFilePath!);
       if (!mounted) return;
 
-      await showDialog<void>(
+      VisitContext().clearVisit();
+
+      final l10n = AppLocalizations.of(context)!;
+      final goHome = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('✅ Your visit is being processed'),
-          content: const Text(
-            'This may take ~30–60 seconds.\n'
-            "You can continue using the app. We’ll notify you when it’s ready.",
-          ),
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.visitProcessingTitle),
+          content: Text(l10n.visitProcessingBody),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                context.go('/patient/home');
-              },
-              child: const Text('Go to Home'),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.goToHome),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.viewOverviewAction),
             ),
           ],
         ),
       );
+      if (!mounted) return;
+      if (goHome == true) {
+        context.go('/patient/home');
+      } else {
+        context.go('/patient/overview');
+      }
     } catch (e) {
       if (!mounted) return;
+
+      setState(() {
+        _isSavingRecording = false;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to upload audio: $e')),
       );
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted && _isSavingRecording) {
+        setState(() {
+          _isSavingRecording = false;
+        });
+      }
     }
   }
 
@@ -581,7 +825,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   }
 
   Future<void> _triggerAudioProcessing() async {
-    print("🧪 Inside _triggerAudioProcessing()");
+    if (kDebugMode) print("🧪 Inside _triggerAudioProcessing()");
 
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
@@ -608,7 +852,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       }),
     );
 
-    print("🧪 process-audio status: ${response.statusCode}");
+    if (kDebugMode) print("🧪 process-audio status: ${response.statusCode}");
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -621,20 +865,28 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       // Show confirmation dialog
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text('Stop Recording?'),
           content: const Text(
               'Are you sure you want to stop recording? This action cannot be undone.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Continue Recording'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.of(context).pop();
-                await _stopRecording();
+                Navigator.of(dialogContext).pop();
+                _timer?.cancel();
+                await _audioService.cancelRecording();
                 if (!mounted) return;
+                setState(() {
+                  _recordingState = RecordingState.idle;
+                  _secondsElapsed = 0;
+                  _updateFormattedTime();
+                  _audioFilePath = null;
+                  _isStoppingRecording = false;
+                });
                 context.go('/patient/home');
               },
               child: const Text('Stop & Discard'),
@@ -648,9 +900,10 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   }
 
   void _updateFormattedTime() {
-    final minutes = (_secondsElapsed ~/ 60).toString().padLeft(2, '0');
-    final seconds = (_secondsElapsed % 60).toString().padLeft(2, '0');
-    _formattedTime = '$minutes:$seconds';
+    _formattedTime = LocaleFormat.durationMinutesSeconds(
+      context,
+      Duration(seconds: _secondsElapsed),
+    );
   }
 
   Color _getStatusColor() {
@@ -667,7 +920,9 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   String _getStatusText() {
     switch (_recordingState) {
       case RecordingState.idle:
-        return 'Ready to Record';
+        return _hasRequiredRecordingConsents
+            ? 'Ready to Record'
+            : 'Consent Required';
       case RecordingState.recording:
         return 'Recording...';
       case RecordingState.completed:
@@ -675,49 +930,112 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     }
   }
 
-  String _getRecordingInstructions() {
+  String _getRecordingInstructions({bool compact = false}) {
     switch (_recordingState) {
       case RecordingState.idle:
-        return 'Tap to start recording your visit\nYour recording stays private and secure';
+        if (compact) {
+          if (_hasRequiredRecordingConsents) {
+            return 'Your recording stays private and secure';
+          }
+          return 'Review and accept both consent items to enable recording.';
+        }
+        return _hasRequiredRecordingConsents
+            ? 'Tap to start recording your visit\nYour recording stays private and secure'
+            : 'Review and accept both consent items to enable recording.';
       case RecordingState.recording:
         return 'Recording in progress...';
       case RecordingState.completed:
-        return 'Recording complete!\nTap Generate so the pipeline can write your '
-            'structured summary (summary, decisions, medications, and actions)';
+        return 'Recording complete!\nTap Generate to process your visit summary';
     }
   }
+}
 
-  Future<bool> _showAudioConsentDialog() async {
-    return await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Audio Recording'),
-              content: const Text(
-                'Recording helps create visit notes, summaries, and reminders.\n\n'
-                '• Audio is recorded only when you tap Record\n'
-                '• Recordings are processed securely and deleted from your phone\n'
-                '• You can stop recording at any time\n\n'
-                'Would you like to proceed?',
+class _ConsentCheckboxTile extends StatelessWidget {
+  final bool value;
+  final bool enabled;
+  final bool compactLayout;
+  final String label;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onPrivacyPolicyTap;
+
+  const _ConsentCheckboxTile({
+    required this.value,
+    required this.enabled,
+    this.compactLayout = false,
+    required this.label,
+    required this.onChanged,
+    required this.onPrivacyPolicyTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? () => onChanged(!value) : null,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: compactLayout ? 2 : 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: Checkbox(
+                    value: value,
+                    onChanged: enabled
+                        ? (checked) => onChanged(checked ?? false)
+                        : null,
+                  ),
+                ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Not Now'),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4, right: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton(
+                        onPressed: enabled ? onPrivacyPolicyTap : null,
+                        style: TextButton.styleFrom(
+                          alignment: Alignment.centerLeft,
+                          foregroundColor: theme.colorScheme.primary,
+                          minimumSize: const Size(44, 44),
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Privacy Policy',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await _consentService.acceptAudioConsent();
-                    Navigator.of(context).pop(true);
-                  },
-                  child: const Text('Yes, Record'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/locale_format.dart';
 
 class ProgressItem extends StatelessWidget {
   final String title;
@@ -44,7 +45,7 @@ class ProgressItem extends StatelessWidget {
                   duration: const Duration(milliseconds: 500),
                   builder: (context, textProgress, child) {
                     return Text(
-                      '${(textProgress * 100).toInt()}%',
+                      LocaleFormat.percent(context, textProgress * 100),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,

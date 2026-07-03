@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Secure storage service for sensitive data like JWT tokens
@@ -14,41 +15,23 @@ class SecureStorage {
 
   // User preference keys
   static const String _rememberMeKey = 'remember_me';
-  static const String _cachedRoleKey = 'cached_user_role';
-  static const String _cachedFullNameKey = 'cached_full_name';
-
-  Future<void> saveUserRole(String role) async {
-    await _storage.write(key: _cachedRoleKey, value: role);
-  }
-
-  Future<String?> getUserRole() async {
-    return await _storage.read(key: _cachedRoleKey);
-  }
-
-  Future<void> saveFullName(String name) async {
-    await _storage.write(key: _cachedFullNameKey, value: name);
-  }
-
-  Future<String?> getFullName() async {
-    return await _storage.read(key: _cachedFullNameKey);
-  }
 
   /// Save authentication tokens
   Future<void> saveTokens(String accessToken, String refreshToken) async {
-    print(
+    if (kDebugMode) print(
         '🔐 SecureStorage: Saving access token (length: ${accessToken.length})');
     await _storage.write(key: _accessTokenKey, value: accessToken);
-    print(
+    if (kDebugMode) print(
         '🔐 SecureStorage: Saving refresh token (length: ${refreshToken.length})');
     await _storage.write(key: _refreshTokenKey, value: refreshToken);
-    print('🔐 SecureStorage: Tokens saved to secure storage');
+    if (kDebugMode) print('🔐 SecureStorage: Tokens saved to secure storage');
   }
 
   /// Get access token
   Future<String?> getAccessToken() async {
-    print('🔐 SecureStorage: Reading access token from storage');
+    if (kDebugMode) print('🔐 SecureStorage: Reading access token from storage');
     final token = await _storage.read(key: _accessTokenKey);
-    print(
+    if (kDebugMode) print(
         '🔐 SecureStorage: Access token read result: ${token != null ? "found (length: ${token.length})" : "null"}');
     return token;
   }
@@ -67,14 +50,14 @@ class SecureStorage {
   /// Save remember me preference
   Future<void> saveRememberMe(bool rememberMe) async {
     await _storage.write(key: _rememberMeKey, value: rememberMe.toString());
-    print('🔐 SecureStorage: Remember me preference saved: $rememberMe');
+    if (kDebugMode) print('🔐 SecureStorage: Remember me preference saved: $rememberMe');
   }
 
   /// Get remember me preference
   Future<bool> getRememberMe() async {
     final value = await _storage.read(key: _rememberMeKey);
     final rememberMe = value == 'true';
-    print('🔐 SecureStorage: Remember me preference read: $rememberMe');
+    if (kDebugMode) print('🔐 SecureStorage: Remember me preference read: $rememberMe');
     return rememberMe;
   }
 

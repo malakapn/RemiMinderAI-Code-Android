@@ -22,12 +22,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
     setState(() => _loading = true);
 
     try {
-      final interval =
-          _selectedPlan == _BillingPlan.monthly ? 'monthly' : 'yearly';
-      final url = await BackendApiService().createSubscriptionCheckoutUrl(
-        interval: interval,
-      );
-      final uri = Uri.parse(url);
+      final uri = Uri.parse('https://remiminderai.com/pricing');
       final launched = await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,
@@ -36,15 +31,13 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
       if (!launched) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Could not open the payment page. Try again.'),
+            content: Text('Could not open the pricing page. Try again.'),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Complete checkout in your browser, then return to the app.',
-            ),
+            content: Text('Opening pricing page in your browser...'),
           ),
         );
       }

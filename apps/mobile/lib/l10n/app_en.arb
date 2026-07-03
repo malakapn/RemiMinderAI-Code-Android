@@ -4,5 +4,628 @@
   "logout": "Logout",
   "settings": "Settings",
   "language": "Language",
-  "profileSettings": "Profile Settings"
+  "profileSettings": "Profile Settings",
+  "languageSettings": "Language Settings",
+  "languageUpdated": "Language updated. The app will now display in {language}.",
+  "@languageUpdated": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "navHome": "Home",
+  "navVisits": "Visits",
+  "navOverview": "Overview",
+  "navCareTeam": "Care Team",
+  "navProfile": "Profile",
+  "navPatients": "Patients",
+  "goodMorning": "Good morning",
+  "goodAfternoon": "Good afternoon",
+  "goodEvening": "Good evening",
+  "goodNight": "Good night",
+  "howAreYouFeeling": "How are you feeling today?",
+  "todaysProgress": "Today's Progress",
+  "doneCount": "{done}/{total} done",
+  "@doneCount": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "yourSchedule": "Your Schedule",
+  "seeAll": "See all →",
+  "nothingScheduledYet": "Nothing scheduled yet",
+  "unableToLoadReminders": "Unable to load reminders",
+  "addReminder": "Add Reminder",
+  "myTasks": "My Tasks",
+  "pendingCount": "{count} pending",
+  "@pendingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noTasksYet": "No tasks yet",
+  "addTask": "Add Task",
+  "statusUpcoming": "Upcoming",
+  "statusScheduled": "Scheduled",
+  "statusDone": "Done",
+  "reminder": "Reminder",
+  "task": "Task",
+  "careTeamTitle": "Care Team",
+  "careTeamSubtitle": "You are in control. Review your sharing permissions below.",
+  "sectionPending": "PENDING",
+  "sectionAddNew": "ADD NEW",
+  "inviteCaregiver": "Invite a caregiver",
+  "inviteCaregiverSubtitle": "Share access to your health information",
+  "invitationPending": "Invitation Pending",
+  "resend": "Resend",
+  "cancel": "Cancel",
+  "activeCaregivers": "Active Caregivers",
+  "noCaregiversYet": "No caregivers added yet",
+  "english": "English",
+  "spanish": "Spanish",
+  "hindi": "Hindi",
+  "french": "French",
+  "portuguese": "Portuguese",
+  "german": "German",
+  "bangla": "Bangla",
+  "tamil": "Tamil",
+  "gujarati": "Gujarati",
+  "punjabi": "Punjabi",
+  "accountDetails": "Account Details",
+  "accountDetailsSubtitle": "View your profile information",
+  "accountSecurity": "Account Security",
+  "accountSecuritySubtitle": "Manage password and privacy",
+  "notificationsLabel": "Notifications",
+  "mobileLabel": "Mobile",
+  "emailLabel": "Email",
+  "upgrade": "Upgrade",
+  "signOut": "Sign Out",
+  "deleteAccount": "Delete Account",
+  "deleteAccountTitle": "Delete Account",
+  "deleteAccountMessage": "This will permanently delete your account and all your data. This cannot be undone. Are you sure?",
+  "delete": "Delete",
+  "searchSummariesHint": "Search summaries...",
+  "tabSummaries": "SUMMARIES",
+  "tabLabResults": "LAB RESULTS",
+  "tabScannedDocs": "SCANNED DOCS",
+  "noSummariesYet": "No summaries yet",
+  "summariesWillAppearHere": "Your visit summaries will appear here",
+  "failedToLoadSummaries": "Failed to load summaries",
+  "retry": "Retry",
+  "shareLabel": "Share",
+  "doctorVisit": "Doctor Visit",
+  "timeToday": "Today, {time}",
+  "@timeToday": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeYesterday": "Yesterday, {time}",
+  "@timeYesterday": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "summaryProcessingHint": "Pull down to refresh. This usually takes 30–60 seconds.",
+  "summaryCouldNotGenerate": "Summary could not be generated",
+  "retrySummary": "Retry summary",
+  "stuckRetrySummary": "Stuck? Retry summary",
+  "scannedDocument": "Scanned document",
+  "scannedOn": "Scanned {date}",
+  "@scannedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "visitDetails": "Visit Details",
+  "healthVisitSummary": "Health Visit Summary",
+  "refreshSummaryTooltip": "Refresh summary",
+  "preparingVisitSummary": "Preparing visit summary...",
+  "preparingVisitSubtitle": "This may take a minute.",
+  "unableToLoadVisitSummary": "Unable to load visit summary",
+  "visitSummaryUnavailable": "Visit summary is unavailable",
+  "visitSummary": "Visit Summary",
+  "visitProcessingTitle": "Your visit is being processed",
+  "visitProcessingBody": "This may take 30–60 seconds.\nYou can continue using the app. Open Overview to see progress.",
+  "viewOverviewAction": "View Overview",
+  "goToHome": "Go to Home",
+  "medication": "Medication",
+  "nextToDo": "Next To Do",
+  "conditionsDiscussed": "Conditions discussed",
+  "followUp": "Follow up",
+  "nameLabel": "Name",
+  "notSet": "Not set",
+  "appleIdHidden": "Apple ID (hidden)",
+  "accountType": "Account Type",
+  "patientRole": "Patient",
+  "caregiverRole": "Caregiver",
+  "phoneLabel": "Phone",
+  "edit": "Edit",
+  "add": "Add",
+  "planLabel": "Plan",
+  "planFree": "Free",
+  "planPremium": "Premium",
+  "usageLabel": "Usage",
+  "freePlanUsage": "Free plan — {used} / {limit} summaries used",
+  "@freePlanUsage": {
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "unlimited": "Unlimited",
+  "editPhoneNumber": "Edit Phone Number",
+  "phoneNumber": "Phone Number",
+  "save": "Save",
+  "phoneMinLength": "Phone number must be at least 8 characters long",
+  "phoneUpdatedSuccess": "Phone number updated successfully",
+  "phoneUpdateFailed": "Failed to update phone number: {error}",
+  "@phoneUpdateFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "changePassword": "Change Password",
+  "changePasswordSubtitle": "Update your account password for security",
+  "privacySettings": "Privacy Settings",
+  "privacySettingsSubtitle": "Manage your data sharing preferences",
+  "managePrivacy": "Manage Privacy",
+  "changePasswordProviderMessage": "You signed in using {provider}. Please change your password in your {provider} account.",
+  "@changePasswordProviderMessage": {
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "ok": "OK",
+  "selectDate": "Select date",
+  "changePasswordIntro": "Update your password to keep your account secure.",
+  "currentPassword": "Current Password",
+  "currentPasswordHint": "Enter your current password",
+  "enterCurrentPassword": "Please enter your current password",
+  "newPassword": "New Password",
+  "newPasswordHint": "Enter your new password",
+  "enterNewPassword": "Please enter a new password",
+  "passwordMinLength": "Password must be at least 8 characters",
+  "confirmNewPassword": "Confirm New Password",
+  "confirmNewPasswordHint": "Re-enter your new password",
+  "confirmNewPasswordRequired": "Please confirm your new password",
+  "passwordsDoNotMatch": "Passwords do not match",
+  "updatePassword": "Update Password",
+  "passwordUpdatedSuccess": "Password updated successfully",
+  "passwordUpdateFailed": "Failed to update password",
+  "wrongPassword": "Current password is incorrect",
+  "weakPassword": "Password is too weak",
+  "requiresRecentLogin": "Please log in again and try",
+  "checkInternetConnection": "Check your internet connection",
+  "dataSharing": "Data Sharing",
+  "allowCaregiverSummaries": "Allow caregiver to view summaries",
+  "allowCaregiverMedications": "Allow caregiver to view medications",
+  "allowCaregiverReminders": "Allow caregiver to view reminders",
+  "allowAiImprovement": "Allow AI to use my data to improve the product",
+  "communicationAndConsent": "Communication & Consent",
+  "allowEmailNotifications": "Allow email notifications",
+  "allowSmsNotifications": "Allow SMS notifications",
+  "allowPushNotifications": "Allow push notifications",
+  "dataControl": "Data Control",
+  "exportMyData": "Export my data",
+  "deleteAllMedicalRecords": "Delete all my medical records",
+  "deleteMedicalRecordsTitle": "Delete Medical Records",
+  "deleteMedicalRecordsMessage": "This will permanently delete all your medical records. This action cannot be undone.",
+  "deleteRecords": "Delete Records",
+  "deleteMyAccount": "Delete my account",
+  "legal": "Legal",
+  "viewPrivacyPolicy": "View Privacy Policy",
+  "viewTermsOfService": "View Terms of Service",
+  "termsOfService": "Terms of Service",
+  "termsOfServiceBody": "Terms of Service for RemiMinder\n\n1. Acceptance of Terms\nBy using RemiMinder, you agree to these terms.\n\n2. Use of Service\nRemiMinder is designed to help manage healthcare and medication reminders.\n\n3. Privacy\nYour privacy is important to us. All health data is handled securely.\n\nFor the complete Terms of Service, please visit our website.",
+  "privacyPolicy": "Privacy Policy",
+  "privacyPolicyBody": "Privacy Policy for RemiMinder\n\n1. Information We Collect\nWe collect information you provide and usage data to improve our service.\n\n2. How We Use Information\nInformation is used to provide healthcare management services.\n\n3. Information Sharing\nWe do not sell your personal information.\n\nFor the complete Privacy Policy, please visit our website.",
+  "close": "Close",
+  "featureComingSoon": "{feature} coming soon",
+  "@featureComingSoon": {
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "caregiverSharingEnabled": "Caregiver sharing enabled",
+  "caregiverSharingDisabled": "Caregiver sharing disabled",
+  "dataExport": "Data export",
+  "remindersTitle": "Reminders",
+  "tabAll": "All",
+  "tabToday": "Today",
+  "tabPending": "Pending",
+  "tabCompleted": "Completed",
+  "searchRemindersHint": "Search reminders...",
+  "failedToLoadRemindersRetry": "Failed to load reminders. Retry",
+  "deleteReminderTitle": "Delete Reminder",
+  "deleteReminderMessage": "Are you sure you want to delete this reminder?",
+  "markDone": "Mark Done",
+  "snooze": "Snooze",
+  "snoozedUntil": "Snoozed until {time}",
+  "@snoozedUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "statusDueNow": "Due Now",
+  "statusActive": "Active",
+  "statusMissed": "Missed",
+  "statusSnoozed": "Snoozed",
+  "statusSkipped": "Skipped",
+  "statusPending": "Pending",
+  "noRemindersFound": "No reminders found",
+  "noRemindersMatchSearch": "No reminders match your search",
+  "createFirstReminder": "Create your first reminder to get started",
+  "tryAdjustSearch": "Try adjusting your search terms",
+  "createReminder": "Create Reminder",
+  "newReminder": "New Reminder",
+  "editReminder": "Edit Reminder",
+  "reminderTitleLabel": "Title",
+  "dosageOptional": "Dosage (optional)",
+  "dosageHint": "e.g. 10 mg once daily",
+  "reminderTypeLabel": "Type",
+  "appointment": "Appointment",
+  "repeatLabel": "Repeat",
+  "once": "Once",
+  "daily": "Daily",
+  "weekly": "Weekly",
+  "pleaseEnterTitle": "Please enter a title",
+  "reminderCreated": "Reminder created!",
+  "failedToCreateReminder": "Failed to create reminder: {error}",
+  "@failedToCreateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "saveChanges": "Save Changes",
+  "cannotRescheduleMissingType": "Cannot reschedule: reminder type is missing",
+  "reminderUpdated": "Reminder updated!",
+  "failedToUpdateReminder": "Failed to update: {error}",
+  "@failedToUpdateReminder": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderMarkedCompleted": "Reminder marked as completed!",
+  "reminderSnoozed30": "Reminder snoozed for 30 minutes",
+  "timeInHours": "In {hours} hours ({time})",
+  "@timeInHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeInMinutes": "In {minutes} minutes ({time})",
+  "@timeInMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeNow": "Now",
+  "timeHoursAgo": "{hours} hours ago",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMinutesAgo": "{minutes} minutes ago",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInDays": "in {days} days",
+  "@timeInDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInHoursShort": "in {hours} hours",
+  "@timeInHoursShort": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeInMinutesShort": "in {minutes} minutes",
+  "@timeInMinutesShort": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "selectTime": "Select time",
+  "presetMorning": "Morning (8:00 AM)",
+  "presetNoon": "Noon (12:00 PM)",
+  "presetEvening": "Evening (6:00 PM)",
+  "presetNight": "Night (8:00 PM)",
+  "hourLabel": "Hour",
+  "minuteLabel": "Min",
+  "amPmLabel": "AM / PM",
+  "amLabel": "AM",
+  "pmLabel": "PM",
+  "selectedTimeLabel": "Selected time: {time}",
+  "@selectedTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "setForTime": "Set for {time} ✓",
+  "@setForTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "medicationAdherence": "Medication Adherence",
+  "thisWeek": "This Week",
+  "thisMonth": "This Month",
+  "overall": "Overall",
+  "dosesCount": "{done}/{total} doses",
+  "@dosesCount": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "byMedication": "By Medication",
+  "noPastRemindersAnalyze": "No past reminders to analyze",
+  "adherenceTips": "Adherence Tips",
+  "adherenceTipsBody": "• Set phone reminders for medication times\n• Keep medications in a visible location\n• Use a pill organizer for daily doses\n• Track your progress to stay motivated",
+  "actionFailed": "Action failed",
+  "snoozeAlreadyUsed": "This reminder was already snoozed once",
+  "reminderDeleted": "Reminder deleted",
+  "deleteFailed": "Delete failed",
+  "sectionRecentAlerts": "Recent Alerts",
+  "viewAll": "View All",
+  "sectionInvitations": "Invitations",
+  "summaryPatients": "Patients",
+  "summaryAlerts": "Alerts",
+  "summaryPending": "Pending",
+  "noAlertsAtThisTime": "No alerts at this time",
+  "noPendingInvitations": "No pending invitations",
+  "pendingInvitationsTitle": "Pending Invitations",
+  "invitationsWaiting": "{count} invitation(s) waiting",
+  "@invitationsWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewAcceptInvitations": "Review and accept caregiver invitations.",
+  "viewInvitations": "View Invitations",
+  "defaultPatient": "Patient",
+  "defaultCaregiver": "Caregiver",
+  "caregiverPatientTime": "Patient: {name} • {time}",
+  "@caregiverPatientTime": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "timeDaysAgo": "{days} days ago",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "alertsTitle": "Alerts",
+  "filterUnread": "Unread",
+  "filterRead": "Read",
+  "filterHighPriority": "High Priority",
+  "filterActionRequired": "Action Required",
+  "alertSingular": "Alert",
+  "alertsPlural": "Alerts",
+  "clearFilter": "Clear Filter",
+  "noAlertsMatchFilter": "No alerts match this filter",
+  "allPatientActivitiesSmooth": "All patient activities are running smoothly",
+  "tryAdjustingFilter": "Try adjusting your filter to see more alerts",
+  "viewAllAlerts": "View All Alerts",
+  "alertMarkedAsRead": "Alert marked as read",
+  "alertsMarkedAsRead": "Marked {count} alerts as read",
+  "@alertsMarkedAsRead": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allAlertsAlreadyRead": "All alerts are already read",
+  "myPatientsTitle": "My Patients",
+  "patientsConnectedSubtitle": "Patients connected to you",
+  "myPatientsSection": "My patients",
+  "connectedCount": "{count} connected",
+  "@connectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchPatientsHint": "Search patients...",
+  "noPatientsMatchSearch": "No patients match your search.",
+  "noPatientsConnectedYet": "No patients connected yet",
+  "acceptInvitationToSeePatient": "Accept an invitation to see a patient here.",
+  "badgeNew": "New",
+  "joinedOn": "Joined {date}",
+  "@joinedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "neverSynced": "Not loaded yet",
+  "privacyDataRequestMessage": "Contact privacy@remiminder.ai to export or delete your data.",
+  "syncMinutesAgo": "{minutes}m ago",
+  "@syncMinutesAgo": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "syncHoursAgo": "{hours}h ago",
+  "@syncHoursAgo": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "syncDaysAgo": "{days}d ago",
+  "@syncDaysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "primaryCondition": "Primary condition",
+  "lastSynced": "Last synced",
+  "allergiesLabel": "Allergies",
+  "dateOfBirth": "Date of birth",
+  "currentMedications": "Current medications",
+  "viewCarePlan": "View care plan",
+  "remindersButton": "Reminders",
+  "caregiverCareTeamSubtitle": "Invite family or medical staff",
+  "invitationsReceived": "Invitations received",
+  "pendingBadge": "{count} pending",
+  "@pendingBadge": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "patientOverviewTitle": "Patient Overview",
+  "patientOverviewTabVisits": "Visits",
+  "patientOverviewTabReminders": "Reminders",
+  "patientOverviewNoVisits": "No visits available",
+  "patientOverviewNoReminders": "No reminders available",
+  "patientOverviewMissingPatientId": "Missing patient information",
+  "patientOverviewLastVisit": "Last visit",
+  "patientOverviewCareTeam": "Care team member",
+  "patientOverviewScheduledReminder": "Scheduled reminder",
+  "patientOverviewNever": "Never",
+  "patientOverviewYesterday": "Yesterday",
+  "statusViewed": "Viewed",
+  "statusExpired": "Expired",
+  "statusJoined": "Joined",
+  "noInvitationsToShow": "No invitations to show",
+  "invitedByLabel": "Invited by: {name}",
+  "@invitedByLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptInvitation": "Accept",
+  "declineInvitation": "Decline",
+  "invitationDeclined": "Invitation declined",
+  "joinedCareTeamSnackbar": "Joined {patientName}'s care team as {role}",
+  "@joinedCareTeamSnackbar": {
+    "placeholders": {
+      "patientName": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "manageAccess": "Manage Access",
+  "manageAccessDescription": "Update caregiver permission or remove access.",
+  "manage": "Manage",
+  "accessUpdatedSuccess": "Access updated successfully",
+  "accessUpdateFailed": "Failed to update access. Please try again.",
+  "removeCaregiverTitle": "Remove caregiver?",
+  "removeCaregiverMessage": "Are you sure you want to remove this caregiver? They will lose access immediately.",
+  "remove": "Remove",
+  "updatingAccess": "Updating access...",
+  "removingCaregiver": "Removing caregiver...",
+  "removeCaregiverFailed": "Failed to remove caregiver. Please try again.",
+  "viewAccess": "View Access",
+  "fullAccess": "Full Access",
+  "viewOnly": "View Only",
+  "resendingInvitation": "Resending invitation...",
+  "invitationResent": "Invitation resent",
+  "failedToResendInvitation": "Failed to resend invitation",
+  "cancelingInvitation": "Canceling invitation...",
+  "invitationCanceled": "Invitation canceled",
+  "failedToCancelInvitation": "Failed to cancel invitation",
+  "relationshipSon": "Son",
+  "relationshipDaughter": "Daughter",
+  "relationshipFriend": "Friend",
+  "relationshipSpousePartner": "Spouse/Partner",
+  "relationshipParent": "Parent",
+  "relationshipChild": "Child",
+  "relationshipFamilyMember": "Family Member",
+  "relationshipHealthcareProfessional": "Healthcare Professional",
+  "relationshipCaregiver": "Caregiver",
+  "relationshipSister": "Sister",
+  "relationshipBrother": "Brother",
+  "relationshipOther": "Other"
 }

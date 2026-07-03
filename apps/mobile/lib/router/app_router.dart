@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/data/models/auth_state.dart';
+import '../core/models/user.dart';
 import '../features/auth/presentation/screens/welcome_screen.dart';
 import '../features/auth/presentation/screens/role_selection_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
@@ -13,158 +14,87 @@ import '../features/caregiver/presentation/screens/caregiver_home_screen.dart';
 import '../features/caregiver/presentation/screens/patient_tab_screen.dart';
 import '../features/caregiver/presentation/screens/patient_overview_screen.dart';
 import '../features/caregiver/presentation/screens/alert_list_screen.dart';
-import '../features/caregiver/presentation/screens/caregiver_alert_create_screen.dart';
 import '../features/caregiver/presentation/screens/accept_invitations_screen.dart';
-import '../features/caregiver/presentation/screens/caregiver_reminder_timeline_screen.dart';
 import '../features/patient/presentation/screens/visit_recording_screen.dart';
 import '../features/patient/presentation/screens/visit_details_screen.dart';
 import '../features/patient/presentation/screens/overview_screen.dart';
 import '../features/patient/presentation/screens/reminders_screen.dart';
-import '../features/patient/presentation/screens/reminder_detail_screen.dart';
 import '../features/patient/presentation/screens/camera_screen.dart';
 import '../features/patient/presentation/screens/care_team_screen.dart';
 import '../features/patient/presentation/screens/profile_screen.dart';
 import '../features/patient/presentation/screens/send_invitations_screen.dart';
-import '../features/patient/presentation/screens/notification_settings_screen.dart';
-import '../features/patient/presentation/screens/history_list_screen.dart';
 
+import '../features/shared/presentation/screens/loading_screen.dart';
 import '../features/patient/presentation/widgets/patient_app_shell.dart';
 import '../features/patient/presentation/widgets/rounded_navigation_bar.dart';
 
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text('$title Screen\nComing Soon!', textAlign: TextAlign.center),
-      ),
-    );
-  }
-}
-
-/// Bridges Riverpod auth state into a Listenable for GoRouter's refreshListenable.
-/// Implements both Notifier (Riverpod) and Listenable (go_router) interfaces.
-class _RouterNotifier extends Notifier<void> implements Listenable {
-  final List<VoidCallback> _listeners = [];
-
-  @override
-  void build() {
-    ref.listen<AuthState>(authNotifierProvider, (_, __) {
-      for (final l in List.of(_listeners)) {
-        l();
-      }
-    });
-  }
-
-  AuthState get authState => ref.read(authNotifierProvider);
-
-  @override
-  void addListener(VoidCallback listener) => _listeners.add(listener);
-
-  @override
-  void removeListener(VoidCallback listener) => _listeners.remove(listener);
-}
-
-final _routerNotifierProvider =
-    NotifierProvider<_RouterNotifier, void>(_RouterNotifier.new);
-
-/// App router — created once, uses refreshListenable so redirect re-runs on
-/// auth changes without recreating the GoRouter.
+/// App router configuration using go_router
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final notifier = ref.watch(_routerNotifierProvider.notifier);
-
-  bool isPublicAuthPath(String path) =>
-      path == '/welcome' ||
-      path == '/role-selection' ||
-      path == '/login' ||
-      path == '/register' ||
-      path == '/forgot-password';
-
-  bool isCaregiverPath(String path) => path.startsWith('/caregiver');
-
-  bool isPatientPath(String path) =>
-      path.startsWith('/patient') && path != '/patient/visit-details';
-
   return GoRouter(
-    initialLocation: '/welcome',
-    refreshListenable: notifier,
+    initialLocation: '/loading',
     redirect: (context, state) {
-      final authState = notifier.authState;
-      final path = state.uri.path;
-      final loggedIn = authState.isAuthenticated;
-      final user = authState.user;
+      final authState = ref.read(authNotifierProvider);
+      final location = state.uri.path;
 
-      // Root and legacy paths (saved state / pre-rename routes).
-      if (path == '/' || path.isEmpty) {
-        if (authState.status == AuthStatus.initial ||
-            authState.status == AuthStatus.loading) {
-          return '/welcome';
-        }
-        if (!loggedIn) return '/welcome';
-        return (user?.isCaregiver ?? false)
-            ? '/caregiver/home'
-            : '/patient/home';
-      }
-      if (path == '/patient/visits' || path == '/patient/history-list') {
-        return '/patient/history';
+      // Don't redirect during loading or on auth screens
+      if (authState.status == AuthStatus.loading) return null;
+
+      // Never redirect these screens
+      const noRedirectRoutes = [
+        '/loading', '/welcome', '/role-selection',
+        '/login', '/register', '/forgot-password',
+      ];
+      if (noRedirectRoutes.contains(location) || location.startsWith('/auth')) {
+        return null;
       }
 
-      // Auth still resolving — stay on public auth stack (Welcome is first paint).
-      if (authState.status == AuthStatus.initial ||
-          authState.status == AuthStatus.loading) {
-        if (isPublicAuthPath(path)) return null;
+      // If unauthenticated, go to welcome
+      if (authState.status == AuthStatus.unauthenticated) {
         return '/welcome';
       }
 
-      // Signed out (or error) — keep onboarding routes; everything else → Welcome.
-      if (!loggedIn) {
-        return isPublicAuthPath(path) ? null : '/welcome';
-      }
+      // If authenticated, enforce role-based routing
+      // Use user.role (from SecureStorage) NOT profile.role (from backend)
+      if (authState.status == AuthStatus.authenticated) {
+        final role = authState.user?.role;
+        final isCaregiver = role == UserRole.caregiver;
+        final onCaregiverRoute = location.startsWith('/caregiver');
+        final onPatientRoute = location.startsWith('/patient');
 
-      // Logged in — leave protected routes alone, push off auth pages
-      if (isPublicAuthPath(path)) {
-        return (user?.isCaregiver ?? false)
-            ? '/caregiver/home'
-            : '/patient/home';
-      }
-
-      // Role-based enforcement
-      if (isCaregiverPath(path) && !(user?.isCaregiver ?? false)) {
-        return '/patient/home';
-      }
-      if (isPatientPath(path) && !(user?.isPatient ?? false)) {
-        return '/caregiver/home';
+        // Only redirect if clearly on wrong role's routes
+        // Don't redirect shared routes like /profile
+        if (isCaregiver && onPatientRoute) return '/caregiver/home';
+        if (!isCaregiver && onCaregiverRoute) return '/patient/home';
       }
 
       return null;
     },
+    errorBuilder: (context, state) => Scaffold(
+      backgroundColor: const Color(0xFFF5F0E8),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Color(0xFF1A5F5F)),
+            const SizedBox(height: 16),
+            const Text('Page not found', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A5F5F))),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => context.go('/patient/home'),
+              child: const Text('Go Home'),
+            ),
+          ],
+        ),
+      ),
+    ),
     routes: [
+      // Loading screen - first screen users see
       GoRoute(
-        path: '/',
-        redirect: (context, state) {
-          final auth = notifier.authState;
-          if (auth.status == AuthStatus.initial ||
-              auth.status == AuthStatus.loading) {
-            return '/welcome';
-          }
-          if (!auth.isAuthenticated) return '/welcome';
-          return (auth.user?.isCaregiver ?? false)
-              ? '/caregiver/home'
-              : '/patient/home';
-        },
+        path: '/loading',
+        builder: (context, state) => const LoadingScreen(),
       ),
-      GoRoute(
-        path: '/patient/visits',
-        redirect: (context, state) => '/patient/history',
-      ),
-      GoRoute(
-        path: '/patient/history-list',
-        redirect: (context, state) => '/patient/history',
-      ),
+
+      // Auth routes
       GoRoute(
         path: '/welcome',
         builder: (context, state) => const WelcomeScreen(),
@@ -179,20 +109,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/register',
-        builder: (context, state) => RegisterScreen(
-          inviteToken: state.uri.queryParameters['inviteToken'],
-        ),
+        builder: (context, state) => const RegisterScreen(),
       ),
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
+      // Patient/Caregiver shell route with navigation
       ShellRoute(
         builder: (context, state, child) {
           final location = state.uri.path;
           final currentItem = getCurrentNavigationItem(location);
-          final isCaregiver = location.startsWith('/caregiver');
+          // Shared routes like /profile don't start with /caregiver — use auth role.
+          final isCaregiver =
+              ref.read(authNotifierProvider).user?.role == UserRole.caregiver;
           final caregiverRoutes = isCaregiver
               ? {
                   NavigationItem.home: '/caregiver/home',
@@ -238,34 +169,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const PatientTabScreen(),
           ),
           GoRoute(
+            path: '/caregiver/patient-overview',
+            builder: (context, state) => const PatientOverviewScreen(),
+          ),
+          GoRoute(
             path: '/caregiver/alerts',
-            builder: (context, state) => AlertListScreen(
-              initialPatientId: state.uri.queryParameters['patientId'],
-              initialPatientName: state.uri.queryParameters['patientName'],
-            ),
+            builder: (context, state) => const AlertListScreen(),
           ),
           GoRoute(
             path: '/caregiver/accept-invitations',
-            builder: (context, state) => const AcceptInvitationsScreen(),
-          ),
-          GoRoute(
-            path: '/caregiver/reminders-timeline',
-            builder: (context, state) => CaregiverReminderTimelineScreen(
-              initialPatientId: state.uri.queryParameters['patientId'],
-              initialReminderType: state.uri.queryParameters['type'],
-            ),
+            builder: (context, state) {
+              final token = state.uri.queryParameters['token'];
+              return AcceptInvitationsScreen(inviteToken: token);
+            },
           ),
         ],
       ),
 
-      GoRoute(
-        path: '/caregiver/patient-overview',
-        builder: (context, state) => const PatientOverviewScreen(),
-      ),
-      GoRoute(
-        path: '/caregiver/alerts/create',
-        builder: (context, state) => const CaregiverAlertCreateScreen(),
-      ),
+      // Patient routes that don't use the navigation shell (modals, full-screen)
       GoRoute(
         path: '/patient/record-visit/:visitId',
         builder: (context, state) {
@@ -292,40 +213,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final visitId = state.uri.queryParameters['visitId']!;
           final visitDate = state.uri.queryParameters['visitDate'];
-          return VisitDetailsScreen(visitId: visitId, visitDate: visitDate);
-        },
-      ),
-      GoRoute(
-        path: '/patient/reminders',
-        builder: (context, state) {
-          final q = state.uri.queryParameters;
-          final openAdd = q['add'] == '1' || q['openAdd'] == 'true';
-          final prefill =
-              q['prefill_title'] ?? q['title'] ?? q['prefillTitle'];
-          return RemindersScreen(
-            openAddOnLaunch: openAdd,
-            prefillReminderTitle: prefill,
+          final patientId = state.uri.queryParameters['patientId'];
+          return VisitDetailsScreen(
+            visitId: visitId,
+            visitDate: visitDate,
+            patientId: patientId,
           );
         },
       ),
       GoRoute(
-        path: '/patient/reminder/:reminderId',
+        path: '/caregiver/visit-details',
         builder: (context, state) {
-          final id = state.pathParameters['reminderId']!;
-          return ReminderDetailScreen(reminderId: id);
+          final visitId = state.uri.queryParameters['visitId']!;
+          final visitDate = state.uri.queryParameters['visitDate'];
+          final patientId = state.uri.queryParameters['patientId'];
+          return VisitDetailsScreen(
+            visitId: visitId,
+            visitDate: visitDate,
+            patientId: patientId,
+          );
         },
+      ),
+      GoRoute(
+        path: '/patient/reminders',
+        builder: (context, state) => const RemindersScreen(),
       ),
       GoRoute(
         path: '/patient/invitations',
         builder: (context, state) => const SendInvitationsScreen(),
       ),
       GoRoute(
-        path: '/patient/notifications',
-        builder: (context, state) => const NotificationSettingsScreen(),
+        path: '/accept-invitation',
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'];
+          return AcceptInvitationsScreen(inviteToken: token);
+        },
       ),
       GoRoute(
-        path: '/patient/history',
-        builder: (context, state) => const HistoryListScreen(),
+        path: '/patient/reminder/:reminderId',
+        builder: (context, state) {
+          return const RemindersScreen();
+        },
       ),
     ],
   );

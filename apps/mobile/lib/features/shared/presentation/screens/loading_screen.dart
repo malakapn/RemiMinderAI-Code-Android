@@ -1,13 +1,18 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/models/user.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../services/pending_invite_token.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/data/models/auth_state.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../patient/data/services/patient_api_service.dart';
-import '../../../../core/services/auth_service.dart';
 import '../../../../core/config/environment.dart';
+import '../../../../core/config/supported_languages.dart';
+import '../../../../core/widgets/brand_logo.dart';
 
 class LoadingScreen extends ConsumerStatefulWidget {
   const LoadingScreen({super.key});
@@ -17,10 +22,11 @@ class LoadingScreen extends ConsumerStatefulWidget {
 }
 
 class _LoadingScreenState extends ConsumerState<LoadingScreen> {
+  bool _hasNavigated = false;
   @override
   void initState() {
     super.initState();
-    print('🔄 LoadingScreen: Initializing app...');
+    if (kDebugMode) print('🔄 LoadingScreen: Initializing app...');
 
     // Explicitly trigger auth initialization
     Future.microtask(() {
@@ -30,24 +36,27 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
   }
 
   Future<void> _handleAuthState(AuthState authState) async {
-    print(
+    if (kDebugMode) print(
         '🔄 LoadingScreen: _handleAuthState called - Status: ${authState.status}');
-    print(
+    if (kDebugMode) print(
         '🔄 LoadingScreen: Auth state - User: ${authState.user?.email ?? 'null'}, Role: ${authState.user?.role ?? 'null'}');
 
     if (!mounted) {
-      print('🔄 LoadingScreen: Widget not mounted, cannot navigate');
+      if (kDebugMode) print('🔄 LoadingScreen: Widget not mounted, cannot navigate');
       return;
     }
 
     if (authState.status == AuthStatus.authenticated) {
-      print(
+      if (_hasNavigated) return; // Already navigated, don't re-trigger
+      if (kDebugMode) print(
           '🔄 LoadingScreen: User authenticated, fetching language preferences...');
 
       // Fetch and apply user's language preferences
       // Note: Using PatientApiService but this endpoint works for both patients and caregivers
       try {
-        final authToken = await AuthService().getAccessToken();
+        final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) throw Exception('Authentication required');
+      final authToken = await firebaseUser.getIdToken(true);
         if (!mounted) return;
         if (authToken != null) {
           final apiService = PatientApiService(
@@ -59,35 +68,53 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
               .getLanguagePreferences()
               .timeout(const Duration(seconds: 3));
           if (!mounted) return;
-          final appLanguage = languagePrefs['app_language'] ?? 'en';
+          final appLanguage =
+              normalizeLanguageCode(languagePrefs['app_language'] ?? 'en');
 
-          print('🔄 LoadingScreen: Setting app language to: $appLanguage');
+          if (kDebugMode) print('🔄 LoadingScreen: Setting app language to: $appLanguage');
           if (!mounted) return;
           await ref.read(localeProvider.notifier).setLocaleFromString(appLanguage);
-        } else {
-          print(
-              '🔄 LoadingScreen: No auth token available, using default language');
-          if (!mounted) return;
-          await ref.read(localeProvider.notifier).setLocaleFromString('en');
         }
       } catch (e) {
-        print('🔄 LoadingScreen: Failed to fetch language preferences: $e');
-        print('🔄 LoadingScreen: Using default language (English)');
-        if (!mounted) return;
-        await ref.read(localeProvider.notifier).setLocaleFromString('en');
+        if (kDebugMode) print('🔄 LoadingScreen: Failed to fetch language preferences: $e');
+        if (kDebugMode) print(
+            '🔄 LoadingScreen: Keeping locale from local saved preferences');
       }
 
-      print('🔄 LoadingScreen: Navigating to role selection...');
-      if (!mounted) return;
-      context.go('/role-selection');
+      // Route based on saved role — skip role selection if already chosen
+      _hasNavigated = true;
+      final role = authState.user?.role;
+      final inviteRoute = await PendingInviteToken.consumeRoute();
+      if (inviteRoute != null) {
+        if (kDebugMode) {
+          print('🔄 LoadingScreen: Pending invite found, navigating to accept...');
+        }
+        if (!mounted) return;
+        context.go(inviteRoute);
+        return;
+      }
+      if (role == UserRole.caregiver) {
+        if (kDebugMode) print('🔄 LoadingScreen: Navigating to caregiver home...');
+        if (!mounted) return;
+        context.go('/caregiver/home');
+      } else if (role == UserRole.patient) {
+        if (kDebugMode) print('🔄 LoadingScreen: Navigating to patient home...');
+        if (!mounted) return;
+        context.go('/patient/home');
+      } else {
+        if (kDebugMode) print('🔄 LoadingScreen: No role saved, navigating to role selection...');
+        if (!mounted) return;
+        context.go('/role-selection');
+      }
     } else if (authState.status == AuthStatus.unauthenticated) {
-      print(
+      _hasNavigated = false;
+      if (kDebugMode) print(
           '🔄 LoadingScreen: User not authenticated, going to welcome screen...');
       // Go to welcome/onboarding flow
       if (!mounted) return;
       context.go('/welcome');
     } else if (authState.status == AuthStatus.error) {
-      print(
+      if (kDebugMode) print(
           '🔄 LoadingScreen: Auth error occurred, going to welcome screen...');
       // Go to welcome/onboarding flow
       if (!mounted) return;
@@ -111,13 +138,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Logo - Simple display
-            Image.asset(
-              'assets/images/RemiMinder_logo.png',
-              width: 160,
-              height: 160,
-              fit: BoxFit.contain,
-            ),
+            const BrandLogo(size: 160),
 
             const SizedBox(height: 20),
 
@@ -137,7 +158,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
 
             // Tagline - PM specs: Sans-serif (Poppins), small size, textSecondary
             const Text(
-              "Smart AI for Health & Care Coordination",
+              "Capture what matters. Remember what's next.",
               style: TextStyle(
                 fontFamily: 'Poppins', // Sans-serif as requested
                 fontSize: 12, // Small size (~12-14sp) as requested

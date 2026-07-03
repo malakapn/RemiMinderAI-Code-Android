@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/medication.dart';
-import '../models/reminder.dart';
+import '../../../../shared/models/reminder.dart';
 import '../models/appointment.dart';
 import '../models/visit.dart';
 import '../models/caregiver.dart';
@@ -71,7 +71,7 @@ class LocalStorageService {
 
   Future<void> _cacheRemindersLocally(List<Reminder> reminders) async {
     final prefs = await _prefs;
-    final remindersJson = reminders.map((r) => r.toJson()).toList();
+    final remindersJson = reminders.map((r) => r.toMap()).toList();
     final jsonString = json.encode(remindersJson);
     final encryptedData = await _encryptData(jsonString);
     await prefs.setString(_remindersKey, encryptedData);
@@ -116,7 +116,7 @@ class LocalStorageService {
         batch.delete(doc.reference);
       }
       for (final reminder in reminders) {
-        batch.set(remindersCollection.doc(reminder.id), reminder.toMap());
+        batch.set(remindersCollection.doc(reminder.id), reminder.toFirestoreMap());
       }
       await batch.commit();
     }
@@ -128,7 +128,7 @@ class LocalStorageService {
       final snapshot = await remindersCollection.get();
       if (snapshot.docs.isNotEmpty) {
         final reminders = snapshot.docs
-            .map((doc) => Reminder.fromJson(doc.data()))
+            .map((doc) => Reminder.fromMap(doc.data()))
             .toList(growable: false);
         await _cacheRemindersLocally(reminders);
         return reminders;
@@ -141,7 +141,7 @@ class LocalStorageService {
 
     final jsonString = await _decryptData(encryptedData);
     final List<dynamic> remindersJson = json.decode(jsonString);
-    return remindersJson.map((json) => Reminder.fromJson(json)).toList();
+    return remindersJson.map((json) => Reminder.fromMap(json)).toList();
   }
 
   // Appointments

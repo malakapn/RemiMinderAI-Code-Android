@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../core/services/auth_service.dart';
+import '../../../auth/data/models/auth_state.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../data/services/patient_api_service.dart';
 import 'upgrade_screen.dart';
@@ -16,36 +18,31 @@ class AccountDetailsScreen extends ConsumerStatefulWidget {
 
 class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
   bool _isUpdatingPhone = false;
-  int _summariesUsed = 0;
-  bool _isLoadingUsage = true;
 
   @override
   void initState() {
     super.initState();
-    _loadSummariesUsage();
-  }
-
-  Future<void> _loadSummariesUsage() async {
-    try {
-      final token = await AuthService().getAccessToken();
-      if (token == null) return;
-      PatientApiService.setAuthToken(token);
-      final summaries = await PatientApiService().getSummaries();
-      if (!mounted) return;
-      setState(() {
-        _summariesUsed = summaries.length;
-        _isLoadingUsage = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isLoadingUsage = false);
-    }
+    // Load profile if not already loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final authState = ref.read(authNotifierProvider);
+      if (authState.profile == null && authState.isAuthenticated) {
+        try {
+          final profile = await BackendApiService().getMyProfile();
+          final role = authState.user?.role;
+          final roleStr = role?.name ?? authState.profile?.role ?? 'patient';
+          ref.read(authNotifierProvider.notifier).updateProfile(
+            AuthProfile.fromUserProfile(profile).copyWith(role: roleStr),
+          );
+        } catch (_) {}
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authState = ref.watch(authNotifierProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -77,7 +74,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
                   ),
                   Expanded(
                     child: Text(
-                      'Account Details',
+                      l10n.accountDetails,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -100,34 +97,38 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
                   children: [
                     _buildDetailItem(
                       theme,
-                      'Name',
-                      authState.profile?.fullName ?? 'Not set',
+                      l10n.nameLabel,
+                      authState.profile?.fullName ?? l10n.notSet,
                       Icons.person,
                     ),
                     const SizedBox(height: 16),
                     _buildDetailItem(
                       theme,
-                      'Email',
-                      authState.profile?.email ?? 'Not set',
+                      l10n.emailLabel,
+                      () {
+                        final email = authState.profile?.email ?? '';
+                        if (email.contains('privaterelay.appleid.com')) {
+                          return l10n.appleIdHidden;
+                        }
+                        return email.isEmpty ? l10n.notSet : email;
+                      }(),
                       Icons.email,
                     ),
                     const SizedBox(height: 16),
                     _buildDetailItem(
                       theme,
-                      'Account Type',
-                      authState.profile?.role == 'patient'
-                          ? 'Patient'
-                          : 'Caregiver',
+                      l10n.accountType,
+                      () {
+                        final role = authState.profile?.role
+                            ?? (authState.user?.isPatient == true ? 'patient' : 'caregiver');
+                        return role == 'patient' ? l10n.patientRole : l10n.caregiverRole;
+                      }(),
                       Icons.account_circle,
                     ),
                     const SizedBox(height: 16),
-                    _buildPhoneDetailItem(theme, authState.profile?.phone),
+                    _buildPhoneDetailItem(theme, authState.profile?.phone, l10n),
                     const SizedBox(height: 16),
-                    _buildPlanDetailItem(
-                        theme, authState.profile?.plan ?? "free"),
-                    const SizedBox(height: 16),
-                    _buildUsageDetailItem(
-                        theme, authState.profile?.plan ?? "free"),
+                    _buildUsageDetailItem(theme, l10n),
                   ],
                 ),
               ),
@@ -188,10 +189,11 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
     );
   }
 
-  Widget _buildPhoneDetailItem(ThemeData theme, String? phone) {
+  Widget _buildPhoneDetailItem(
+      ThemeData theme, String? phone, AppLocalizations l10n) {
     final isPhoneSet = phone != null && phone.isNotEmpty;
-    final displayValue = isPhoneSet ? phone : 'Not set';
-    final actionText = isPhoneSet ? 'Edit' : 'Add';
+    final displayValue = isPhoneSet ? phone : l10n.notSet;
+    final actionText = isPhoneSet ? l10n.edit : l10n.add;
 
     return InkWell(
       onTap: _showPhoneEditDialog,
@@ -225,7 +227,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
                   Row(
                     children: [
                       Text(
-                        'Phone',
+                        l10n.phoneLabel,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurface.withOpacity(0.6),
                           fontWeight: FontWeight.w500,
@@ -262,171 +264,67 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
     );
   }
 
-  Widget _buildPlanDetailItem(ThemeData theme, String plan) {
-    final isFreePlan = plan == "free";
-    final displayValue = isFreePlan ? 'Free' : 'Premium';
-    final actionText = isFreePlan ? 'Upgrade' : 'Manage';
+  Widget _buildUsageDetailItem(ThemeData theme, AppLocalizations l10n) {
+    final cached = PatientApiService.getCachedSummaries();
+    final int count = cached?.length ?? 0;
 
-    return InkWell(
-      onTap: isFreePlan ? () => _navigateToUpgrade() : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.star,
-                color: theme.colorScheme.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Plan',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (isFreePlan) ...[
-                        const Spacer(),
-                        Text(
-                          actionText,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: theme.colorScheme.primary.withOpacity(0.6),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    displayValue,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
       ),
-    );
-  }
-
-  Widget _buildUsageDetailItem(ThemeData theme, String plan) {
-    const int limit = 2;
-    final isFreePlan = plan == "free";
-    final displayValue = _isLoadingUsage
-        ? 'Loading usage...'
-        : isFreePlan
-            ? 'Free plan — $_summariesUsed / $limit summaries used'
-            : 'Unlimited';
-    final actionText = isFreePlan ? 'Upgrade' : null;
-
-    return InkWell(
-      onTap: isFreePlan ? () => _navigateToUpgrade() : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.bar_chart,
-                color: theme.colorScheme.primary,
-                size: 20,
-              ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.15),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Usage',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (isFreePlan) ...[
-                        const Spacer(),
-                        Text(
-                          actionText!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: theme.colorScheme.primary.withOpacity(0.6),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    displayValue,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+            child: Icon(
+              Icons.bar_chart,
+              color: theme.colorScheme.primary,
+              size: 20,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.usageLabel,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$count summaries generated',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   void _navigateToUpgrade() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const UpgradeScreen()),
+    launchUrl(
+      Uri.parse('https://remiminderai.com/pricing'),
+      mode: LaunchMode.externalApplication,
     );
   }
 
   void _showPhoneEditDialog() {
+    final l10n = AppLocalizations.of(context)!;
     final authState = ref.read(authNotifierProvider);
     final currentPhone = authState.profile?.phone ?? '';
     final controller = TextEditingController(text: currentPhone);
@@ -435,11 +333,11 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Edit Phone Number'),
+          title: Text(l10n.editPhoneNumber),
           content: TextField(
             controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'Phone Number',
+            decoration: InputDecoration(
+              labelText: l10n.phoneNumber,
               hintText: '+1 (555) 123-4567',
             ),
             keyboardType: TextInputType.phone,
@@ -449,7 +347,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
             TextButton(
               onPressed:
                   _isUpdatingPhone ? null : () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: _isUpdatingPhone
@@ -461,7 +359,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save'),
+                  : Text(l10n.save),
             ),
           ],
         ),
@@ -470,11 +368,11 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
   }
 
   Future<void> _savePhoneNumber(String phoneInput, StateSetter setState) async {
+    final l10n = AppLocalizations.of(context)!;
     // Validate input
     if (phoneInput.isNotEmpty && phoneInput.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Phone number must be at least 8 characters long')),
+        SnackBar(content: Text(l10n.phoneMinLength)),
       );
       return;
     }
@@ -496,13 +394,13 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
       if (mounted) {
         Navigator.of(context).pop(); // Close dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Phone number updated successfully')),
+          SnackBar(content: Text(l10n.phoneUpdatedSuccess)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update phone number: $e')),
+          SnackBar(content: Text(l10n.phoneUpdateFailed(e.toString()))),
         );
       }
     } finally {

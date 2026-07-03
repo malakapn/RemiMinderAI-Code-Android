@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/supported_languages.dart';
+
 /// SharedPreferences key for the user's chosen app language code.
 const String kPreferredLanguagePrefsKey = 'preferred_language';
 
@@ -20,7 +22,9 @@ class LocaleNotifier extends Notifier<Locale> {
   Future<void> _loadSavedLocale() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final code = prefs.getString(kPreferredLanguagePrefsKey) ?? 'en';
+      final code = normalizeLanguageCode(
+        prefs.getString(kPreferredLanguagePrefsKey) ?? 'en',
+      );
       if (code != state.languageCode) {
         state = Locale(code);
       }
@@ -36,7 +40,7 @@ class LocaleNotifier extends Notifier<Locale> {
 
   /// Set locale from a BCP-47 language code (e.g. en, es, hi).
   Future<void> setLocaleFromString(String languageCode) async {
-    state = Locale(languageCode);
+    state = Locale(normalizeLanguageCode(languageCode));
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(kPreferredLanguagePrefsKey, languageCode);

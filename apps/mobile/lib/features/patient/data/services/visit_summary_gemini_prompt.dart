@@ -6,6 +6,13 @@ const Map<String, String> _kLanguageCodeToEnglishName = {
   'en': 'English',
   'es': 'Spanish',
   'hi': 'Hindi',
+  'fr': 'French',
+  'pt': 'Portuguese',
+  'de': 'German',
+  'bn': 'Bengali',
+  'ta': 'Tamil',
+  'gu': 'Gujarati',
+  'pa': 'Punjabi',
 };
 
 /// Reads the saved language code used for Gemini visit-summary generation.

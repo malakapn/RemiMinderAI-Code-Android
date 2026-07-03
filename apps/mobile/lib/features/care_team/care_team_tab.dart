@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../core/models/user.dart';
 
 import '../../core/config/theme.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/invitation_provider.dart';
 import 'data/models/care_team_member.dart';
 import 'data/services/care_team_api_service.dart';
@@ -68,6 +71,7 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: RemiCareUiColors.bodyBackground,
@@ -76,21 +80,21 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Care Team',
-              style: TextStyle(
+              l10n.careTeamTitle,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
-              'Invite family or medical staff',
-              style: TextStyle(
+              l10n.caregiverCareTeamSubtitle,
+              style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
@@ -132,7 +136,7 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(
-                  'No caregivers added yet',
+                  l10n.noCaregiversYet,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -144,7 +148,7 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Active Caregivers',
+                    l10n.activeCaregivers,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: RemiCareUiColors.sectionHeaderText,
@@ -159,7 +163,8 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
                             member.email ??
                             member.memberUserId,
                         role: member.role,
-                        accessLevel: _formatAccessLabel(member.permission),
+                        permission: member.permission,
+                        l10n: l10n,
                         onManagePermissions: () {
                           _showManageDialog(context, member);
                         },
@@ -169,9 +174,11 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
                 ],
               ),
             const SizedBox(height: 24),
-            InviteCaregiverTile(
-              onInvite: () => _showInviteDialog(context),
-            ),
+            if (ref.read(authNotifierProvider).user?.role != UserRole.caregiver)
+              InviteCaregiverTile(
+                l10n: l10n,
+                onInvite: () => _showInviteDialog(context),
+              ),
           ],
         ),
       ),
@@ -267,6 +274,7 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
   }
 
   void _showManageDialog(BuildContext context, CareTeamMember member) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -289,7 +297,7 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
               if (!mounted) return;
               if (success) {
                 setDialogState(() {
-                  successMessage = 'Access updated successfully';
+                  successMessage = l10n.accessUpdatedSuccess;
                 });
                 await Future.delayed(const Duration(milliseconds: 800));
                 if (!mounted) return;
@@ -298,7 +306,7 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
                 setDialogState(() {
                   isLoading = false;
                   successMessage = null;
-                  errorMessage = 'Failed to update access. Please try again.';
+                  errorMessage = l10n.accessUpdateFailed;
                 });
               }
             }
@@ -307,19 +315,17 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
               final confirmed = await showDialog<bool>(
                 context: dialogContext,
                 builder: (context) => AlertDialog(
-                  title: const Text('Remove caregiver?'),
-                  content: const Text(
-                    'Are you sure you want to remove this caregiver? They will lose access immediately.',
-                  ),
+                  title: Text(l10n.removeCaregiverTitle),
+                  content: Text(l10n.removeCaregiverMessage),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
+                      child: Text(l10n.cancel),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(true),
                       style: TextButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('Remove'),
+                      child: Text(l10n.remove),
                     ),
                   ],
                 ),
@@ -330,7 +336,7 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
               setDialogState(() {
                 isLoading = true;
                 errorMessage = null;
-                successMessage = 'Removing caregiver...';
+                successMessage = l10n.removingCaregiver;
               });
 
               final success = await _applyRemoveMember(member.id);
@@ -341,19 +347,18 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
                 setDialogState(() {
                   isLoading = false;
                   successMessage = null;
-                  errorMessage =
-                      'Failed to remove caregiver. Please try again.';
+                  errorMessage = l10n.removeCaregiverFailed;
                 });
               }
             }
 
             return AlertDialog(
-              title: const Text('Manage Access'),
+              title: Text(l10n.manageAccess),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Update caregiver permission or remove access.'),
+                  Text(l10n.manageAccessDescription),
                   if (successMessage != null) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -382,18 +387,18 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
                       ? null
                       : () => handleAction(
                             () => _applyPermissionChange(member.id, 'view'),
-                            'Updating access...',
+                            l10n.updatingAccess,
                           ),
-                  child: const Text('View Access'),
+                  child: Text(l10n.viewAccess),
                 ),
                 TextButton(
                   onPressed: isLoading
                       ? null
                       : () => handleAction(
                             () => _applyPermissionChange(member.id, 'full'),
-                            'Updating access...',
+                            l10n.updatingAccess,
                           ),
-                  child: const Text('Full Access'),
+                  child: Text(l10n.fullAccess),
                 ),
                 TextButton(
                   onPressed: isLoading ? null : handleRemove,
@@ -406,7 +411,7 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Remove'),
+                      : Text(l10n.remove),
                 ),
               ],
             );
@@ -442,7 +447,4 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
     }
   }
 
-  String _formatAccessLabel(String permission) {
-    return permission == 'full' ? 'Full Access' : 'View Only';
-  }
 }
