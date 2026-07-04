@@ -2,43 +2,35 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'app.dart';
 import 'core/config/environment.dart';
-import 'core/services/notification_service.dart';
-
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(
-    RemoteMessage message) async {
-  await Firebase.initializeApp();
-}
-
-Future<void> _bootstrapServices() async {
-  try {
-    await Firebase.initializeApp().timeout(const Duration(seconds: 20));
-    debugPrint('Firebase initialized');
-  } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
-  }
-
-  try {
-    await NotificationService().initialize();
-  } catch (e) {
-    debugPrint('NotificationService initialization failed: $e');
-  }
-}
+import 'core/config/firebase_bootstrap.dart';
 
 /// App entry point with Riverpod state management
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Environment.load();
-  Environment.validate();
+  try {
+    Environment.validate();
+  } catch (e) {
+    // Misconfigured .env must not hard-crash the shell; auth/API may fail later.
+    debugPrint('Environment.validate: $e');
+  }
   debugPrint('📡 API base URL: ${Environment.apiBaseUrl}');
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // Initialize Firebase before registering FCM background handlers — registering
+  // first with a bad/missing google-services.json crashes natively on Samsung.
+  final firebaseReady = await bootstrapFirebase();
+  if (firebaseReady) {
+    registerFirebaseBackgroundMessaging();
+  } else {
+    debugPrint(
+      'Skipping FCM background handler — Firebase not ready. '
+      'Check apps/mobile/android/app/google-services.json (download from Firebase Console).',
+    );
+  }
 
   runApp(
     const ProviderScope(
@@ -46,8 +38,9 @@ Future<void> main() async {
     ),
   );
 
-  // Defer heavy init until after the first frame so MainActivity stays visible.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(_bootstrapServices());
-  });
+  if (firebaseReady) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(bootstrapNotifications());
+    });
+  }
 }

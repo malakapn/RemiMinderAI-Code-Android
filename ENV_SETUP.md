@@ -100,6 +100,42 @@ Your **signing certificate** has **both** a SHA-1 and a SHA-256 fingerprint. The
 
 Add every fingerprint for keys that sign builds you run (debug, release, Play App Signing), then download an updated **`google-services.json`** if Firebase prompts you to.
 
+### Samsung / physical device crash on launch
+
+If the app **installs but closes immediately** on a real phone, the most common cause is a **missing or placeholder** `google-services.json` (the repo may ship a stub with `mobilesdk_app_id` ending in zeros). Push/FCM starts native Firebase code before the UI loads and can crash the process.
+
+**Fix:**
+
+1. On your Mac, print your **debug SHA-1** (used by `flutter run`):
+
+   ```bash
+   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep SHA1
+   ```
+
+2. [Firebase Console](https://console.firebase.google.com/) → project **stunning-ripsaw-480402-i4** → Project settings → Your apps → Android app **`com.remiminder.app.dev`** → **Add fingerprint** → paste SHA-1.
+
+3. Download **`google-services.json`** and replace:
+
+   `apps/mobile/android/app/google-services.json`
+
+4. Rebuild:
+
+   ```bash
+   cd apps/mobile
+   flutter clean && flutter pub get
+   flutter run -d <device-id>
+   ```
+
+5. If it still crashes, capture logs:
+
+   ```bash
+   adb logcat -c
+   # open app on phone
+   adb logcat -d | grep -iE "FATAL|AndroidRuntime|Firebase|remiminder"
+   ```
+
+The app is designed to **open without Firebase** (welcome screen) if init fails, but a bad `google-services.json` can still crash native code before Dart runs — replacing that file is required for a stable Samsung build.
+
 ## Security notes
 
 - Never commit `.env` files to git.

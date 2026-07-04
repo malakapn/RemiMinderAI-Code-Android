@@ -1,17 +1,9 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 
 import 'notification_service.dart';
-
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  debugPrint('Background message: ${message.messageId}');
-}
 
 /// Firebase Cloud Messaging: token sync to Firestore and foreground display.
 class FCMService {
@@ -20,8 +12,6 @@ class FCMService {
   factory FCMService() => _instance;
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-
-  static bool _backgroundHandlerRegistered = false;
 
   StreamSubscription<RemoteMessage>? _onMessageSub;
   StreamSubscription<String>? _onTokenRefreshSub;
@@ -36,11 +26,6 @@ class FCMService {
   /// Registers background handler (once), requests permission, saves token to
   /// `users/{userId}` (`fcmToken`), and wires foreground / token refresh.
   Future<void> initialize(String userId) async {
-    if (!_backgroundHandlerRegistered) {
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-      _backgroundHandlerRegistered = true;
-    }
-
     await _onMessageSub?.cancel();
     await _onTokenRefreshSub?.cancel();
 
