@@ -451,8 +451,9 @@ class _OverviewScreenState extends State<OverviewScreen>
       if (authToken == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Authentication error. Please log in again.')),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)!.authenticationErrorLoginAgain)),
         );
         return;
       }
@@ -525,7 +526,7 @@ class _OverviewScreenState extends State<OverviewScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {

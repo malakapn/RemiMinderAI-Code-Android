@@ -511,5 +511,96 @@
   "captureAndScan": "ক্যাপচার ও স্ক্যান",
   "relationshipHint": "যেমন, ছেলে, মেয়ে, বন্ধু, নার্স",
   "emailAndRoleRequired": "ইমেইল ও ভূমিকা প্রয়োজন",
-  "summaryReadyTitle": "আপনার ভিজিট সারাংশ প্রস্তুত!"
+  "summaryReadyTitle": "আপনার ভিজিট সারাংশ প্রস্তুত!",
+  "generateSummary": "সারাংশ তৈরি করুন",
+  "discardRecording": "রেকর্ডিং বাতিল করুন",
+  "unableToStartRecording": "রেকর্ডিং শুরু করা যায়নি: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "রেকর্ডিং সম্পন্ন!",
+  "unableToStopRecording": "রেকর্ডিং বন্ধ করা যায়নি: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "রেকর্ডিং বাতিল করা হয়েছে",
+  "unableToOpenPrivacyPolicy": "গোপনীয়তা নীতি খোলা যায়নি।",
+  "noRecordingAvailable": "কোনো রেকর্ডিং নেই",
+  "uploadingAudio": "অডিও আপলোড হচ্ছে...",
+  "failedToUploadAudio": "অডিও আপলোড ব্যর্থ: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "রেকর্ডিং বন্ধ করবেন?",
+  "continueRecording": "রেকর্ডিং চালিয়ে যান",
+  "stopAndDiscard": "বন্ধ করুন ও বাতিল করুন",
+  "share": "শেয়ার",
+  "cameraNotReady": "ক্যামেরা প্রস্তুত নয়। আবার চেষ্টা করুন।",
+  "failedToCaptureImage": "ছবি তোলা ব্যর্থ: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "ক্যামেরা শুরু করা যায়নি। আবার চেষ্টা করুন।",
+  "cameraReadyHint": "ক্যামেরা প্রস্তুত। নথি রাখুন এবং ক্যাপচার ট্যাপ করুন।",
+  "unableToStartScanning": "স্ক্যান শুরু করা যায়নি: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "ছবি আপলোড ব্যর্থ: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "প্রক্রিয়ার জন্য ছবি নেই। আবার ক্যাপচার করুন।",
+  "documentScannedSaved": "নথি স্ক্যান ও সংরক্ষিত!",
+  "scanProcessingFailed": "স্ক্যান প্রক্রিয়াকরণ ব্যর্থ: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "স্ক্যান আপনার ভিজিট ইতিহাসে সংরক্ষিত",
+  "localNotificationSchedulingFailed": "স্থানীয় বিজ্ঞপ্তি শিডিউল ব্যর্থ: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "রিমাইন্ডার পুনঃনির্ধারণ ব্যর্থ: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "প্রমাণীকরণ ত্রুটি। আবার লগ ইন করুন।",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }

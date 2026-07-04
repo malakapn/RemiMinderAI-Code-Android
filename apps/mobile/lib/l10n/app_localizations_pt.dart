@@ -1283,4 +1283,113 @@ class AppLocalizationsPt extends AppLocalizations {
   String retryFailed(String error) {
     return 'Nova tentativa falhou: $error';
   }
+
+  @override
+  String get generateSummary => 'Gerar resumo';
+
+  @override
+  String get discardRecording => 'Descartar gravação';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'Não foi possível iniciar a gravação: $error';
+  }
+
+  @override
+  String get recordingCompleted => 'Gravação concluída!';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'Não foi possível parar a gravação: $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'Gravação descartada';
+
+  @override
+  String get unableToOpenPrivacyPolicy =>
+      'Não foi possível abrir a Política de Privacidade.';
+
+  @override
+  String get noRecordingAvailable => 'Nenhuma gravação disponível';
+
+  @override
+  String get uploadingAudio => 'Enviando áudio...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'Falha ao enviar áudio: $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'Parar gravação?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'Continuar gravando';
+
+  @override
+  String get stopAndDiscard => 'Parar e descartar';
+
+  @override
+  String get share => 'Compartilhar';
+
+  @override
+  String get cameraNotReady => 'Câmera não está pronta. Tente novamente.';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'Falha ao capturar imagem: $error';
+  }
+
+  @override
+  String get unableToStartCamera =>
+      'Não foi possível iniciar a câmera. Tente novamente.';
+
+  @override
+  String get cameraReadyHint =>
+      'Câmera pronta. Posicione o documento e toque em capturar.';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'Não foi possível iniciar a digitalização: $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'Falha ao enviar imagem: $error';
+  }
+
+  @override
+  String get noImageToProcess =>
+      'Nenhuma imagem para processar. Capture novamente.';
+
+  @override
+  String get documentScannedSaved => 'Documento digitalizado e salvo!';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'Falha no processamento da digitalização: $error';
+  }
+
+  @override
+  String get scanSavedToHistory =>
+      'Digitalização salva no histórico de visitas';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'Falha ao agendar notificação local: $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'Falha ao reagendar lembrete: $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain =>
+      'Erro de autenticação. Faça login novamente.';
 }

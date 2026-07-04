@@ -1290,4 +1290,112 @@ class AppLocalizationsFr extends AppLocalizations {
   String retryFailed(String error) {
     return 'Nouvelle tentative échouée : $error';
   }
+
+  @override
+  String get generateSummary => 'Générer le résumé';
+
+  @override
+  String get discardRecording => 'Supprimer l\'enregistrement';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'Impossible de démarrer l\'enregistrement : $error';
+  }
+
+  @override
+  String get recordingCompleted => 'Enregistrement terminé !';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'Impossible d\'arrêter l\'enregistrement : $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'Enregistrement supprimé';
+
+  @override
+  String get unableToOpenPrivacyPolicy =>
+      'Impossible d\'ouvrir la politique de confidentialité.';
+
+  @override
+  String get noRecordingAvailable => 'Aucun enregistrement disponible';
+
+  @override
+  String get uploadingAudio => 'Téléversement de l\'audio...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'Échec du téléversement audio : $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'Arrêter l\'enregistrement ?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'Continuer l\'enregistrement';
+
+  @override
+  String get stopAndDiscard => 'Arrêter et supprimer';
+
+  @override
+  String get share => 'Partager';
+
+  @override
+  String get cameraNotReady => 'Caméra non prête. Réessayez.';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'Échec de la capture : $error';
+  }
+
+  @override
+  String get unableToStartCamera =>
+      'Impossible de démarrer la caméra. Réessayez.';
+
+  @override
+  String get cameraReadyHint =>
+      'Caméra prête. Placez votre document et appuyez sur capturer.';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'Impossible de démarrer la numérisation : $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'Échec du téléversement de l\'image : $error';
+  }
+
+  @override
+  String get noImageToProcess => 'Aucune image à traiter. Capturez à nouveau.';
+
+  @override
+  String get documentScannedSaved => 'Document numérisé et enregistré !';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'Échec du traitement de la numérisation : $error';
+  }
+
+  @override
+  String get scanSavedToHistory =>
+      'Numérisation enregistrée dans l\'historique des visites';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'Échec de la planification de notification : $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'Échec de la reprogrammation du rappel : $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain =>
+      'Erreur d\'authentification. Reconnectez-vous.';
 }

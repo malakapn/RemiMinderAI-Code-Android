@@ -1288,4 +1288,108 @@ class AppLocalizationsGu extends AppLocalizations {
   String retryFailed(String error) {
     return 'પુનઃપ્રયાસ નિષ્ફળ: $error';
   }
+
+  @override
+  String get generateSummary => 'સારાંશ બનાવો';
+
+  @override
+  String get discardRecording => 'રેકોર્ડિંગ કાઢી નાખો';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'રેકોર્ડિંગ શરૂ થઈ શક્યું નહીં: $error';
+  }
+
+  @override
+  String get recordingCompleted => 'રેકોર્ડિંગ પૂર્ણ!';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'રેકોર્ડિંગ બંધ થઈ શક્યું નહીં: $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'રેકોર્ડિંગ કાઢી નાખ્યું';
+
+  @override
+  String get unableToOpenPrivacyPolicy => 'ગોપનીયતા નીતિ ખોલી શકાઈ નહીં.';
+
+  @override
+  String get noRecordingAvailable => 'કોઈ રેકોર્ડિંગ ઉપલબ્ધ નથી';
+
+  @override
+  String get uploadingAudio => 'ઑડિયો અપલોડ થઈ રહ્યું છે...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'ઑડિયો અપલોડ નિષ્ફળ: $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'રેકોર્ડિંગ બંધ કરો?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'રેકોર્ડિંગ ચાલુ રાખો';
+
+  @override
+  String get stopAndDiscard => 'બંધ કરો અને કાઢી નાખો';
+
+  @override
+  String get share => 'શેર કરો';
+
+  @override
+  String get cameraNotReady => 'કેમેરા તૈયાર નથી. ફરી પ્રયાસ કરો.';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'છબી કેપ્ચર નિષ્ફળ: $error';
+  }
+
+  @override
+  String get unableToStartCamera => 'કેમેરા શરૂ થઈ શક્યો નહીં. ફરી પ્રયાસ કરો.';
+
+  @override
+  String get cameraReadyHint =>
+      'કેમેરા તૈયાર. દસ્તાવેજ મૂકો અને કેપ્ચર ટેપ કરો.';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'સ્કેન શરૂ થઈ શક્યું નહીં: $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'છબી અપલોડ નિષ્ફળ: $error';
+  }
+
+  @override
+  String get noImageToProcess => 'પ્રોસેસ કરવા છબી નથી. ફરી કેપ્ચર કરો.';
+
+  @override
+  String get documentScannedSaved => 'દસ્તાવેજ સ્કેન અને સાચવ્યો!';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'સ્કેન પ્રોસેસિંગ નિષ્ફળ: $error';
+  }
+
+  @override
+  String get scanSavedToHistory => 'સ્કેન તમારા મુલાકાત ઇતિહાસમાં સાચવ્યો';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'સ્થાનિક સૂચના શેડ્યૂલ નિષ્ફળ: $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'રિમાઇન્ડર પુનઃશેડ્યૂલ નિષ્ફળ: $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain => 'પ્રમાણીકરણ ભૂલ. ફરી લૉગ ઇન કરો.';
 }

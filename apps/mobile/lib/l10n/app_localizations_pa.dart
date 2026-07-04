@@ -1293,4 +1293,110 @@ class AppLocalizationsPa extends AppLocalizations {
   String retryFailed(String error) {
     return 'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਅਸਫਲ: $error';
   }
+
+  @override
+  String get generateSummary => 'ਸਾਰਾਂਸ਼ ਬਣਾਓ';
+
+  @override
+  String get discardRecording => 'ਰਿਕਾਰਡਿੰਗ ਰੱਦ ਕਰੋ';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'ਰਿਕਾਰਡਿੰਗ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋ ਸਕੀ: $error';
+  }
+
+  @override
+  String get recordingCompleted => 'ਰਿਕਾਰਡਿੰਗ ਪੂਰੀ!';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'ਰਿਕਾਰਡਿੰਗ ਰੋਕੀ ਨਹੀਂ ਜਾ ਸਕੀ: $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'ਰਿਕਾਰਡਿੰਗ ਰੱਦ ਕੀਤੀ ਗਈ';
+
+  @override
+  String get unableToOpenPrivacyPolicy => 'ਗੋਪਨੀਯਤਾ ਨੀਤੀ ਨਹੀਂ ਖੋਲ੍ਹੀ ਜਾ ਸਕੀ।';
+
+  @override
+  String get noRecordingAvailable => 'ਕੋਈ ਰਿਕਾਰਡਿੰਗ ਉਪਲਬਧ ਨਹੀਂ';
+
+  @override
+  String get uploadingAudio => 'ਆਡੀਓ ਅਪਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'ਆਡੀਓ ਅਪਲੋਡ ਅਸਫਲ: $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'ਰਿਕਾਰਡਿੰਗ ਰੋਕੋ?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'ਰਿਕਾਰਡਿੰਗ ਜਾਰੀ ਰੱਖੋ';
+
+  @override
+  String get stopAndDiscard => 'ਰੋਕੋ ਅਤੇ ਰੱਦ ਕਰੋ';
+
+  @override
+  String get share => 'ਸਾਂਝਾ ਕਰੋ';
+
+  @override
+  String get cameraNotReady => 'ਕੈਮਰਾ ਤਿਆਰ ਨਹੀਂ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'ਚਿੱਤਰ ਕੈਪਚਰ ਅਸਫਲ: $error';
+  }
+
+  @override
+  String get unableToStartCamera =>
+      'ਕੈਮਰਾ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।';
+
+  @override
+  String get cameraReadyHint => 'ਕੈਮਰਾ ਤਿਆਰ। ਦਸਤਾਵੇਜ਼ ਰੱਖੋ ਅਤੇ ਕੈਪਚਰ ਟੈਪ ਕਰੋ।';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'ਸਕੈਨ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋ ਸਕਿਆ: $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'ਚਿੱਤਰ ਅਪਲੋਡ ਅਸਫਲ: $error';
+  }
+
+  @override
+  String get noImageToProcess => 'ਪ੍ਰੋਸੈਸ ਕਰਨ ਲਈ ਚਿੱਤਰ ਨਹੀਂ। ਦੁਬਾਰਾ ਕੈਪਚਰ ਕਰੋ।';
+
+  @override
+  String get documentScannedSaved => 'ਦਸਤਾਵੇਜ਼ ਸਕੈਨ ਅਤੇ ਸੰਭਾਲਿਆ ਗਿਆ!';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'ਸਕੈਨ ਪ੍ਰੋਸੈਸਿੰਗ ਅਸਫਲ: $error';
+  }
+
+  @override
+  String get scanSavedToHistory =>
+      'ਸਕੈਨ ਤੁਹਾਡੇ ਮੁਲਾਕਾਤ ਇਤਿਹਾਸ ਵਿੱਚ ਸੰਭਾਲਿਆ ਗਿਆ';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'ਸਥਾਨਕ ਸੂਚਨਾ ਸ਼ੈਡਿਊਲ ਅਸਫਲ: $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'ਰਿਮਾਈਂਡਰ ਮੁੜ-ਸ਼ੈਡਿਊਲ ਅਸਫਲ: $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain =>
+      'ਪ੍ਰਮਾਣੀਕਰਨ ਗਲਤੀ। ਦੁਬਾਰਾ ਲੌਗ ਇਨ ਕਰੋ।';
 }

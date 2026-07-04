@@ -660,5 +660,96 @@
   "captureAndScan": "કેપ્ચર અને સ્કેન",
   "relationshipHint": "દા.ત., પુત્ર, પુત્રી, મિત્ર, નર્સ",
   "emailAndRoleRequired": "ઇમેઇલ અને ભૂમિકા જરૂરી છે",
-  "summaryReadyTitle": "તમારો મુલાકાત સારાંશ તૈયાર છે!"
+  "summaryReadyTitle": "તમારો મુલાકાત સારાંશ તૈયાર છે!",
+  "generateSummary": "સારાંશ બનાવો",
+  "discardRecording": "રેકોર્ડિંગ કાઢી નાખો",
+  "unableToStartRecording": "રેકોર્ડિંગ શરૂ થઈ શક્યું નહીં: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "રેકોર્ડિંગ પૂર્ણ!",
+  "unableToStopRecording": "રેકોર્ડિંગ બંધ થઈ શક્યું નહીં: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "રેકોર્ડિંગ કાઢી નાખ્યું",
+  "unableToOpenPrivacyPolicy": "ગોપનીયતા નીતિ ખોલી શકાઈ નહીં.",
+  "noRecordingAvailable": "કોઈ રેકોર્ડિંગ ઉપલબ્ધ નથી",
+  "uploadingAudio": "ઑડિયો અપલોડ થઈ રહ્યું છે...",
+  "failedToUploadAudio": "ઑડિયો અપલોડ નિષ્ફળ: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "રેકોર્ડિંગ બંધ કરો?",
+  "continueRecording": "રેકોર્ડિંગ ચાલુ રાખો",
+  "stopAndDiscard": "બંધ કરો અને કાઢી નાખો",
+  "share": "શેર કરો",
+  "cameraNotReady": "કેમેરા તૈયાર નથી. ફરી પ્રયાસ કરો.",
+  "failedToCaptureImage": "છબી કેપ્ચર નિષ્ફળ: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "કેમેરા શરૂ થઈ શક્યો નહીં. ફરી પ્રયાસ કરો.",
+  "cameraReadyHint": "કેમેરા તૈયાર. દસ્તાવેજ મૂકો અને કેપ્ચર ટેપ કરો.",
+  "unableToStartScanning": "સ્કેન શરૂ થઈ શક્યું નહીં: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "છબી અપલોડ નિષ્ફળ: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "પ્રોસેસ કરવા છબી નથી. ફરી કેપ્ચર કરો.",
+  "documentScannedSaved": "દસ્તાવેજ સ્કેન અને સાચવ્યો!",
+  "scanProcessingFailed": "સ્કેન પ્રોસેસિંગ નિષ્ફળ: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "સ્કેન તમારા મુલાકાત ઇતિહાસમાં સાચવ્યો",
+  "localNotificationSchedulingFailed": "સ્થાનિક સૂચના શેડ્યૂલ નિષ્ફળ: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "રિમાઇન્ડર પુનઃશેડ્યૂલ નિષ્ફળ: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "પ્રમાણીકરણ ભૂલ. ફરી લૉગ ઇન કરો.",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }

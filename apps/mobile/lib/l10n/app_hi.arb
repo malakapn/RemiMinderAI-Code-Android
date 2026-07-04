@@ -511,5 +511,96 @@
   "captureAndScan": "कैप्चर और स्कैन",
   "relationshipHint": "जैसे, बेटा, बेटी, मित्र, नर्स",
   "emailAndRoleRequired": "ईमेल और भूमिका आवश्यक हैं",
-  "summaryReadyTitle": "आपका विज़िट सारांश तैयार है!"
+  "summaryReadyTitle": "आपका विज़िट सारांश तैयार है!",
+  "generateSummary": "सारांश बनाएं",
+  "discardRecording": "रिकॉर्डिंग हटाएं",
+  "unableToStartRecording": "रिकॉर्डिंग शुरू नहीं हो सकी: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "रिकॉर्डिंग पूर्ण!",
+  "unableToStopRecording": "रिकॉर्डिंग रोक नहीं सकी: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "रिकॉर्डिंग हटा दी गई",
+  "unableToOpenPrivacyPolicy": "गोपनीयता नीति नहीं खोल सकी।",
+  "noRecordingAvailable": "कोई रिकॉर्डिंग उपलब्ध नहीं",
+  "uploadingAudio": "ऑडियो अपलोड हो रहा है...",
+  "failedToUploadAudio": "ऑडियो अपलोड विफल: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "रिकॉर्डिंग रोकें?",
+  "continueRecording": "रिकॉर्डिंग जारी रखें",
+  "stopAndDiscard": "रोकें और हटाएं",
+  "share": "साझा करें",
+  "cameraNotReady": "कैमरा तैयार नहीं। कृपया पुनः प्रयास करें।",
+  "failedToCaptureImage": "छवि कैप्चर विफल: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "कैमरा शुरू नहीं हो सका। कृपया पुनः प्रयास करें।",
+  "cameraReadyHint": "कैमरा तैयार। दस्तावेज़ रखें और कैप्चर टैप करें।",
+  "unableToStartScanning": "स्कैन शुरू नहीं हो सका: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "छवि अपलोड विफल: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "प्रोसेस करने के लिए कोई छवि नहीं। फिर से कैप्चर करें।",
+  "documentScannedSaved": "दस्तावेज़ स्कैन और सहेजा गया!",
+  "scanProcessingFailed": "स्कैन प्रोसेसिंग विफल: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "स्कैन आपके विज़िट इतिहास में सहेजा गया",
+  "localNotificationSchedulingFailed": "स्थानीय सूचना शेड्यूल विफल: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "रिमाइंडर पुनर्निर्धारण विफल: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "प्रमाणीकरण त्रुटि। कृपया फिर से लॉग इन करें।",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 
@@ -486,7 +487,7 @@ class _CameraScreenState extends State<CameraScreen>
                     child: OutlinedButton.icon(
                       onPressed: _shareScan,
                       icon: const Icon(Icons.share),
-                      label: const Text('Share'),
+                      label: Text(AppLocalizations.of(context)!.share),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -497,7 +498,7 @@ class _CameraScreenState extends State<CameraScreen>
                     child: ElevatedButton.icon(
                       onPressed: _saveScan,
                       icon: const Icon(Icons.save),
-                      label: const Text('Save'),
+                      label: Text(AppLocalizations.of(context)!.save),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -702,7 +703,7 @@ class _CameraScreenState extends State<CameraScreen>
   void _captureImage() async {
     if (!_isCameraInitialized || _cameraController == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Camera not ready. Please try again.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.cameraNotReady)),
       );
       return;
     }
@@ -732,7 +733,7 @@ class _CameraScreenState extends State<CameraScreen>
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to capture image: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.failedToCaptureImage('$e'))),
       );
     }
   }
@@ -755,23 +756,22 @@ class _CameraScreenState extends State<CameraScreen>
 
       if (!initialized) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to start the camera. Please try again.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.unableToStartCamera),
           ),
         );
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Camera ready. Position your document and tap capture.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.cameraReadyHint),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to start scanning: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.unableToStartScanning('$e'))),
       );
     } finally {
       if (mounted) {
@@ -824,13 +824,13 @@ class _CameraScreenState extends State<CameraScreen>
 
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to open the Privacy Policy.')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.unableToOpenPrivacyPolicy)),
         );
       }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to open the Privacy Policy.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.unableToOpenPrivacyPolicy)),
       );
     }
   }
@@ -860,7 +860,7 @@ class _CameraScreenState extends State<CameraScreen>
         } catch (e) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to upload image: $e')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.failedToUploadImage('$e'))),
           );
           _lastCapturedImagePath = null;
           return;
@@ -894,7 +894,7 @@ class _CameraScreenState extends State<CameraScreen>
   void _saveScan() async {
     if (_lastGcsFilePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No image to process. Please capture again.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.noImageToProcess)),
       );
       return;
     }
@@ -906,12 +906,12 @@ class _CameraScreenState extends State<CameraScreen>
       await _backendApiService.scanDocument(gcsFilePath: _lastGcsFilePath!);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Document scanned and saved!')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.documentScannedSaved)),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Scan processing failed: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.scanProcessingFailed('$e'))),
       );
     }
 
@@ -922,7 +922,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   void _shareScan() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Scan saved to your visit history')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.scanSavedToHistory)),
     );
     context.go('/patient/overview');
   }

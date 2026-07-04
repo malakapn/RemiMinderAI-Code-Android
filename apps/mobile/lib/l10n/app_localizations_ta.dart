@@ -1290,4 +1290,112 @@ class AppLocalizationsTa extends AppLocalizations {
   String retryFailed(String error) {
     return 'மீண்டும் முயற்சி தோல்வி: $error';
   }
+
+  @override
+  String get generateSummary => 'சுருக்கம் உருவாக்கு';
+
+  @override
+  String get discardRecording => 'பதிவை நிராகரி';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'பதிவைத் தொடங்க முடியவில்லை: $error';
+  }
+
+  @override
+  String get recordingCompleted => 'பதிவு முடிந்தது!';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'பதிவை நிறுத்த முடியவில்லை: $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'பதிவு நிராகரிக்கப்பட்டது';
+
+  @override
+  String get unableToOpenPrivacyPolicy =>
+      'தனியுரிமைக் கொள்கையைத் திறக்க முடியவில்லை.';
+
+  @override
+  String get noRecordingAvailable => 'பதிவு இல்லை';
+
+  @override
+  String get uploadingAudio => 'ஆடியோ பதிவேற்றப்படுகிறது...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'ஆடியோ பதிவேற்றம் தோல்வி: $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'பதிவை நிறுத்தவா?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'பதிவைத் தொடரவும்';
+
+  @override
+  String get stopAndDiscard => 'நிறுத்தி நிராகரி';
+
+  @override
+  String get share => 'பகிர்';
+
+  @override
+  String get cameraNotReady => 'கேமரா தயாராக இல்லை. மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'படம் எடுப்பு தோல்வி: $error';
+  }
+
+  @override
+  String get unableToStartCamera =>
+      'கேமராவைத் தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String get cameraReadyHint =>
+      'கேமரா தயார். ஆவணத்தை வைத்து கேப்சர் அழுத்தவும்.';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'ஸ்கேன் தொடங்க முடியவில்லை: $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'படம் பதிவேற்றம் தோல்வி: $error';
+  }
+
+  @override
+  String get noImageToProcess => 'செயலாக்க படம் இல்லை. மீண்டும் எடுக்கவும்.';
+
+  @override
+  String get documentScannedSaved => 'ஆவணம் ஸ்கேன் செய்து சேமிக்கப்பட்டது!';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'ஸ்கேன் செயலாக்கம் தோல்வி: $error';
+  }
+
+  @override
+  String get scanSavedToHistory =>
+      'ஸ்கேன் உங்கள் வருகை வரலாற்றில் சேமிக்கப்பட்டது';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'உள்ளூர் அறிவிப்பு திட்டமிடல் தோல்வி: $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'நினைவூட்டல் மறுதிட்டமிடல் தோல்வி: $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain =>
+      'அங்கீகார பிழை. மீண்டும் உள்நுழையவும்.';
 }

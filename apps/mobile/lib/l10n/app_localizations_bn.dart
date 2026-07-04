@@ -1272,4 +1272,111 @@ class AppLocalizationsBn extends AppLocalizations {
   String retryFailed(String error) {
     return 'পুনরায় চেষ্টা ব্যর্থ: $error';
   }
+
+  @override
+  String get generateSummary => 'সারাংশ তৈরি করুন';
+
+  @override
+  String get discardRecording => 'রেকর্ডিং বাতিল করুন';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'রেকর্ডিং শুরু করা যায়নি: $error';
+  }
+
+  @override
+  String get recordingCompleted => 'রেকর্ডিং সম্পন্ন!';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'রেকর্ডিং বন্ধ করা যায়নি: $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'রেকর্ডিং বাতিল করা হয়েছে';
+
+  @override
+  String get unableToOpenPrivacyPolicy => 'গোপনীয়তা নীতি খোলা যায়নি।';
+
+  @override
+  String get noRecordingAvailable => 'কোনো রেকর্ডিং নেই';
+
+  @override
+  String get uploadingAudio => 'অডিও আপলোড হচ্ছে...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'অডিও আপলোড ব্যর্থ: $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'রেকর্ডিং বন্ধ করবেন?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'রেকর্ডিং চালিয়ে যান';
+
+  @override
+  String get stopAndDiscard => 'বন্ধ করুন ও বাতিল করুন';
+
+  @override
+  String get share => 'শেয়ার';
+
+  @override
+  String get cameraNotReady => 'ক্যামেরা প্রস্তুত নয়। আবার চেষ্টা করুন।';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'ছবি তোলা ব্যর্থ: $error';
+  }
+
+  @override
+  String get unableToStartCamera =>
+      'ক্যামেরা শুরু করা যায়নি। আবার চেষ্টা করুন।';
+
+  @override
+  String get cameraReadyHint =>
+      'ক্যামেরা প্রস্তুত। নথি রাখুন এবং ক্যাপচার ট্যাপ করুন।';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'স্ক্যান শুরু করা যায়নি: $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'ছবি আপলোড ব্যর্থ: $error';
+  }
+
+  @override
+  String get noImageToProcess =>
+      'প্রক্রিয়ার জন্য ছবি নেই। আবার ক্যাপচার করুন।';
+
+  @override
+  String get documentScannedSaved => 'নথি স্ক্যান ও সংরক্ষিত!';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'স্ক্যান প্রক্রিয়াকরণ ব্যর্থ: $error';
+  }
+
+  @override
+  String get scanSavedToHistory => 'স্ক্যান আপনার ভিজিট ইতিহাসে সংরক্ষিত';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'স্থানীয় বিজ্ঞপ্তি শিডিউল ব্যর্থ: $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'রিমাইন্ডার পুনঃনির্ধারণ ব্যর্থ: $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain =>
+      'প্রমাণীকরণ ত্রুটি। আবার লগ ইন করুন।';
 }

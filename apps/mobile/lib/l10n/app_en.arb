@@ -660,5 +660,96 @@
         "type": "String"
       }
     }
-  }
+  },
+  "generateSummary": "Generate Summary",
+  "discardRecording": "Discard Recording",
+  "unableToStartRecording": "Unable to start recording: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "Recording completed!",
+  "unableToStopRecording": "Unable to stop recording: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "Recording discarded",
+  "unableToOpenPrivacyPolicy": "Unable to open the Privacy Policy.",
+  "noRecordingAvailable": "No recording available",
+  "uploadingAudio": "Uploading audio...",
+  "failedToUploadAudio": "Failed to upload audio: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "Stop Recording?",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone.",
+  "continueRecording": "Continue Recording",
+  "stopAndDiscard": "Stop & Discard",
+  "share": "Share",
+  "cameraNotReady": "Camera not ready. Please try again.",
+  "failedToCaptureImage": "Failed to capture image: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "Unable to start the camera. Please try again.",
+  "cameraReadyHint": "Camera ready. Position your document and tap capture.",
+  "unableToStartScanning": "Unable to start scanning: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "Failed to upload image: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "No image to process. Please capture again.",
+  "documentScannedSaved": "Document scanned and saved!",
+  "scanProcessingFailed": "Scan processing failed: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "Scan saved to your visit history",
+  "localNotificationSchedulingFailed": "Local notification scheduling failed: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "Reminder reschedule failed: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "Authentication error. Please log in again."
 }

@@ -511,5 +511,96 @@
   "captureAndScan": "Erfassen und scannen",
   "relationshipHint": "z. B. Sohn, Tochter, Freund, Krankenschwester",
   "emailAndRoleRequired": "E-Mail und Rolle sind erforderlich",
-  "summaryReadyTitle": "Ihre Besuchszusammenfassung ist fertig!"
+  "summaryReadyTitle": "Ihre Besuchszusammenfassung ist fertig!",
+  "generateSummary": "Zusammenfassung erstellen",
+  "discardRecording": "Aufnahme verwerfen",
+  "unableToStartRecording": "Aufnahme konnte nicht gestartet werden: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "Aufnahme abgeschlossen!",
+  "unableToStopRecording": "Aufnahme konnte nicht gestoppt werden: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "Aufnahme verworfen",
+  "unableToOpenPrivacyPolicy": "Datenschutzrichtlinie konnte nicht geöffnet werden.",
+  "noRecordingAvailable": "Keine Aufnahme verfügbar",
+  "uploadingAudio": "Audio wird hochgeladen...",
+  "failedToUploadAudio": "Audio-Upload fehlgeschlagen: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "Aufnahme stoppen?",
+  "continueRecording": "Aufnahme fortsetzen",
+  "stopAndDiscard": "Stoppen und verwerfen",
+  "share": "Teilen",
+  "cameraNotReady": "Kamera nicht bereit. Bitte erneut versuchen.",
+  "failedToCaptureImage": "Bildaufnahme fehlgeschlagen: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "Kamera konnte nicht gestartet werden. Bitte erneut versuchen.",
+  "cameraReadyHint": "Kamera bereit. Dokument positionieren und aufnehmen.",
+  "unableToStartScanning": "Scan konnte nicht gestartet werden: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "Bild-Upload fehlgeschlagen: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "Kein Bild zum Verarbeiten. Bitte erneut aufnehmen.",
+  "documentScannedSaved": "Dokument gescannt und gespeichert!",
+  "scanProcessingFailed": "Scan-Verarbeitung fehlgeschlagen: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "Scan im Besuchsverlauf gespeichert",
+  "localNotificationSchedulingFailed": "Lokale Benachrichtigung fehlgeschlagen: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "Erinnerung neu planen fehlgeschlagen: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "Authentifizierungsfehler. Bitte erneut anmelden.",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }

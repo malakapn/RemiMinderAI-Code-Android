@@ -1298,4 +1298,112 @@ class AppLocalizationsDe extends AppLocalizations {
   String retryFailed(String error) {
     return 'Wiederholung fehlgeschlagen: $error';
   }
+
+  @override
+  String get generateSummary => 'Zusammenfassung erstellen';
+
+  @override
+  String get discardRecording => 'Aufnahme verwerfen';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'Aufnahme konnte nicht gestartet werden: $error';
+  }
+
+  @override
+  String get recordingCompleted => 'Aufnahme abgeschlossen!';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'Aufnahme konnte nicht gestoppt werden: $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'Aufnahme verworfen';
+
+  @override
+  String get unableToOpenPrivacyPolicy =>
+      'Datenschutzrichtlinie konnte nicht geöffnet werden.';
+
+  @override
+  String get noRecordingAvailable => 'Keine Aufnahme verfügbar';
+
+  @override
+  String get uploadingAudio => 'Audio wird hochgeladen...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'Audio-Upload fehlgeschlagen: $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'Aufnahme stoppen?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'Aufnahme fortsetzen';
+
+  @override
+  String get stopAndDiscard => 'Stoppen und verwerfen';
+
+  @override
+  String get share => 'Teilen';
+
+  @override
+  String get cameraNotReady => 'Kamera nicht bereit. Bitte erneut versuchen.';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'Bildaufnahme fehlgeschlagen: $error';
+  }
+
+  @override
+  String get unableToStartCamera =>
+      'Kamera konnte nicht gestartet werden. Bitte erneut versuchen.';
+
+  @override
+  String get cameraReadyHint =>
+      'Kamera bereit. Dokument positionieren und aufnehmen.';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'Scan konnte nicht gestartet werden: $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'Bild-Upload fehlgeschlagen: $error';
+  }
+
+  @override
+  String get noImageToProcess =>
+      'Kein Bild zum Verarbeiten. Bitte erneut aufnehmen.';
+
+  @override
+  String get documentScannedSaved => 'Dokument gescannt und gespeichert!';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'Scan-Verarbeitung fehlgeschlagen: $error';
+  }
+
+  @override
+  String get scanSavedToHistory => 'Scan im Besuchsverlauf gespeichert';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'Lokale Benachrichtigung fehlgeschlagen: $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'Erinnerung neu planen fehlgeschlagen: $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain =>
+      'Authentifizierungsfehler. Bitte erneut anmelden.';
 }

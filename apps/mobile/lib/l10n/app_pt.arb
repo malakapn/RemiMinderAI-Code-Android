@@ -511,5 +511,96 @@
   "captureAndScan": "Capturar e digitalizar",
   "relationshipHint": "ex.: Filho, Filha, Amigo, Enfermeira",
   "emailAndRoleRequired": "E-mail e função são obrigatórios",
-  "summaryReadyTitle": "Seu resumo da visita está pronto!"
+  "summaryReadyTitle": "Seu resumo da visita está pronto!",
+  "generateSummary": "Gerar resumo",
+  "discardRecording": "Descartar gravação",
+  "unableToStartRecording": "Não foi possível iniciar a gravação: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "Gravação concluída!",
+  "unableToStopRecording": "Não foi possível parar a gravação: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "Gravação descartada",
+  "unableToOpenPrivacyPolicy": "Não foi possível abrir a Política de Privacidade.",
+  "noRecordingAvailable": "Nenhuma gravação disponível",
+  "uploadingAudio": "Enviando áudio...",
+  "failedToUploadAudio": "Falha ao enviar áudio: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "Parar gravação?",
+  "continueRecording": "Continuar gravando",
+  "stopAndDiscard": "Parar e descartar",
+  "share": "Compartilhar",
+  "cameraNotReady": "Câmera não está pronta. Tente novamente.",
+  "failedToCaptureImage": "Falha ao capturar imagem: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "Não foi possível iniciar a câmera. Tente novamente.",
+  "cameraReadyHint": "Câmera pronta. Posicione o documento e toque em capturar.",
+  "unableToStartScanning": "Não foi possível iniciar a digitalização: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "Falha ao enviar imagem: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "Nenhuma imagem para processar. Capture novamente.",
+  "documentScannedSaved": "Documento digitalizado e salvo!",
+  "scanProcessingFailed": "Falha no processamento da digitalização: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "Digitalização salva no histórico de visitas",
+  "localNotificationSchedulingFailed": "Falha ao agendar notificação local: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "Falha ao reagendar lembrete: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "Erro de autenticação. Faça login novamente.",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }

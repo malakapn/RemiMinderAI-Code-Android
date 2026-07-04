@@ -1274,4 +1274,110 @@ class AppLocalizationsEn extends AppLocalizations {
   String retryFailed(String error) {
     return 'Retry failed: $error';
   }
+
+  @override
+  String get generateSummary => 'Generate Summary';
+
+  @override
+  String get discardRecording => 'Discard Recording';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'Unable to start recording: $error';
+  }
+
+  @override
+  String get recordingCompleted => 'Recording completed!';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'Unable to stop recording: $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'Recording discarded';
+
+  @override
+  String get unableToOpenPrivacyPolicy => 'Unable to open the Privacy Policy.';
+
+  @override
+  String get noRecordingAvailable => 'No recording available';
+
+  @override
+  String get uploadingAudio => 'Uploading audio...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'Failed to upload audio: $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'Stop Recording?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'Continue Recording';
+
+  @override
+  String get stopAndDiscard => 'Stop & Discard';
+
+  @override
+  String get share => 'Share';
+
+  @override
+  String get cameraNotReady => 'Camera not ready. Please try again.';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'Failed to capture image: $error';
+  }
+
+  @override
+  String get unableToStartCamera =>
+      'Unable to start the camera. Please try again.';
+
+  @override
+  String get cameraReadyHint =>
+      'Camera ready. Position your document and tap capture.';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'Unable to start scanning: $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'Failed to upload image: $error';
+  }
+
+  @override
+  String get noImageToProcess => 'No image to process. Please capture again.';
+
+  @override
+  String get documentScannedSaved => 'Document scanned and saved!';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'Scan processing failed: $error';
+  }
+
+  @override
+  String get scanSavedToHistory => 'Scan saved to your visit history';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'Local notification scheduling failed: $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'Reminder reschedule failed: $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain =>
+      'Authentication error. Please log in again.';
 }

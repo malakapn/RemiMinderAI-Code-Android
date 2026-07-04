@@ -102,16 +102,16 @@ abstract class AppLocalizations {
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
-    Locale('bn'),
-    Locale('de'),
     Locale('en'),
     Locale('es'),
-    Locale('fr'),
-    Locale('gu'),
     Locale('hi'),
-    Locale('pa'),
+    Locale('fr'),
     Locale('pt'),
-    Locale('ta')
+    Locale('de'),
+    Locale('bn'),
+    Locale('ta'),
+    Locale('gu'),
+    Locale('pa')
   ];
 
   /// No description provided for @appTitle.
@@ -2447,6 +2447,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry failed: {error}'**
   String retryFailed(String error);
+
+  /// No description provided for @generateSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Summary'**
+  String get generateSummary;
+
+  /// No description provided for @discardRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard Recording'**
+  String get discardRecording;
+
+  /// No description provided for @unableToStartRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to start recording: {error}'**
+  String unableToStartRecording(String error);
+
+  /// No description provided for @recordingCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording completed!'**
+  String get recordingCompleted;
+
+  /// No description provided for @unableToStopRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to stop recording: {error}'**
+  String unableToStopRecording(String error);
+
+  /// No description provided for @recordingDiscarded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording discarded'**
+  String get recordingDiscarded;
+
+  /// No description provided for @unableToOpenPrivacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open the Privacy Policy.'**
+  String get unableToOpenPrivacyPolicy;
+
+  /// No description provided for @noRecordingAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No recording available'**
+  String get noRecordingAvailable;
+
+  /// No description provided for @uploadingAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading audio...'**
+  String get uploadingAudio;
+
+  /// No description provided for @failedToUploadAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload audio: {error}'**
+  String failedToUploadAudio(String error);
+
+  /// No description provided for @stopRecordingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Recording?'**
+  String get stopRecordingTitle;
+
+  /// No description provided for @stopRecordingMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to stop recording? This action cannot be undone.'**
+  String get stopRecordingMessage;
+
+  /// No description provided for @continueRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Recording'**
+  String get continueRecording;
+
+  /// No description provided for @stopAndDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop & Discard'**
+  String get stopAndDiscard;
+
+  /// No description provided for @share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// No description provided for @cameraNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera not ready. Please try again.'**
+  String get cameraNotReady;
+
+  /// No description provided for @failedToCaptureImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to capture image: {error}'**
+  String failedToCaptureImage(String error);
+
+  /// No description provided for @unableToStartCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to start the camera. Please try again.'**
+  String get unableToStartCamera;
+
+  /// No description provided for @cameraReadyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera ready. Position your document and tap capture.'**
+  String get cameraReadyHint;
+
+  /// No description provided for @unableToStartScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to start scanning: {error}'**
+  String unableToStartScanning(String error);
+
+  /// No description provided for @failedToUploadImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload image: {error}'**
+  String failedToUploadImage(String error);
+
+  /// No description provided for @noImageToProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'No image to process. Please capture again.'**
+  String get noImageToProcess;
+
+  /// No description provided for @documentScannedSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Document scanned and saved!'**
+  String get documentScannedSaved;
+
+  /// No description provided for @scanProcessingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan processing failed: {error}'**
+  String scanProcessingFailed(String error);
+
+  /// No description provided for @scanSavedToHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan saved to your visit history'**
+  String get scanSavedToHistory;
+
+  /// No description provided for @localNotificationSchedulingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Local notification scheduling failed: {error}'**
+  String localNotificationSchedulingFailed(String error);
+
+  /// No description provided for @reminderRescheduleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder reschedule failed: {error}'**
+  String reminderRescheduleFailed(String error);
+
+  /// No description provided for @authenticationErrorLoginAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication error. Please log in again.'**
+  String get authenticationErrorLoginAgain;
 }
 
 class _AppLocalizationsDelegate

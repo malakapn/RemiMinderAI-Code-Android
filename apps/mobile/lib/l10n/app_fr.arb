@@ -511,5 +511,96 @@
   "captureAndScan": "Capturer et numériser",
   "relationshipHint": "ex. : Fils, Fille, Ami, Infirmière",
   "emailAndRoleRequired": "L'e-mail et le rôle sont requis",
-  "summaryReadyTitle": "Votre résumé de visite est prêt !"
+  "summaryReadyTitle": "Votre résumé de visite est prêt !",
+  "generateSummary": "Générer le résumé",
+  "discardRecording": "Supprimer l'enregistrement",
+  "unableToStartRecording": "Impossible de démarrer l'enregistrement : {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "Enregistrement terminé !",
+  "unableToStopRecording": "Impossible d'arrêter l'enregistrement : {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "Enregistrement supprimé",
+  "unableToOpenPrivacyPolicy": "Impossible d'ouvrir la politique de confidentialité.",
+  "noRecordingAvailable": "Aucun enregistrement disponible",
+  "uploadingAudio": "Téléversement de l'audio...",
+  "failedToUploadAudio": "Échec du téléversement audio : {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "Arrêter l'enregistrement ?",
+  "continueRecording": "Continuer l'enregistrement",
+  "stopAndDiscard": "Arrêter et supprimer",
+  "share": "Partager",
+  "cameraNotReady": "Caméra non prête. Réessayez.",
+  "failedToCaptureImage": "Échec de la capture : {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "Impossible de démarrer la caméra. Réessayez.",
+  "cameraReadyHint": "Caméra prête. Placez votre document et appuyez sur capturer.",
+  "unableToStartScanning": "Impossible de démarrer la numérisation : {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "Échec du téléversement de l'image : {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "Aucune image à traiter. Capturez à nouveau.",
+  "documentScannedSaved": "Document numérisé et enregistré !",
+  "scanProcessingFailed": "Échec du traitement de la numérisation : {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "Numérisation enregistrée dans l'historique des visites",
+  "localNotificationSchedulingFailed": "Échec de la planification de notification : {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "Échec de la reprogrammation du rappel : {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "Erreur d'authentification. Reconnectez-vous.",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }

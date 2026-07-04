@@ -511,5 +511,96 @@
   "captureAndScan": "பிடித்து ஸ்கேன் செய்",
   "relationshipHint": "எ.கா., மகன், மகள், நண்பர், செவிலியர்",
   "emailAndRoleRequired": "மின்னஞ்சல் மற்றும் பாத்திரம் தேவை",
-  "summaryReadyTitle": "உங்கள் வருகை சுருக்கம் தயார்!"
+  "summaryReadyTitle": "உங்கள் வருகை சுருக்கம் தயார்!",
+  "generateSummary": "சுருக்கம் உருவாக்கு",
+  "discardRecording": "பதிவை நிராகரி",
+  "unableToStartRecording": "பதிவைத் தொடங்க முடியவில்லை: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "பதிவு முடிந்தது!",
+  "unableToStopRecording": "பதிவை நிறுத்த முடியவில்லை: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "பதிவு நிராகரிக்கப்பட்டது",
+  "unableToOpenPrivacyPolicy": "தனியுரிமைக் கொள்கையைத் திறக்க முடியவில்லை.",
+  "noRecordingAvailable": "பதிவு இல்லை",
+  "uploadingAudio": "ஆடியோ பதிவேற்றப்படுகிறது...",
+  "failedToUploadAudio": "ஆடியோ பதிவேற்றம் தோல்வி: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "பதிவை நிறுத்தவா?",
+  "continueRecording": "பதிவைத் தொடரவும்",
+  "stopAndDiscard": "நிறுத்தி நிராகரி",
+  "share": "பகிர்",
+  "cameraNotReady": "கேமரா தயாராக இல்லை. மீண்டும் முயற்சிக்கவும்.",
+  "failedToCaptureImage": "படம் எடுப்பு தோல்வி: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "கேமராவைத் தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+  "cameraReadyHint": "கேமரா தயார். ஆவணத்தை வைத்து கேப்சர் அழுத்தவும்.",
+  "unableToStartScanning": "ஸ்கேன் தொடங்க முடியவில்லை: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "படம் பதிவேற்றம் தோல்வி: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "செயலாக்க படம் இல்லை. மீண்டும் எடுக்கவும்.",
+  "documentScannedSaved": "ஆவணம் ஸ்கேன் செய்து சேமிக்கப்பட்டது!",
+  "scanProcessingFailed": "ஸ்கேன் செயலாக்கம் தோல்வி: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "ஸ்கேன் உங்கள் வருகை வரலாற்றில் சேமிக்கப்பட்டது",
+  "localNotificationSchedulingFailed": "உள்ளூர் அறிவிப்பு திட்டமிடல் தோல்வி: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "நினைவூட்டல் மறுதிட்டமிடல் தோல்வி: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "அங்கீகார பிழை. மீண்டும் உள்நுழையவும்.",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }

@@ -1278,4 +1278,111 @@ class AppLocalizationsHi extends AppLocalizations {
   String retryFailed(String error) {
     return 'पुनः प्रयास विफल: $error';
   }
+
+  @override
+  String get generateSummary => 'सारांश बनाएं';
+
+  @override
+  String get discardRecording => 'रिकॉर्डिंग हटाएं';
+
+  @override
+  String unableToStartRecording(String error) {
+    return 'रिकॉर्डिंग शुरू नहीं हो सकी: $error';
+  }
+
+  @override
+  String get recordingCompleted => 'रिकॉर्डिंग पूर्ण!';
+
+  @override
+  String unableToStopRecording(String error) {
+    return 'रिकॉर्डिंग रोक नहीं सकी: $error';
+  }
+
+  @override
+  String get recordingDiscarded => 'रिकॉर्डिंग हटा दी गई';
+
+  @override
+  String get unableToOpenPrivacyPolicy => 'गोपनीयता नीति नहीं खोल सकी।';
+
+  @override
+  String get noRecordingAvailable => 'कोई रिकॉर्डिंग उपलब्ध नहीं';
+
+  @override
+  String get uploadingAudio => 'ऑडियो अपलोड हो रहा है...';
+
+  @override
+  String failedToUploadAudio(String error) {
+    return 'ऑडियो अपलोड विफल: $error';
+  }
+
+  @override
+  String get stopRecordingTitle => 'रिकॉर्डिंग रोकें?';
+
+  @override
+  String get stopRecordingMessage =>
+      'Are you sure you want to stop recording? This action cannot be undone.';
+
+  @override
+  String get continueRecording => 'रिकॉर्डिंग जारी रखें';
+
+  @override
+  String get stopAndDiscard => 'रोकें और हटाएं';
+
+  @override
+  String get share => 'साझा करें';
+
+  @override
+  String get cameraNotReady => 'कैमरा तैयार नहीं। कृपया पुनः प्रयास करें।';
+
+  @override
+  String failedToCaptureImage(String error) {
+    return 'छवि कैप्चर विफल: $error';
+  }
+
+  @override
+  String get unableToStartCamera =>
+      'कैमरा शुरू नहीं हो सका। कृपया पुनः प्रयास करें।';
+
+  @override
+  String get cameraReadyHint =>
+      'कैमरा तैयार। दस्तावेज़ रखें और कैप्चर टैप करें।';
+
+  @override
+  String unableToStartScanning(String error) {
+    return 'स्कैन शुरू नहीं हो सका: $error';
+  }
+
+  @override
+  String failedToUploadImage(String error) {
+    return 'छवि अपलोड विफल: $error';
+  }
+
+  @override
+  String get noImageToProcess =>
+      'प्रोसेस करने के लिए कोई छवि नहीं। फिर से कैप्चर करें।';
+
+  @override
+  String get documentScannedSaved => 'दस्तावेज़ स्कैन और सहेजा गया!';
+
+  @override
+  String scanProcessingFailed(String error) {
+    return 'स्कैन प्रोसेसिंग विफल: $error';
+  }
+
+  @override
+  String get scanSavedToHistory => 'स्कैन आपके विज़िट इतिहास में सहेजा गया';
+
+  @override
+  String localNotificationSchedulingFailed(String error) {
+    return 'स्थानीय सूचना शेड्यूल विफल: $error';
+  }
+
+  @override
+  String reminderRescheduleFailed(String error) {
+    return 'रिमाइंडर पुनर्निर्धारण विफल: $error';
+  }
+
+  @override
+  String get authenticationErrorLoginAgain =>
+      'प्रमाणीकरण त्रुटि। कृपया फिर से लॉग इन करें।';
 }

@@ -130,8 +130,15 @@ class NotificationService {
 
   Future<void> _initializeTimezone() async {
     tz.initializeTimeZones();
-    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
+    try {
+      var timeZoneName = await FlutterTimezone.getLocalTimezone();
+      if (timeZoneName == 'Etc/UTC') {
+        timeZoneName = 'UTC';
+      }
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (_) {
+      tz.setLocalLocation(tz.UTC);
+    }
   }
 
   void setNavigationHandler(void Function(String route) handler) {

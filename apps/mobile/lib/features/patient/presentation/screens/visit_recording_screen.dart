@@ -423,6 +423,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   }
 
   Widget _buildCompletedButtonsContent(bool isSmallScreen) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         // Success Checkmark
@@ -446,7 +447,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
         ElevatedButton.icon(
           onPressed: _isSavingRecording ? null : _saveRecording,
           icon: const Icon(Icons.save, size: 20),
-          label: const Text('Generate Summary'),
+          label: Text(l10n.generateSummary),
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Colors.white,
@@ -465,7 +466,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
         OutlinedButton.icon(
           onPressed: _discardRecording,
           icon: const Icon(Icons.delete_outline, size: 20),
-          label: const Text('Discard Recording'),
+          label: Text(l10n.discardRecording),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: Colors.red),
             foregroundColor: Colors.red,
@@ -560,7 +561,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to start recording: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.unableToStartRecording('$e'))),
       );
     } finally {
       if (mounted) {
@@ -593,7 +594,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
 
       if (recordingPath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Recording completed!')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.recordingCompleted)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -612,7 +613,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to stop recording: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.unableToStopRecording('$e'))),
       );
     }
   }
@@ -649,7 +650,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
 
     // Show confirmation
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Recording discarded')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.recordingDiscarded)),
     );
   }
 
@@ -696,13 +697,13 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
 
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to open the Privacy Policy.')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.unableToOpenPrivacyPolicy)),
         );
       }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to open the Privacy Policy.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.unableToOpenPrivacyPolicy)),
       );
     }
   }
@@ -714,7 +715,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
 
     if (_audioFilePath == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No recording available')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.noRecordingAvailable)),
       );
       return;
     }
@@ -724,7 +725,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Uploading audio...')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.uploadingAudio)),
     );
 
     try {
@@ -777,7 +778,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload audio: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.failedToUploadAudio('$e'))),
       );
     } finally {
       if (mounted && _isSavingRecording) {
@@ -861,18 +862,18 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   }
 
   void _handleClose() {
+    final l10n = AppLocalizations.of(context)!;
     if (_recordingState == RecordingState.recording) {
       // Show confirmation dialog
       showDialog(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Stop Recording?'),
-          content: const Text(
-              'Are you sure you want to stop recording? This action cannot be undone.'),
+          title: Text(l10n.stopRecordingTitle),
+          content: Text(l10n.stopRecordingMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Continue Recording'),
+              child: Text(l10n.continueRecording),
             ),
             TextButton(
               onPressed: () async {
@@ -889,7 +890,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
                 });
                 context.go('/patient/home');
               },
-              child: const Text('Stop & Discard'),
+              child: Text(l10n.stopAndDiscard),
             ),
           ],
         ),

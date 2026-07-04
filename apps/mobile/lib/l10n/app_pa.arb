@@ -660,5 +660,96 @@
   "captureAndScan": "ਕੈਪਚਰ ਅਤੇ ਸਕੈਨ",
   "relationshipHint": "ਜਿਵੇਂ, ਪੁੱਤਰ, ਧੀ, ਦੋਸਤ, ਨਰਸ",
   "emailAndRoleRequired": "ਈਮੇਲ ਅਤੇ ਭੂਮਿਕਾ ਲੋੜੀਂਦੀ ਹੈ",
-  "summaryReadyTitle": "ਤੁਹਾਡਾ ਮੁਲਾਕਾਤ ਸਾਰਾਂਸ਼ ਤਿਆਰ ਹੈ!"
+  "summaryReadyTitle": "ਤੁਹਾਡਾ ਮੁਲਾਕਾਤ ਸਾਰਾਂਸ਼ ਤਿਆਰ ਹੈ!",
+  "generateSummary": "ਸਾਰਾਂਸ਼ ਬਣਾਓ",
+  "discardRecording": "ਰਿਕਾਰਡਿੰਗ ਰੱਦ ਕਰੋ",
+  "unableToStartRecording": "ਰਿਕਾਰਡਿੰਗ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋ ਸਕੀ: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "ਰਿਕਾਰਡਿੰਗ ਪੂਰੀ!",
+  "unableToStopRecording": "ਰਿਕਾਰਡਿੰਗ ਰੋਕੀ ਨਹੀਂ ਜਾ ਸਕੀ: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "ਰਿਕਾਰਡਿੰਗ ਰੱਦ ਕੀਤੀ ਗਈ",
+  "unableToOpenPrivacyPolicy": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ ਨਹੀਂ ਖੋਲ੍ਹੀ ਜਾ ਸਕੀ।",
+  "noRecordingAvailable": "ਕੋਈ ਰਿਕਾਰਡਿੰਗ ਉਪਲਬਧ ਨਹੀਂ",
+  "uploadingAudio": "ਆਡੀਓ ਅਪਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...",
+  "failedToUploadAudio": "ਆਡੀਓ ਅਪਲੋਡ ਅਸਫਲ: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "ਰਿਕਾਰਡਿੰਗ ਰੋਕੋ?",
+  "continueRecording": "ਰਿਕਾਰਡਿੰਗ ਜਾਰੀ ਰੱਖੋ",
+  "stopAndDiscard": "ਰੋਕੋ ਅਤੇ ਰੱਦ ਕਰੋ",
+  "share": "ਸਾਂਝਾ ਕਰੋ",
+  "cameraNotReady": "ਕੈਮਰਾ ਤਿਆਰ ਨਹੀਂ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+  "failedToCaptureImage": "ਚਿੱਤਰ ਕੈਪਚਰ ਅਸਫਲ: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "ਕੈਮਰਾ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+  "cameraReadyHint": "ਕੈਮਰਾ ਤਿਆਰ। ਦਸਤਾਵੇਜ਼ ਰੱਖੋ ਅਤੇ ਕੈਪਚਰ ਟੈਪ ਕਰੋ।",
+  "unableToStartScanning": "ਸਕੈਨ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋ ਸਕਿਆ: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "ਚਿੱਤਰ ਅਪਲੋਡ ਅਸਫਲ: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "ਪ੍ਰੋਸੈਸ ਕਰਨ ਲਈ ਚਿੱਤਰ ਨਹੀਂ। ਦੁਬਾਰਾ ਕੈਪਚਰ ਕਰੋ।",
+  "documentScannedSaved": "ਦਸਤਾਵੇਜ਼ ਸਕੈਨ ਅਤੇ ਸੰਭਾਲਿਆ ਗਿਆ!",
+  "scanProcessingFailed": "ਸਕੈਨ ਪ੍ਰੋਸੈਸਿੰਗ ਅਸਫਲ: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "ਸਕੈਨ ਤੁਹਾਡੇ ਮੁਲਾਕਾਤ ਇਤਿਹਾਸ ਵਿੱਚ ਸੰਭਾਲਿਆ ਗਿਆ",
+  "localNotificationSchedulingFailed": "ਸਥਾਨਕ ਸੂਚਨਾ ਸ਼ੈਡਿਊਲ ਅਸਫਲ: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "ਰਿਮਾਈਂਡਰ ਮੁੜ-ਸ਼ੈਡਿਊਲ ਅਸਫਲ: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "ਪ੍ਰਮਾਣੀਕਰਨ ਗਲਤੀ। ਦੁਬਾਰਾ ਲੌਗ ਇਨ ਕਰੋ।",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }

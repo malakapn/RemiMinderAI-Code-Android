@@ -906,7 +906,7 @@ class _RemindersScreenState extends State<RemindersScreen>
           debugPrint('Failed to schedule notification: $err');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Local notification scheduling failed: $err')),
+              SnackBar(content: Text(l10n.localNotificationSchedulingFailed('$err'))),
             );
           }
         }
@@ -1109,7 +1109,7 @@ class _RemindersScreenState extends State<RemindersScreen>
           debugPrint('Failed to reschedule notification: $err');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Reminder reschedule failed: $err')),
+              SnackBar(content: Text(l10n.reminderRescheduleFailed('$err'))),
             );
           }
         }

@@ -511,5 +511,96 @@
   "captureAndScan": "Capturar y escanear",
   "relationshipHint": "p. ej., Hijo, Hija, Amigo, Enfermera",
   "emailAndRoleRequired": "El correo y el rol son obligatorios",
-  "summaryReadyTitle": "¡Tu resumen de visita está listo!"
+  "summaryReadyTitle": "¡Tu resumen de visita está listo!",
+  "generateSummary": "Generar resumen",
+  "discardRecording": "Descartar grabación",
+  "unableToStartRecording": "No se pudo iniciar la grabación: {error}",
+  "@unableToStartRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingCompleted": "¡Grabación completada!",
+  "unableToStopRecording": "No se pudo detener la grabación: {error}",
+  "@unableToStopRecording": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingDiscarded": "Grabación descartada",
+  "unableToOpenPrivacyPolicy": "No se pudo abrir la Política de Privacidad.",
+  "noRecordingAvailable": "No hay grabación disponible",
+  "uploadingAudio": "Subiendo audio...",
+  "failedToUploadAudio": "Error al subir el audio: {error}",
+  "@failedToUploadAudio": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "stopRecordingTitle": "¿Detener grabación?",
+  "continueRecording": "Continuar grabando",
+  "stopAndDiscard": "Detener y descartar",
+  "share": "Compartir",
+  "cameraNotReady": "La cámara no está lista. Inténtalo de nuevo.",
+  "failedToCaptureImage": "Error al capturar la imagen: {error}",
+  "@failedToCaptureImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "unableToStartCamera": "No se pudo iniciar la cámara. Inténtalo de nuevo.",
+  "cameraReadyHint": "Cámara lista. Coloca tu documento y toca capturar.",
+  "unableToStartScanning": "No se pudo iniciar el escaneo: {error}",
+  "@unableToStartScanning": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToUploadImage": "Error al subir la imagen: {error}",
+  "@failedToUploadImage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noImageToProcess": "No hay imagen para procesar. Captura de nuevo.",
+  "documentScannedSaved": "¡Documento escaneado y guardado!",
+  "scanProcessingFailed": "Error al procesar el escaneo: {error}",
+  "@scanProcessingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "scanSavedToHistory": "Escaneo guardado en tu historial de visitas",
+  "localNotificationSchedulingFailed": "Error al programar notificación local: {error}",
+  "@localNotificationSchedulingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderRescheduleFailed": "Error al reprogramar recordatorio: {error}",
+  "@reminderRescheduleFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "authenticationErrorLoginAgain": "Error de autenticación. Inicia sesión de nuevo.",
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
 }
