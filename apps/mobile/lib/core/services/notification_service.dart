@@ -133,11 +133,23 @@ class NotificationService {
           'Skipping FCM setup — Firebase not initialized yet (local notifications only)');
     }
 
-    // Request necessary permissions
-    await requestPermissions();
-    await requestExactAlarmPermission();
-
+    // Permission dialogs must run while the activity is visible; requesting
+    // during cold start (TOP_SLEEPING) is blocked on Android 12+ and leaves
+    // the app on a black screen / returns to the launcher.
     _isInitialized = true;
+  }
+
+  /// Call after the first frame is on screen (e.g. from [RemiMinderApp]).
+  Future<void> ensureRuntimePermissions() async {
+    try {
+      if (!_isInitialized) {
+        await initialize();
+      }
+      await requestPermissions();
+      await requestExactAlarmPermission();
+    } catch (e) {
+      debugPrint('Notification permission request failed: $e');
+    }
   }
 
   Future<void> _initializeTimezone() async {

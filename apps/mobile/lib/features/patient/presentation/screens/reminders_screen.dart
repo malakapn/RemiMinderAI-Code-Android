@@ -88,6 +88,9 @@ class _RemindersScreenState extends State<RemindersScreen>
       setState(() {});
     });
     _loadReminders();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService().ensureRuntimePermissions();
+    });
   }
 
   @override

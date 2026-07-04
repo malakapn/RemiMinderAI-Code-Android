@@ -40,13 +40,14 @@ Future<void> main() async {
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Start Firebase/notifications without blocking first frame — a long hang
-  // here looks like the app "closed" (blank screen until init finishes).
-  unawaited(_bootstrapServices());
-
   runApp(
     const ProviderScope(
       child: RemiMinderApp(),
     ),
   );
+
+  // Defer heavy init until after the first frame so MainActivity stays visible.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_bootstrapServices());
+  });
 }

@@ -133,12 +133,12 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(localeProvider);
 
-    // Listen to auth state changes for logout navigation only
+    // Logout only — LoadingScreen handles the initial unauthenticated route.
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-      if (next.status == AuthStatus.unauthenticated) {
+      if (previous?.status == AuthStatus.authenticated &&
+          next.status == AuthStatus.unauthenticated) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final router = ref.read(appRouterProvider);
-          router.go('/welcome');
+          ref.read(appRouterProvider).go('/welcome');
         });
       }
     });
