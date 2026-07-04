@@ -30,6 +30,15 @@ class AppLocalizationsTa extends AppLocalizations {
   String get languageSettings => 'மொழி';
 
   @override
+  String languagesAvailableCount(int count) {
+    return '$count மொழிகள்';
+  }
+
+  @override
+  String get scrollForMoreLanguages =>
+      'அனைத்து மொழிகளையும் பார்க்க கீழே உருட்டவும்';
+
+  @override
   String languageUpdated(String language) {
     return 'மொழி புதுப்பிக்கப்பட்டது. பயன்பாடு இப்போது $language மொழியில் காட்டப்படும்.';
   }

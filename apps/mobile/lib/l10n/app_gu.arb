@@ -756,5 +756,7 @@
   "chooseYourRoleSubtitle": "તમે RemiMinder કેવી રીતે ઉપયોગ કરશો તે પસંદ કરો",
   "patientRoleCardDescription": "તમારી દવાઓ, અપોઇન્ટમેન્ટ્સ અને આરોગ્ય રેકોર્ડ્સ મેનેજ કરો",
   "caregiverRoleCardDescription": "પરિવારના સભ્યો અથવા દર્દીઓની દવાઓ અને સંભાળ મેનેજ કરવામાં મદદ કરો",
-  "continueButton": "ચાલુ રાખો"
+  "continueButton": "ચાલુ રાખો",
+  "languagesAvailableCount": "{count} ભાષાઓ",
+  "scrollForMoreLanguages": "બધી ભાષાઓ જોવા નીચે સ્ક્રોલ કરો"
 }

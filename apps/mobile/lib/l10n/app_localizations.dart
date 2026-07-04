@@ -156,6 +156,18 @@ abstract class AppLocalizations {
   /// **'Language Settings'**
   String get languageSettings;
 
+  /// No description provided for @languagesAvailableCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} languages'**
+  String languagesAvailableCount(int count);
+
+  /// No description provided for @scrollForMoreLanguages.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll down to see all languages'**
+  String get scrollForMoreLanguages;
+
   /// No description provided for @languageUpdated.
   ///
   /// In en, this message translates to:

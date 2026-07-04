@@ -32,6 +32,8 @@ void main() {
 
     expect(find.byType(LanguageSettingsScreen), findsOneWidget);
     expect(kSupportedLanguages.length, 10);
+    expect(find.text('10 languages'), findsOneWidget);
+    expect(find.text('Scroll down to see all languages'), findsOneWidget);
 
     // First languages are visible without scrolling.
     expect(find.text('Español'), findsOneWidget);

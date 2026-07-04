@@ -6,6 +6,15 @@
   "language": "Language",
   "profileSettings": "Profile Settings",
   "languageSettings": "Language Settings",
+  "languagesAvailableCount": "{count} languages",
+  "@languagesAvailableCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scrollForMoreLanguages": "Scroll down to see all languages",
   "languageUpdated": "Language updated. The app will now display in {language}.",
   "@languageUpdated": {
     "placeholders": {

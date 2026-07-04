@@ -7,7 +7,6 @@ import '../../../../core/config/environment.dart';
 import '../../../../core/config/supported_languages.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../shared/widgets/scroll_bottom_fade.dart';
 import '../../data/services/patient_api_service.dart';
 
 class LanguageSettingsScreen extends ConsumerStatefulWidget {
@@ -92,6 +91,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
     final locale = ref.watch(localeProvider);
     final selectedCode = normalizeLanguageCode(locale.languageCode);
     final l10n = AppLocalizations.of(context)!;
+    final languageCount = kSupportedLanguages.length;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -132,43 +132,41 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.languagesAvailableCount(languageCount),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.scrollForMoreLanguages,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
-              child: ScrollBottomFade.builder(
-                fadeColor: theme.scaffoldBackgroundColor,
-                builder: (context, controller) => ListView.separated(
-                  controller: controller,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 160),
-                  itemCount: kSupportedLanguages.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.languageSettings,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _languageTile(
-                            theme: theme,
-                            l10n: l10n,
-                            index: index,
-                            selectedCode: selectedCode,
-                          ),
-                        ],
-                      );
-                    }
-                    return _languageTile(
-                      theme: theme,
-                      l10n: l10n,
-                      index: index,
-                      selectedCode: selectedCode,
-                    );
-                  },
+              child: ListView.separated(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                itemCount: languageCount,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) => _languageTile(
+                  theme: theme,
+                  l10n: l10n,
+                  index: index,
+                  selectedCode: selectedCode,
                 ),
               ),
             ),
@@ -198,17 +196,17 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 18,
+            vertical: 14,
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? theme.colorScheme.primary.withOpacity(0.08)
-                : theme.colorScheme.primary.withOpacity(0.04),
+                ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                : theme.colorScheme.primary.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
                   ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface.withOpacity(0.08),
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.08),
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -226,7 +224,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
               Text(
                 opt.nativeName,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.55),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
                   fontWeight: FontWeight.w500,
                 ),
               ),

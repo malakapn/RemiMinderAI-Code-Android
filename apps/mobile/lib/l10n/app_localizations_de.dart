@@ -30,6 +30,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get languageSettings => 'Sprache';
 
   @override
+  String languagesAvailableCount(int count) {
+    return '$count Sprachen';
+  }
+
+  @override
+  String get scrollForMoreLanguages =>
+      'Nach unten scrollen, um alle Sprachen zu sehen';
+
+  @override
   String languageUpdated(String language) {
     return 'Sprache aktualisiert. Die App wird jetzt in $language angezeigt.';
   }

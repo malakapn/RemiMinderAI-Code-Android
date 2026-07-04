@@ -22,6 +22,7 @@ import '../features/patient/presentation/screens/reminders_screen.dart';
 import '../features/patient/presentation/screens/camera_screen.dart';
 import '../features/patient/presentation/screens/care_team_screen.dart';
 import '../features/patient/presentation/screens/profile_screen.dart';
+import '../features/patient/presentation/screens/language_settings_screen.dart';
 import '../features/patient/presentation/screens/send_invitations_screen.dart';
 
 import '../features/shared/presentation/screens/loading_screen.dart';
@@ -43,6 +44,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       const noRedirectRoutes = [
         '/loading', '/welcome', '/role-selection',
         '/login', '/register', '/forgot-password',
+        '/patient/language-settings',
       ];
       if (noRedirectRoutes.contains(location) || location.startsWith('/auth')) {
         return null;
@@ -237,6 +239,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/patient/reminders',
         builder: (context, state) => const RemindersScreen(),
+      ),
+      GoRoute(
+        path: '/patient/language-settings',
+        builder: (context, state) => const LanguageSettingsScreen(),
       ),
       GoRoute(
         path: '/patient/invitations',

@@ -607,5 +607,7 @@
   "chooseYourRoleSubtitle": "Choisissez comment vous utiliserez RemiMinder",
   "patientRoleCardDescription": "Gérez vos médicaments, rendez-vous et dossiers de santé",
   "caregiverRoleCardDescription": "Aidez à gérer les médicaments et les soins de vos proches ou patients",
-  "continueButton": "Continuer"
+  "continueButton": "Continuer",
+  "languagesAvailableCount": "{count} langues",
+  "scrollForMoreLanguages": "Faites défiler vers le bas pour voir toutes les langues"
 }

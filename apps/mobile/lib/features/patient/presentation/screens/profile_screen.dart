@@ -10,7 +10,6 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'account_details_screen.dart';
 import 'account_security_screen.dart';
-import 'language_settings_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -309,13 +308,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
         // Language Settings
         InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const LanguageSettingsScreen()),
-            );
-          },
+          onTap: () => context.push('/patient/language-settings'),
           borderRadius: BorderRadius.circular(20),
           child: Container(
             padding: const EdgeInsets.all(16),

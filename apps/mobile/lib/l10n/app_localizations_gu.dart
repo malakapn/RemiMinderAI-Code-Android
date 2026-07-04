@@ -30,6 +30,14 @@ class AppLocalizationsGu extends AppLocalizations {
   String get languageSettings => 'ભાષા સેટિંગ્સ';
 
   @override
+  String languagesAvailableCount(int count) {
+    return '$count ભાષાઓ';
+  }
+
+  @override
+  String get scrollForMoreLanguages => 'બધી ભાષાઓ જોવા નીચે સ્ક્રોલ કરો';
+
+  @override
   String languageUpdated(String language) {
     return 'ભાષા અપડેટ કરી. એપ્લિકેશન હવે પ્રદર્શિત થશે$language.';
   }

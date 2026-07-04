@@ -607,5 +607,7 @@
   "chooseYourRoleSubtitle": "RemiMinder-ஐ எப்படி பயன்படுத்துவீர்கள் என்பதைத் தேர்ந்தெடுக்கவும்",
   "patientRoleCardDescription": "உங்கள் மருந்துகள், நேரங்கள் மற்றும் சுகாதார பதிவுகளை நிர்வகிக்கவும்",
   "caregiverRoleCardDescription": "குடும்ப உறுப்பினர்கள் அல்லது நோயாளிகளின் மருந்து மற்றும் பராமரிப்பை நிர்வகிக்க உதவுங்கள்",
-  "continueButton": "தொடரவும்"
+  "continueButton": "தொடரவும்",
+  "languagesAvailableCount": "{count} மொழிகள்",
+  "scrollForMoreLanguages": "அனைத்து மொழிகளையும் பார்க்க கீழே உருட்டவும்"
 }

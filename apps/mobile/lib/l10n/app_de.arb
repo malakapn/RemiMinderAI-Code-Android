@@ -607,5 +607,7 @@
   "chooseYourRoleSubtitle": "Wählen Sie, wie Sie RemiMinder nutzen",
   "patientRoleCardDescription": "Verwalten Sie Medikamente, Termine und Gesundheitsdaten",
   "caregiverRoleCardDescription": "Helfen Sie bei Medikamenten und Pflege für Familie oder Patienten",
-  "continueButton": "Weiter"
+  "continueButton": "Weiter",
+  "languagesAvailableCount": "{count} Sprachen",
+  "scrollForMoreLanguages": "Nach unten scrollen, um alle Sprachen zu sehen"
 }
