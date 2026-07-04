@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,21 +15,11 @@ Future<void> _firebaseMessagingBackgroundHandler(
   await Firebase.initializeApp();
 }
 
-/// App entry point with Riverpod state management
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Load environment variables
-  await Environment.load();
-  Environment.validate(); // Ensure required vars are set
-  debugPrint('📡 API base URL: ${Environment.apiBaseUrl}');
-
-  // Initialize Firebase with error handling
+Future<void> _bootstrapServices() async {
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp().timeout(const Duration(seconds: 20));
+    debugPrint('Firebase initialized');
   } catch (e) {
-    // Log error but continue - app can still show welcome screen
-    // This prevents app crash on Firebase init failure
     debugPrint('Firebase initialization failed: $e');
   }
 
@@ -36,8 +28,21 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('NotificationService initialization failed: $e');
   }
+}
+
+/// App entry point with Riverpod state management
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Environment.load();
+  Environment.validate();
+  debugPrint('📡 API base URL: ${Environment.apiBaseUrl}');
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Start Firebase/notifications without blocking first frame — a long hang
+  // here looks like the app "closed" (blank screen until init finishes).
+  unawaited(_bootstrapServices());
 
   runApp(
     const ProviderScope(

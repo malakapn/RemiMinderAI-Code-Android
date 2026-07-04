@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -18,10 +19,15 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  FirebaseMessaging? _fcm;
+  FirebaseMessaging get _firebaseMessaging {
+    _fcm ??= FirebaseMessaging.instance;
+    return _fcm!;
+  }
 
   bool _isInitialized = false;
-  final AuthService _authService = AuthService();
+  AuthService? _authService;
+  AuthService get _auth => _authService ??= AuthService();
   void Function(String route)? _navigationHandler;
 
   /// New id so Android recreates the channel with sound + max importance (channel
@@ -119,7 +125,13 @@ class NotificationService {
       }
     }
 
-    await _setupRemoteMessageInteractions();
+    // FCM requires Firebase; local notifications work without it.
+    if (Firebase.apps.isNotEmpty) {
+      await _setupRemoteMessageInteractions();
+    } else {
+      debugPrint(
+          'Skipping FCM setup — Firebase not initialized yet (local notifications only)');
+    }
 
     // Request necessary permissions
     await requestPermissions();
@@ -169,7 +181,7 @@ class NotificationService {
 
   Future<void> _markMedicationTaken(String reminderId) async {
     try {
-      final token = await _authService.getAccessToken();
+      final token = await _auth.getAccessToken();
       if (token == null) return;
 
       await http.post(
@@ -192,7 +204,7 @@ class NotificationService {
 
   Future<void> _snoozeMedication(String reminderId) async {
     try {
-      final token = await _authService.getAccessToken();
+      final token = await _auth.getAccessToken();
       if (token == null) return;
 
       await http.post(
@@ -229,6 +241,8 @@ class NotificationService {
   }
 
   Future<void> _setupRemoteMessageInteractions() async {
+    if (Firebase.apps.isEmpty) return;
+
     // Foreground FCM: show a local notification when app is open
     FirebaseMessaging.onMessage.listen(_handleForegroundFcm);
 
@@ -236,7 +250,7 @@ class NotificationService {
     FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteOpen);
 
     // App launched from a terminated state via notification tap
-    final initialMessage = await _fcm.getInitialMessage();
+    final initialMessage = await _firebaseMessaging.getInitialMessage();
     if (initialMessage != null) {
       _handleRemoteOpen(initialMessage);
     }
@@ -444,16 +458,17 @@ class NotificationService {
 
   Future<String?> getFcmToken() async {
     if (_fcmToken != null) return _fcmToken;
+    if (Firebase.apps.isEmpty) return null;
 
     try {
       if (Platform.isIOS) {
-        await _fcm.requestPermission(
+        await _firebaseMessaging.requestPermission(
           alert: true,
           badge: true,
           sound: true,
         );
       }
-      _fcmToken = await _fcm.getToken();
+      _fcmToken = await _firebaseMessaging.getToken();
       return _fcmToken;
     } catch (e) {
       debugPrint('Error getting FCM token: $e');
@@ -463,7 +478,7 @@ class NotificationService {
 
   Future<void> onTokenRefresh(
       FutureOr<void> Function(String token) handler) async {
-    _fcm.onTokenRefresh.listen((token) async {
+    _firebaseMessaging.onTokenRefresh.listen((token) async {
       await handler(token);
     });
   }
@@ -471,7 +486,7 @@ class NotificationService {
   /// Remove this device's token from the backend while the user is still signed in.
   Future<void> unregisterBackendFcmToken() async {
     try {
-      final token = await _authService.getAccessToken();
+      final token = await _auth.getAccessToken();
       if (token == null) return;
       await http.delete(
         Uri.parse('${Environment.apiBaseUrl}/api/fcm/token'),
@@ -488,7 +503,7 @@ class NotificationService {
   /// Invalidate the FCM installation on this device (call after Firebase sign-out).
   Future<void> clearLocalFcmRegistration() async {
     try {
-      await _fcm.deleteToken();
+      await _firebaseMessaging.deleteToken();
       _fcmToken = null;
     } catch (e) {
       debugPrint('Error clearing local FCM registration: $e');
@@ -496,11 +511,11 @@ class NotificationService {
   }
 
   Future<void> subscribeToTopic(String topic) async {
-    await _fcm.subscribeToTopic(topic);
+    await _firebaseMessaging.subscribeToTopic(topic);
   }
 
   Future<void> unsubscribeFromTopic(String topic) async {
-    await _fcm.unsubscribeFromTopic(topic);
+    await _firebaseMessaging.unsubscribeFromTopic(topic);
   }
 
   void setForegroundNotificationHandler(
