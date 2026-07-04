@@ -371,11 +371,29 @@ class AppLocalizationsBn extends AppLocalizations {
   String get planPremium => 'প্রিমিয়াম';
 
   @override
+  String get chooseYourRole => 'আপনার ভূমিকা বেছে নিন';
+
+  @override
+  String get chooseYourRoleSubtitle =>
+      'আপনি কীভাবে RemiMinder ব্যবহার করবেন তা নির্বাচন করুন';
+
+  @override
+  String get patientRoleCardDescription =>
+      'আপনার ওষুধ, অ্যাপয়েন্টমেন্ট এবং স্বাস্থ্য রেকর্ড পরিচালনা করুন';
+
+  @override
+  String get caregiverRoleCardDescription =>
+      'পরিবারের সদস্য বা রোগীদের ওষুধ ও যত্ন পরিচালনায় সহায়তা করুন';
+
+  @override
+  String get continueButton => 'চালিয়ে যান';
+
+  @override
   String get usageLabel => 'ব্যবহার';
 
   @override
   String freePlanUsage(int used, int limit) {
-    return 'ফ্রি প্ল্যান — $used / $limit সারাংশ ব্যবহৃত';
+    return '$used / $limit সারাংশ ব্যবহৃত';
   }
 
   @override

@@ -12,14 +12,18 @@ const String kPreferredLanguagePrefsKey = 'preferred_language';
 
 /// Locale notifier: persists to SharedPreferences + Firestore `preferredLanguage`.
 class LocaleNotifier extends Notifier<Locale> {
+  LocaleNotifier({Locale? initial}) : _initial = initial;
+
+  final Locale? _initial;
 
   @override
   Locale build() {
     Future.microtask(_loadSavedLocale);
-    return const Locale('en');
+    return _initial ?? const Locale('en');
   }
 
   Future<void> _loadSavedLocale() async {
+    if (_initial != null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final code = normalizeLanguageCode(

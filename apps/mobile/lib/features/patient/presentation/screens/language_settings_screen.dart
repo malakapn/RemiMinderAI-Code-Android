@@ -138,75 +138,108 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                 builder: (context, controller) => ListView.separated(
                   controller: controller,
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 160),
                   itemCount: kSupportedLanguages.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                  final opt = kSupportedLanguages[index];
-                  final isSelected = opt.code == selectedCode;
-                  final displayName = _localizedLanguageName(l10n, opt.code);
-
-                  return Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _onSelectLanguage(opt.code),
-                      borderRadius: BorderRadius.circular(12),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOut,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 18,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? theme.colorScheme.primary.withOpacity(0.08)
-                              : theme.colorScheme.primary.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface.withOpacity(0.08),
-                            width: isSelected ? 2 : 1,
+                    if (index == 0) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.languageSettings,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                displayName,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              opt.nativeName,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withOpacity(0.55),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            if (isSelected) ...[
-                              const SizedBox(width: 12),
-                              Icon(
-                                Icons.check_circle,
-                                color: theme.colorScheme.primary,
-                                size: 26,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                          const SizedBox(height: 8),
+                          _languageTile(
+                            theme: theme,
+                            l10n: l10n,
+                            index: index,
+                            selectedCode: selectedCode,
+                          ),
+                        ],
+                      );
+                    }
+                    return _languageTile(
+                      theme: theme,
+                      l10n: l10n,
+                      index: index,
+                      selectedCode: selectedCode,
+                    );
+                  },
+                ),
               ),
             ),
-            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _languageTile({
+    required ThemeData theme,
+    required AppLocalizations l10n,
+    required int index,
+    required String selectedCode,
+  }) {
+    final opt = kSupportedLanguages[index];
+    final isSelected = opt.code == selectedCode;
+    final displayName = _localizedLanguageName(l10n, opt.code);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _onSelectLanguage(opt.code),
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 18,
+          ),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primary.withOpacity(0.08)
+                : theme.colorScheme.primary.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withOpacity(0.08),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  displayName,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              Text(
+                opt.nativeName,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.55),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (isSelected) ...[
+                const SizedBox(width: 12),
+                Icon(
+                  Icons.check_circle,
+                  color: theme.colorScheme.primary,
+                  size: 26,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

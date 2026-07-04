@@ -115,7 +115,7 @@
   "planFree": "இலவசம்",
   "planPremium": "பிரீமியம்",
   "usageLabel": "பயன்பாடு",
-  "freePlanUsage": "இலவச திட்டம் — {used} / {limit} சுருக்கங்கள் பயன்படுத்தப்பட்டது",
+  "freePlanUsage": "{used} / {limit} சுருக்கங்கள் பயன்படுத்தப்பட்டது",
   "unlimited": "வரம்பற்றது",
   "editPhoneNumber": "தொலைபேசி எண்ணைத் திருத்து",
   "phoneNumber": "தொலைபேசி எண்",
@@ -602,5 +602,10 @@
     }
   },
   "authenticationErrorLoginAgain": "அங்கீகார பிழை. மீண்டும் உள்நுழையவும்.",
-  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone.",
+  "chooseYourRole": "உங்கள் பாத்திரத்தைத் தேர்ந்தெடுக்கவும்",
+  "chooseYourRoleSubtitle": "RemiMinder-ஐ எப்படி பயன்படுத்துவீர்கள் என்பதைத் தேர்ந்தெடுக்கவும்",
+  "patientRoleCardDescription": "உங்கள் மருந்துகள், நேரங்கள் மற்றும் சுகாதார பதிவுகளை நிர்வகிக்கவும்",
+  "caregiverRoleCardDescription": "குடும்ப உறுப்பினர்கள் அல்லது நோயாளிகளின் மருந்து மற்றும் பராமரிப்பை நிர்வகிக்க உதவுங்கள்",
+  "continueButton": "தொடரவும்"
 }

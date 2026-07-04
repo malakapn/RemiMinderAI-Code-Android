@@ -160,7 +160,7 @@
   "planFree": "ਮੁਫ਼ਤ",
   "planPremium": "ਪ੍ਰੀਮੀਅਮ",
   "usageLabel": "ਵਰਤੋਂ",
-  "freePlanUsage": "ਮੁਫਤ ਯੋਜਨਾ -{used} / {limit}ਸੰਖੇਪ ਵਰਤੇ ਗਏ",
+  "freePlanUsage": "{used} / {limit} ਸੰਖੇਪ ਵਰਤੇ ਗਏ",
   "@freePlanUsage": {
     "placeholders": {
       "used": {
@@ -751,5 +751,10 @@
     }
   },
   "authenticationErrorLoginAgain": "ਪ੍ਰਮਾਣੀਕਰਨ ਗਲਤੀ। ਦੁਬਾਰਾ ਲੌਗ ਇਨ ਕਰੋ।",
-  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone.",
+  "chooseYourRole": "ਆਪਣੀ ਭੂਮਿਕਾ ਚੁਣੋ",
+  "chooseYourRoleSubtitle": "ਚੁਣੋ ਕਿ ਤੁਸੀਂ RemiMinder ਕਿਵੇਂ ਵਰਤੋਗੇ",
+  "patientRoleCardDescription": "ਆਪਣੀਆਂ ਦਵਾਈਆਂ, ਮੁਲਾਕਾਤਾਂ ਅਤੇ ਸਿਹਤ ਰਿਕਾਰਡ ਪ੍ਰਬੰਧਿਤ ਕਰੋ",
+  "caregiverRoleCardDescription": "ਪਰਿਵਾਰਕ ਮੈਂਬਰਾਂ ਜਾਂ ਮਰੀਜ਼ਾਂ ਦੀ ਦੇਖਭਾਲ ਅਤੇ ਦਵਾਈਆਂ ਪ੍ਰਬੰਧਿਤ ਕਰਨ ਵਿੱਚ ਮਦਦ ਕਰੋ",
+  "continueButton": "ਜਾਰੀ ਰੱਖੋ"
 }

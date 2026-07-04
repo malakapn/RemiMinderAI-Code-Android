@@ -115,7 +115,7 @@
   "planFree": "Gratuit",
   "planPremium": "Premium",
   "usageLabel": "Utilisation",
-  "freePlanUsage": "Forfait gratuit — {used} / {limit} résumés utilisés",
+  "freePlanUsage": "{used} / {limit} résumés utilisés",
   "unlimited": "Illimité",
   "editPhoneNumber": "Modifier le numéro de téléphone",
   "phoneNumber": "Numéro de téléphone",
@@ -602,5 +602,10 @@
     }
   },
   "authenticationErrorLoginAgain": "Erreur d'authentification. Reconnectez-vous.",
-  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone.",
+  "chooseYourRole": "Choisissez votre rôle",
+  "chooseYourRoleSubtitle": "Choisissez comment vous utiliserez RemiMinder",
+  "patientRoleCardDescription": "Gérez vos médicaments, rendez-vous et dossiers de santé",
+  "caregiverRoleCardDescription": "Aidez à gérer les médicaments et les soins de vos proches ou patients",
+  "continueButton": "Continuer"
 }

@@ -115,7 +115,7 @@
   "planFree": "मुफ़्त",
   "planPremium": "प्रीमियम",
   "usageLabel": "उपयोग",
-  "freePlanUsage": "मुफ़्त योजना — {used} / {limit} सारांश उपयोग",
+  "freePlanUsage": "{used} / {limit} सारांश उपयोग",
   "unlimited": "असीमित",
   "editPhoneNumber": "फ़ोन नंबर संपादित करें",
   "phoneNumber": "फ़ोन नंबर",
@@ -602,5 +602,10 @@
     }
   },
   "authenticationErrorLoginAgain": "प्रमाणीकरण त्रुटि। कृपया फिर से लॉग इन करें।",
-  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone."
+  "stopRecordingMessage": "Are you sure you want to stop recording? This action cannot be undone.",
+  "chooseYourRole": "अपनी भूमिका चुनें",
+  "chooseYourRoleSubtitle": "चुनें कि आप RemiMinder कैसे उपयोग करेंगे",
+  "patientRoleCardDescription": "अपनी दवाएं, अपॉइंटमेंट और स्वास्थ्य रिकॉर्ड प्रबंधित करें",
+  "caregiverRoleCardDescription": "परिवार के सदस्यों या मरीजों की दवाएं और देखभाल प्रबंधित करने में मदद करें",
+  "continueButton": "जारी रखें"
 }

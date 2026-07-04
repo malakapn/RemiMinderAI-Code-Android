@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 
 class RoleSelectionScreen extends ConsumerWidget {
@@ -12,6 +13,7 @@ class RoleSelectionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedRole = ref.watch(selectedRoleProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     final compactLayout = MediaQuery.sizeOf(context).height < 700;
     final gapAfterHeader = compactLayout ? 24.0 : 48.0;
@@ -41,16 +43,15 @@ class RoleSelectionScreen extends ConsumerWidget {
             children: [
               SizedBox(height: compactLayout ? 12 : 20),
               Text(
-                'Choose Your Role',
+                l10n.chooseYourRole,
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       fontSize: compactLayout ? 28 : 32,
-                      fontWeight: FontWeight
-                          .w700, // Explicit bold weight for Merriweather
+                      fontWeight: FontWeight.w700,
                     ),
               ),
               const SizedBox(height: 12),
               Text(
-                'Select how you\'ll be using RemiMinder',
+                l10n.chooseYourRoleSubtitle,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.secondary,
                       fontSize: 18,
@@ -62,9 +63,8 @@ class RoleSelectionScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       _RoleCard(
-                        title: 'Patient',
-                        description:
-                            'Manage your own medications, appointments, and health records',
+                        title: l10n.patientRole,
+                        description: l10n.patientRoleCardDescription,
                         iconPath: 'assets/images/patient_icon.svg',
                         isSelected: selectedRole == UserRole.patient,
                         compactLayout: compactLayout,
@@ -74,9 +74,8 @@ class RoleSelectionScreen extends ConsumerWidget {
                       ),
                       SizedBox(height: gapBetweenCards),
                       _RoleCard(
-                        title: 'Caregiver',
-                        description:
-                            'Help manage medications and care for family members or patients',
+                        title: l10n.caregiverRole,
+                        description: l10n.caregiverRoleCardDescription,
                         iconPath: 'assets/images/caregiver_icon.svg',
                         isSelected: selectedRole == UserRole.caregiver,
                         compactLayout: compactLayout,
@@ -104,9 +103,9 @@ class RoleSelectionScreen extends ConsumerWidget {
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).disabledColor,
                   ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.continueButton,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -133,7 +132,6 @@ class RoleSelectionScreen extends ConsumerWidget {
   }
 
   void _onContinue(BuildContext context, WidgetRef ref, UserRole selectedRole) {
-    // Pass the selected role to the login/register screens
     final roleParam =
         selectedRole == UserRole.patient ? 'patient' : 'caregiver';
     context.go('/login?role=$roleParam');
@@ -163,13 +161,17 @@ class _RoleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = isSelected ? _cream : _teal;
+    final verticalPadding = compactLayout ? 14.0 : 18.0;
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: EdgeInsets.all(compactLayout ? 16 : 24),
+        padding: EdgeInsets.symmetric(
+          horizontal: compactLayout ? 16 : 20,
+          vertical: verticalPadding,
+        ),
         decoration: BoxDecoration(
           color: isSelected ? _teal : _cream,
           borderRadius: BorderRadius.circular(20),
@@ -179,6 +181,7 @@ class _RoleCard extends StatelessWidget {
           ),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SvgPicture.asset(
               iconPath,
@@ -189,11 +192,12 @@ class _RoleCard extends StatelessWidget {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: compactLayout ? 20 : 22,
                       fontWeight: FontWeight.w700,
                       fontFamily: 'Merriweather',
                       color: textColor,
@@ -204,21 +208,24 @@ class _RoleCard extends StatelessWidget {
                   Text(
                     description,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: compactLayout ? 14 : 15,
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w400,
                       color: textColor,
-                      height: 1.5,
+                      height: 1.35,
                     ),
                   ),
                 ],
               ),
             ),
             if (isSelected)
-              const Icon(
-                Icons.check,
-                color: _cream,
-                size: 24,
+              const Padding(
+                padding: EdgeInsets.only(left: 8, top: 2),
+                child: Icon(
+                  Icons.check,
+                  color: _cream,
+                  size: 24,
+                ),
               ),
           ],
         ),

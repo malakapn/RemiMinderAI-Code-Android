@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/data/models/auth_state.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../data/services/patient_api_service.dart';
-import 'upgrade_screen.dart';
+
+/// Free-tier visit summary quota shown in account usage.
+const int kFreeSummaryLimit = 2;
 
 class AccountDetailsScreen extends ConsumerStatefulWidget {
   const AccountDetailsScreen({super.key});
@@ -266,7 +267,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
 
   Widget _buildUsageDetailItem(ThemeData theme, AppLocalizations l10n) {
     final cached = PatientApiService.getCachedSummaries();
-    final int count = cached?.length ?? 0;
+    final used = cached?.length ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -303,7 +304,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$count summaries generated',
+                  l10n.freePlanUsage(used, kFreeSummaryLimit),
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -313,13 +314,6 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  void _navigateToUpgrade() {
-    launchUrl(
-      Uri.parse('https://remiminderai.com/pricing'),
-      mode: LaunchMode.externalApplication,
     );
   }
 

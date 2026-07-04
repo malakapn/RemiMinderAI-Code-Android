@@ -804,6 +804,36 @@ abstract class AppLocalizations {
   /// **'Premium'**
   String get planPremium;
 
+  /// No description provided for @chooseYourRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Your Role'**
+  String get chooseYourRole;
+
+  /// No description provided for @chooseYourRoleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select how you\'ll be using RemiMinder'**
+  String get chooseYourRoleSubtitle;
+
+  /// No description provided for @patientRoleCardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage your own medications, appointments, and health records'**
+  String get patientRoleCardDescription;
+
+  /// No description provided for @caregiverRoleCardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Help manage medications and care for family members or patients'**
+  String get caregiverRoleCardDescription;
+
+  /// No description provided for @continueButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueButton;
+
   /// No description provided for @usageLabel.
   ///
   /// In en, this message translates to:
@@ -813,7 +843,7 @@ abstract class AppLocalizations {
   /// No description provided for @freePlanUsage.
   ///
   /// In en, this message translates to:
-  /// **'Free plan — {used} / {limit} summaries used'**
+  /// **'{used} / {limit} summaries used'**
   String freePlanUsage(int used, int limit);
 
   /// No description provided for @unlimited.

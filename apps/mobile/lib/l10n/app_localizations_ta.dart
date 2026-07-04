@@ -373,11 +373,29 @@ class AppLocalizationsTa extends AppLocalizations {
   String get planPremium => 'பிரீமியம்';
 
   @override
+  String get chooseYourRole => 'உங்கள் பாத்திரத்தைத் தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get chooseYourRoleSubtitle =>
+      'RemiMinder-ஐ எப்படி பயன்படுத்துவீர்கள் என்பதைத் தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get patientRoleCardDescription =>
+      'உங்கள் மருந்துகள், நேரங்கள் மற்றும் சுகாதார பதிவுகளை நிர்வகிக்கவும்';
+
+  @override
+  String get caregiverRoleCardDescription =>
+      'குடும்ப உறுப்பினர்கள் அல்லது நோயாளிகளின் மருந்து மற்றும் பராமரிப்பை நிர்வகிக்க உதவுங்கள்';
+
+  @override
+  String get continueButton => 'தொடரவும்';
+
+  @override
   String get usageLabel => 'பயன்பாடு';
 
   @override
   String freePlanUsage(int used, int limit) {
-    return 'இலவச திட்டம் — $used / $limit சுருக்கங்கள் பயன்படுத்தப்பட்டது';
+    return '$used / $limit சுருக்கங்கள் பயன்படுத்தப்பட்டது';
   }
 
   @override

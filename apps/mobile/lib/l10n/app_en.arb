@@ -159,8 +159,13 @@
   "planLabel": "Plan",
   "planFree": "Free",
   "planPremium": "Premium",
+  "chooseYourRole": "Choose Your Role",
+  "chooseYourRoleSubtitle": "Select how you'll be using RemiMinder",
+  "patientRoleCardDescription": "Manage your own medications, appointments, and health records",
+  "caregiverRoleCardDescription": "Help manage medications and care for family members or patients",
+  "continueButton": "Continue",
   "usageLabel": "Usage",
-  "freePlanUsage": "Free plan — {used} / {limit} summaries used",
+  "freePlanUsage": "{used} / {limit} summaries used",
   "@freePlanUsage": {
     "placeholders": {
       "used": {

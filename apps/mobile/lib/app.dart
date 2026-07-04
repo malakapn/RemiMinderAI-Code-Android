@@ -144,7 +144,6 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
     });
 
     return MaterialApp.router(
-      key: ValueKey(locale.languageCode),
       title: 'RemiMinder',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

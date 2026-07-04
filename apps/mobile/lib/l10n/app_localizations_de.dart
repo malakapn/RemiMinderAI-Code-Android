@@ -378,11 +378,28 @@ class AppLocalizationsDe extends AppLocalizations {
   String get planPremium => 'Premium';
 
   @override
+  String get chooseYourRole => 'Wählen Sie Ihre Rolle';
+
+  @override
+  String get chooseYourRoleSubtitle => 'Wählen Sie, wie Sie RemiMinder nutzen';
+
+  @override
+  String get patientRoleCardDescription =>
+      'Verwalten Sie Medikamente, Termine und Gesundheitsdaten';
+
+  @override
+  String get caregiverRoleCardDescription =>
+      'Helfen Sie bei Medikamenten und Pflege für Familie oder Patienten';
+
+  @override
+  String get continueButton => 'Weiter';
+
+  @override
   String get usageLabel => 'Nutzung';
 
   @override
   String freePlanUsage(int used, int limit) {
-    return 'Kostenloser Tarif — $used / $limit Zusammenfassungen genutzt';
+    return '$used / $limit Zusammenfassungen genutzt';
   }
 
   @override
