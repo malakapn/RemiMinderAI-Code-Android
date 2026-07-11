@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/user_api_service.dart';
+import '../../../../core/config/app_build_info.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -53,6 +54,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 32),
 
                     _buildBottomButtons(theme, l10n),
+
+                    const SizedBox(height: 20),
+                    Text(
+                      '$kAppBuildLabel · $kAppGitCommitShort',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
                   ],
                 ),
               ),
