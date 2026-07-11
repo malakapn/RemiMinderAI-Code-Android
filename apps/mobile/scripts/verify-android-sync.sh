@@ -19,7 +19,7 @@ git fetch origin main 2>/dev/null || true
 git log --oneline -5 origin/main 2>/dev/null || git log --oneline -5
 echo
 
-EXPECTED_COMMIT="2977878"
+EXPECTED_COMMIT="ae63d80"
 if git merge-base --is-ancestor "$EXPECTED_COMMIT" HEAD 2>/dev/null; then
   echo "OK: This checkout includes caregiver UX commit $EXPECTED_COMMIT"
 else
@@ -67,4 +67,4 @@ echo "  cd $MOBILE_DIR"
 echo "  flutter clean && flutter pub get"
 echo "  flutter run -d RFGYC218FBD"
 echo
-echo "On device: Profile tab should show footer: RemiMinder v1.3.2 (build 62) · 2977878"
+echo "On device: Profile tab should show footer: RemiMinder v1.3.2 (build 62) · ae63d80"
