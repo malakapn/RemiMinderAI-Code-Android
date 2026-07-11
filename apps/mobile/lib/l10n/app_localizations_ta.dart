@@ -925,6 +925,18 @@ class AppLocalizationsTa extends AppLocalizations {
   String get defaultCaregiver => 'பராமரிப்பாளர்';
 
   @override
+  String get caregiverHomeSubtitle => 'Your care dashboard';
+
+  @override
+  String get caregiverScheduleTitle => 'Support schedule';
+
+  @override
+  String get caregiverScheduleSubtitle => 'Reminders & appointments';
+
+  @override
+  String get caregiverAlertsSubtitle => 'Medication and care updates';
+
+  @override
   String caregiverPatientTime(String name, String time) {
     return 'நோயாளி: $name • $time';
   }
@@ -984,6 +996,9 @@ class AppLocalizationsTa extends AppLocalizations {
   @override
   String get allAlertsAlreadyRead =>
       'அனைத்து எச்சரிக்கைகளும் ஏற்கனவே படிக்கப்பட்டவை';
+
+  @override
+  String get markAllAlertsRead => 'Mark all read';
 
   @override
   String get myPatientsTitle => 'என் நோயாளிகள்';

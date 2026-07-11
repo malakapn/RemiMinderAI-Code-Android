@@ -1782,6 +1782,30 @@ abstract class AppLocalizations {
   /// **'Caregiver'**
   String get defaultCaregiver;
 
+  /// No description provided for @caregiverHomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your care dashboard'**
+  String get caregiverHomeSubtitle;
+
+  /// No description provided for @caregiverScheduleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Support schedule'**
+  String get caregiverScheduleTitle;
+
+  /// No description provided for @caregiverScheduleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders & appointments'**
+  String get caregiverScheduleSubtitle;
+
+  /// No description provided for @caregiverAlertsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Medication and care updates'**
+  String get caregiverAlertsSubtitle;
+
   /// No description provided for @caregiverPatientTime.
   ///
   /// In en, this message translates to:
@@ -1883,6 +1907,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All alerts are already read'**
   String get allAlertsAlreadyRead;
+
+  /// No description provided for @markAllAlertsRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all read'**
+  String get markAllAlertsRead;
 
   /// No description provided for @myPatientsTitle.
   ///

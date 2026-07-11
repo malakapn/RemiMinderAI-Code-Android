@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../../../core/config/theme.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
 
 /// Upcoming = local calendar today and future (hides past days).
@@ -246,6 +249,7 @@ class _CaregiverReminderTimelineScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final visibleRows = _visibleRows();
     final validPatientIds = _patients
         .map((p) => p['patient_id']?.toString() ?? '')
@@ -264,45 +268,22 @@ class _CaregiverReminderTimelineScreenState
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.primary),
-          onPressed: () => context.go('/caregiver/home'),
-        ),
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Support schedule',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              'Reminders & appointments',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withOpacity(0.65),
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-          children: [
+      backgroundColor: RemiCareUiColors.bodyBackground,
+      body: Column(
+        children: [
+          RemiShellUi.screenHeader(
+            context: context,
+            title: l10n.caregiverScheduleTitle,
+            subtitle: l10n.caregiverScheduleSubtitle,
+            onBack: () => context.go('/caregiver/home'),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                children: [
             DropdownButtonFormField<String?>(
                   value: selectedPatientValue,
                   decoration: const InputDecoration(
@@ -470,8 +451,11 @@ class _CaregiverReminderTimelineScreenState
               ),
             if (!_loading && _error == null && visibleRows.isNotEmpty)
               ..._buildGroupedSliverChildren(),
-          ],
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

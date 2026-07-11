@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/config/theme.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/utils/locale_format.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -229,8 +231,19 @@ class _AlertListScreenState extends State<AlertListScreen> {
     final l10n = AppLocalizations.of(context)!;
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.alertsTitle)),
-        body: const Center(child: CircularProgressIndicator()),
+        backgroundColor: RemiCareUiColors.bodyBackground,
+        body: Column(
+          children: [
+            RemiShellUi.screenHeader(
+              context: context,
+              title: l10n.navOverview,
+              subtitle: l10n.caregiverAlertsSubtitle,
+            ),
+            const Expanded(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+        ),
       );
     }
     final unreadCount = _allAlerts.where((alert) => !alert['isRead']).length;
@@ -240,50 +253,25 @@ class _AlertListScreenState extends State<AlertListScreen> {
         : '$filteredCount ${l10n.alertsPlural}';
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          onPressed: () => context.go('/caregiver/home'),
-        ),
-        title: Text(
-          l10n.alertsTitle,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        actions: [
-          if (unreadCount > 0)
-            Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                LocaleFormat.number(context, unreadCount),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-        ],
-      ),
+      backgroundColor: RemiCareUiColors.bodyBackground,
       body: Column(
         children: [
-          // Filter Tabs
+          RemiShellUi.screenHeader(
+            context: context,
+            title: l10n.navOverview,
+            subtitle: l10n.caregiverAlertsSubtitle,
+            trailing: unreadCount > 0
+                ? IconButton(
+                    icon: const Icon(Icons.done_all, color: Colors.white),
+                    tooltip: l10n.markAllAlertsRead,
+                    onPressed: _markAllAsRead,
+                  )
+                : null,
+          ),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1),
+              color: RemiCareUiColors.filterInactiveBg,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -303,10 +291,11 @@ class _AlertListScreenState extends State<AlertListScreen> {
               children: [
                 Text(
                   alertsLabel,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
+                    fontFamily: 'Merriweather',
+                    color: RemiCareUiColors.sectionHeaderText,
                   ),
                 ),
                 if (_selectedFilter != _AlertFilter.all) ...[
@@ -347,7 +336,7 @@ class _AlertListScreenState extends State<AlertListScreen> {
             child: _filteredAlerts.isEmpty
                 ? _buildEmptyState(l10n)
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                     itemCount: _filteredAlerts.length,
                     itemBuilder: (context, index) {
                       final alert = _filteredAlerts[index];
@@ -356,12 +345,6 @@ class _AlertListScreenState extends State<AlertListScreen> {
                   ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _markAllAsRead,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        tooltip: 'Mark all as read',
-        child: const Icon(Icons.done_all),
       ),
     );
   }
@@ -383,7 +366,7 @@ class _AlertListScreenState extends State<AlertListScreen> {
           margin: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: isSelected
-                ? Theme.of(context).colorScheme.primary
+                ? RemiCareUiColors.primaryDarkTeal
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),

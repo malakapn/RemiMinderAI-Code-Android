@@ -467,6 +467,10 @@
   "viewInvitations": "View Invitations",
   "defaultPatient": "Patient",
   "defaultCaregiver": "Caregiver",
+  "caregiverHomeSubtitle": "Your care dashboard",
+  "caregiverScheduleTitle": "Support schedule",
+  "caregiverScheduleSubtitle": "Reminders & appointments",
+  "caregiverAlertsSubtitle": "Medication and care updates",
   "caregiverPatientTime": "Patient: {name} • {time}",
   "@caregiverPatientTime": {
     "placeholders": {
@@ -508,6 +512,7 @@
     }
   },
   "allAlertsAlreadyRead": "All alerts are already read",
+  "markAllAlertsRead": "Mark all read",
   "myPatientsTitle": "My Patients",
   "patientsConnectedSubtitle": "Patients connected to you",
   "myPatientsSection": "My patients",

@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/environment.dart';
+import '../../../../core/config/theme.dart';
 import '../../../../core/utils/locale_format.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../patient/data/models/summary_item.dart';
 import '../../data/services/caregiver_api_service.dart';
@@ -237,57 +239,42 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              leading: IconButton(
-                icon: Icon(
-                  Icons.arrow_back,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                onPressed: () => context.go('/caregiver/patients'),
+      backgroundColor: RemiCareUiColors.bodyBackground,
+      body: Column(
+        children: [
+          RemiShellUi.screenHeader(
+            context: context,
+            title: l10n.patientOverviewTitle,
+            subtitle: _patientName,
+            onBack: () => context.go('/caregiver/patients'),
+          ),
+          _buildPatientHeader(l10n),
+          TabBar(
+            controller: _tabController,
+            tabs: [
+              Tab(
+                text: l10n.patientOverviewTabVisits,
+                icon: const Icon(Icons.medical_services),
               ),
-              title: Text(
-                l10n.patientOverviewTitle,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              Tab(
+                text: l10n.patientOverviewTabReminders,
+                icon: const Icon(Icons.notifications),
               ),
+            ],
+            labelColor: RemiCareUiColors.primaryDarkTeal,
+            unselectedLabelColor: RemiCareUiColors.bodySubtitleText,
+            indicatorColor: RemiCareUiColors.primaryDarkTeal,
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildVisitsTab(l10n),
+                _buildRemindersTab(l10n),
+              ],
             ),
-            SliverToBoxAdapter(child: _buildPatientHeader(l10n)),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _SliverAppBarDelegate(
-                TabBar(
-                  controller: _tabController,
-                  tabs: [
-                    Tab(
-                      text: l10n.patientOverviewTabVisits,
-                      icon: const Icon(Icons.medical_services),
-                    ),
-                    Tab(
-                      text: l10n.patientOverviewTabReminders,
-                      icon: const Icon(Icons.notifications),
-                    ),
-                  ],
-                  labelColor: Theme.of(context).colorScheme.primary,
-                  unselectedLabelColor:
-                      Theme.of(context).colorScheme.secondary,
-                  indicatorColor: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ),
-          ];
-        },
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildVisitsTab(l10n),
-            _buildRemindersTab(l10n),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -297,15 +284,9 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: RemiCareUiColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: RemiCareUiColors.cardShadow,
       ),
       child: Row(
         children: [
@@ -694,31 +675,5 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
       'summary': summary.summaryPreview,
       'displayTitle': summary.visitDisplayLabel(fallbackVisitLabel),
     };
-  }
-}
-
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-
-  _SliverAppBarDelegate(this.tabBar);
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return false;
   }
 }

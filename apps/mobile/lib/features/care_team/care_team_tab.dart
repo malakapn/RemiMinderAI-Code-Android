@@ -4,6 +4,7 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../core/models/user.dart';
 
 import '../../core/config/theme.dart';
+import '../../core/widgets/remi_shell_ui.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/invitation_provider.dart';
 import 'data/models/care_team_member.dart';
@@ -75,49 +76,27 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
 
     return Scaffold(
       backgroundColor: RemiCareUiColors.bodyBackground,
-      appBar: AppBar(
-        backgroundColor: RemiCareUiColors.primaryDarkTeal,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l10n.careTeamTitle,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+      body: Column(
+        children: [
+          RemiShellUi.screenHeader(
+            context: context,
+            title: l10n.careTeamTitle,
+            subtitle: l10n.caregiverCareTeamSubtitle,
+            trailing: IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              onPressed: _onRefresh,
             ),
-            Text(
-              l10n.caregiverCareTeamSubtitle,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _onRefresh,
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const InvitationsReceivedSection(),
-            const SizedBox(height: 24),
-            if (_isLoading)
-              const Padding(
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const InvitationsReceivedSection(),
+                  const SizedBox(height: 24),
+                  if (_isLoading)
+                    const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(child: CircularProgressIndicator()),
               )
@@ -179,8 +158,11 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
                 l10n: l10n,
                 onInvite: () => _showInviteDialog(context),
               ),
-          ],
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

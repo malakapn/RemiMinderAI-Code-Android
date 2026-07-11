@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/config/theme.dart';
 import '../../../../core/utils/locale_format.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../shared/widgets/scroll_bottom_fade.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../models/caregiver_invitation.dart';
 import '../../../../providers/invitation_provider.dart';
@@ -14,7 +15,9 @@ import '../../../../core/services/backend_api_service.dart';
 
 // Caregiver home palette (iOS ASC parity)
 const Color _teal = AppTheme.primaryColor;
+const Color _tealMid = Color(0xFF2A6B63);
 const Color _cream = AppTheme.backgroundColor;
+const Color _white20 = Color(0x33FFFFFF);
 const Color _sage = Color(0xFF7DA68A);
 const Color _sagePale = Color(0xFFD6E8DC);
 const Color _sageDark = Color(0xFF4F7A61);
@@ -193,14 +196,12 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
     );
     final greeting = _timeBasedGreeting(l10n);
     final firstName = userName.split(' ').first;
-    final topPadding = MediaQuery.of(context).padding.top;
 
     return ColoredBox(
-      color: RemiCareUiColors.bodyBackground,
-      child: ListView(
-        padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 32),
+      color: _cream,
+      child: Column(
         children: [
-          _buildSummaryCard(
+          _buildHeader(
             context: context,
             greeting: greeting,
             firstName: firstName,
@@ -210,20 +211,32 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
             unreadAlerts: _unreadAlertCount,
             l10n: l10n,
           ),
-          _sectionLabel(
-            l10n.sectionRecentAlerts,
-            trailing: l10n.viewAll,
-            onTrailing: () => context.go('/caregiver/alerts'),
+          Expanded(
+            child: ScrollBottomFade.builder(
+              fadeColor: _cream,
+              builder: (context, controller) => ListView(
+                controller: controller,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+                children: [
+                  _sectionLabel(
+                    l10n.sectionRecentAlerts,
+                    trailing: l10n.viewAll,
+                    onTrailing: () => context.go('/caregiver/alerts'),
+                  ),
+                  _buildRecentAlertsSection(l10n),
+                  _sectionLabel(l10n.sectionInvitations),
+                  _buildInvitationsSection(l10n, pendingCount, isLoadingInvitations),
+                ],
+              ),
+            ),
           ),
-          _buildRecentAlertsSection(l10n),
-          _sectionLabel(l10n.sectionInvitations),
-          _buildInvitationsSection(l10n, pendingCount, isLoadingInvitations),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard({
+  Widget _buildHeader({
     required BuildContext context,
     required String greeting,
     required String firstName,
@@ -233,28 +246,38 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
     required int unreadAlerts,
     required AppLocalizations l10n,
   }) {
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: BoxDecoration(
-        color: _teal,
-        borderRadius: BorderRadius.circular(18),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, topPadding + 20, 20, 24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_teal, _tealMid],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(21),
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: _white20,
+                child: Icon(
+                  Icons.favorite_outline,
+                  color: Colors.white.withValues(alpha: 0.9),
+                  size: 28,
                 ),
-                child: const Icon(Icons.favorite, color: _cream, size: 22),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,18 +285,25 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
                     Text(
                       greeting,
                       style: _bodyStyle(context).copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: _cream.withValues(alpha: 0.65),
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       firstName,
                       style: _displayStyle(context).copyWith(
-                        fontSize: 22,
-                        color: _cream,
-                        height: 1.1,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.caregiverHomeSubtitle,
+                      style: _bodyStyle(context).copyWith(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
@@ -285,8 +315,11 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.notifications_outlined,
-                        color: _cream, size: 24),
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                     onPressed: () => context.go('/caregiver/alerts'),
                   ),
                   if (unreadAlerts > 0)
@@ -306,52 +339,67 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Divider(
-              height: 1,
-              color: _cream.withValues(alpha: 0.15),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
             ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: _summaryStat(
-                  context,
-                  l10n.summaryPatients,
-                  patientCount,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _summaryStat(
+                    context,
+                    l10n.summaryPatients,
+                    patientCount,
+                    light: true,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _summaryStat(
-                  context,
-                  l10n.summaryAlerts,
-                  alertCount,
+                Expanded(
+                  child: _summaryStat(
+                    context,
+                    l10n.summaryAlerts,
+                    alertCount,
+                    light: true,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _summaryStat(
-                  context,
-                  l10n.summaryPending,
-                  pendingCount,
+                Expanded(
+                  child: _summaryStat(
+                    context,
+                    l10n.summaryPending,
+                    pendingCount,
+                    light: true,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _summaryStat(BuildContext context, String label, int value) {
+  Widget _summaryStat(
+    BuildContext context,
+    String label,
+    int value, {
+    bool light = false,
+  }) {
+    final valueColor = light ? Colors.white : _cream;
+    final labelColor =
+        light ? Colors.white.withValues(alpha: 0.55) : _cream.withValues(alpha: 0.55);
+
     return Column(
       children: [
         Text(
           LocaleFormat.number(context, value),
           style: _displayStyle(context).copyWith(
             fontSize: 22,
-            color: _cream,
-            height: 1.1,
+            color: valueColor,
           ),
         ),
         const SizedBox(height: 4),
@@ -361,7 +409,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.08,
-            color: _cream.withValues(alpha: 0.55),
+            color: labelColor,
           ),
         ),
       ],
@@ -589,19 +637,9 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A5C55), _teal],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
+        color: _teal,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: RemiCareUiColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
