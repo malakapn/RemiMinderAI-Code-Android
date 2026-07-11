@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/services/notification_service.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../care_team/data/models/care_team_member.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
@@ -18,7 +20,6 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
   bool _allowAiImprovement = true;
 
   bool _allowEmailNotifications = true;
-  bool _allowSmsNotifications = false;
   bool _allowPushNotifications = true;
 
   CareTeamMember? _activeCaregiver;
@@ -48,7 +49,6 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     _allowCaregiverReminders = value;
     _allowAiImprovement = value;
     _allowEmailNotifications = value;
-    _allowSmsNotifications = value;
     _allowPushNotifications = value;
   }
 
@@ -149,6 +149,37 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     }
   }
 
+  void _showEmailPreferenceInfo() {
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.emailNotificationPreferenceMessage),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  Future<void> _updatePushNotifications(bool value) async {
+    _updateLocalPreference(() => _allowPushNotifications = value);
+    if (!value) return;
+
+    final granted = await NotificationService().requestPermissions();
+    if (!mounted) return;
+    if (!granted) {
+      setState(() => _allowPushNotifications = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.pushNotificationsDisabled)),
+      );
+    }
+  }
+
+  void _updateEmailNotifications(bool value) {
+    _updateLocalPreference(() => _allowEmailNotifications = value);
+    if (value) {
+      _showEmailPreferenceInfo();
+    }
+  }
+
   void _updateLocalPreference(void Function() apply) {
     setState(apply);
   }
@@ -236,46 +267,14 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
         _activeCaregiver != null;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: RemiShellUi.bodyCream,
       body: SafeArea(
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF1A4D4D),
-                    Color(0xFF051818),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  Expanded(
-                    child: Text(
-                      l10n.privacySettings,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
+            RemiShellUi.screenHeader(
+              context: context,
+              title: l10n.privacySettings,
+              onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -340,25 +339,13 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                     _buildToggleTile(
                       l10n.allowEmailNotifications,
                       _allowEmailNotifications,
-                      (value) => _updateLocalPreference(
-                        () => _allowEmailNotifications = value,
-                      ),
-                      isEnabled: !_isLoadingCaregiver,
-                    ),
-                    _buildToggleTile(
-                      l10n.allowSmsNotifications,
-                      _allowSmsNotifications,
-                      (value) => _updateLocalPreference(
-                        () => _allowSmsNotifications = value,
-                      ),
+                      _updateEmailNotifications,
                       isEnabled: !_isLoadingCaregiver,
                     ),
                     _buildToggleTile(
                       l10n.allowPushNotifications,
                       _allowPushNotifications,
-                      (value) => _updateLocalPreference(
-                        () => _allowPushNotifications = value,
-                      ),
+                      _updatePushNotifications,
                       isEnabled: !_isLoadingCaregiver,
                     ),
                     const SizedBox(height: 24),

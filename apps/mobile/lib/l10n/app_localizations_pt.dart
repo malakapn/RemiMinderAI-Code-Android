@@ -599,6 +599,14 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get emailNotificationPreferenceMessage =>
+      'Email notification preferences are managed by our support team. Contact privacy@remiminder.ai to update them.';
+
+  @override
+  String get pushNotificationsDisabled =>
+      'Push notifications are disabled. Enable them in your device settings to receive alerts.';
+
+  @override
   String get caregiverSharingEnabled => 'Compartilhamento com cuidador ativado';
 
   @override

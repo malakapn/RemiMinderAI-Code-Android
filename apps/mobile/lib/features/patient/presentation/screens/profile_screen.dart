@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/user_api_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -249,10 +250,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   Switch(
                     value: _mobileNotifications,
-                    onChanged: (value) {
+                    onChanged: (value) async {
                       setState(() {
                         _mobileNotifications = value;
                       });
+                      if (!value) return;
+                      final granted =
+                          await NotificationService().requestPermissions();
+                      if (!mounted) return;
+                      if (!granted) {
+                        setState(() => _mobileNotifications = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.pushNotificationsDisabled),
+                          ),
+                        );
+                      }
                     },
                     activeThumbColor: theme.colorScheme.primary,
                   ),
@@ -273,6 +286,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       setState(() {
                         _emailNotifications = value;
                       });
+                      if (value) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.emailNotificationPreferenceMessage),
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
+                      }
                     },
                     activeThumbColor: theme.colorScheme.primary,
                   ),

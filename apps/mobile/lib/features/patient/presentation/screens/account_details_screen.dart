@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/data/models/auth_state.dart';
@@ -46,47 +47,14 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: RemiShellUi.bodyCream,
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF1A4D4D), // Dark teal-green
-                    Color(0xFF051818), // Very dark green/black
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      l10n.accountDetails,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(width: 48), // Balance for back button
-                ],
-              ),
+            RemiShellUi.screenHeader(
+              context: context,
+              title: l10n.accountDetails,
+              onBack: () => Navigator.of(context).pop(),
             ),
 
             // Content

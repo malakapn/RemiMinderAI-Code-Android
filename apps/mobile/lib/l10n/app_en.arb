@@ -257,7 +257,7 @@
   "privacyPolicy": "Privacy Policy",
   "privacyPolicyBody": "Privacy Policy for RemiMinder\n\n1. Information We Collect\nWe collect information you provide and usage data to improve our service.\n\n2. How We Use Information\nInformation is used to provide healthcare management services.\n\n3. Information Sharing\nWe do not sell your personal information.\n\nFor the complete Privacy Policy, please visit our website.",
   "close": "Close",
-  "featureComingSoon": "{feature} coming soon",
+  "featureComingSoon": "Contact privacy@remiminder.ai for {feature} requests.",
   "@featureComingSoon": {
     "placeholders": {
       "feature": {
@@ -265,6 +265,8 @@
       }
     }
   },
+  "emailNotificationPreferenceMessage": "Email notification preferences are managed by our support team. Contact privacy@remiminder.ai to update them.",
+  "pushNotificationsDisabled": "Push notifications are disabled. Enable them in your device settings to receive alerts.",
   "caregiverSharingEnabled": "Caregiver sharing enabled",
   "caregiverSharingDisabled": "Caregiver sharing disabled",
   "dataExport": "Data export",

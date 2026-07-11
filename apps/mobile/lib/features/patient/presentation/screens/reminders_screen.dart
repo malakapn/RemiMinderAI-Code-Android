@@ -699,21 +699,26 @@ class _RemindersScreenState extends State<RemindersScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.92,
+            ),
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Text(l10n.newReminder,
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold)),
@@ -846,11 +851,13 @@ class _RemindersScreenState extends State<RemindersScreen>
                         style: const TextStyle(color: Colors.white, fontSize: 16)),
                   ),
                 ),
+                const SizedBox(height: 8),
               ],
             ),
           ),
         ),
       ),
+    ),
     );
   }
 

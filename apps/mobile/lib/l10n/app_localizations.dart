@@ -1209,8 +1209,20 @@ abstract class AppLocalizations {
   /// No description provided for @featureComingSoon.
   ///
   /// In en, this message translates to:
-  /// **'{feature} coming soon'**
+  /// **'Contact privacy@remiminder.ai for {feature} requests.'**
   String featureComingSoon(String feature);
+
+  /// No description provided for @emailNotificationPreferenceMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Email notification preferences are managed by our support team. Contact privacy@remiminder.ai to update them.'**
+  String get emailNotificationPreferenceMessage;
+
+  /// No description provided for @pushNotificationsDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications are disabled. Enable them in your device settings to receive alerts.'**
+  String get pushNotificationsDisabled;
 
   /// No description provided for @caregiverSharingEnabled.
   ///

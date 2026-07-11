@@ -16,10 +16,10 @@ class RoleSelectionScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     final compactLayout = MediaQuery.sizeOf(context).height < 820;
-    final gapAfterHeader = compactLayout ? 16.0 : 32.0;
-    final gapBetweenCards = compactLayout ? 12.0 : 20.0;
-    final gapBeforeContinue = compactLayout ? 12.0 : 24.0;
-    final gapBeforeDots = compactLayout ? 12.0 : 20.0;
+    final gapAfterHeader = compactLayout ? 16.0 : 24.0;
+    final gapBetweenCards = compactLayout ? 12.0 : 16.0;
+    final gapBeforeContinue = compactLayout ? 16.0 : 24.0;
+    final gapBeforeDots = compactLayout ? 12.0 : 16.0;
     final gapBottom = compactLayout ? 8.0 : 12.0;
 
     return Scaffold(
@@ -36,98 +36,98 @@ class RoleSelectionScreen extends ConsumerWidget {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-                  SizedBox(height: compactLayout ? 4 : 12),
-                  Text(
-                    l10n.chooseYourRole,
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          fontSize: compactLayout ? 24 : 28,
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.chooseYourRoleSubtitle,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.secondary,
-                          fontSize: compactLayout ? 16 : 18,
-                        ),
-                  ),
-                  SizedBox(height: gapAfterHeader),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _RoleCard(
-                            title: l10n.patientRole,
-                            description: l10n.patientRoleCardDescription,
-                            iconPath: 'assets/images/patient_icon.svg',
-                            isSelected: selectedRole == UserRole.patient,
-                            compactLayout: compactLayout,
-                            onTap: () => ref
-                                .read(selectedRoleProvider.notifier)
-                                .selectRole(UserRole.patient),
-                          ),
-                          SizedBox(height: gapBetweenCards),
-                          _RoleCard(
-                            title: l10n.caregiverRole,
-                            description: l10n.caregiverRoleCardDescription,
-                            iconPath: 'assets/images/caregiver_icon.svg',
-                            isSelected: selectedRole == UserRole.caregiver,
-                            compactLayout: compactLayout,
-                            onTap: () => ref
-                                .read(selectedRoleProvider.notifier)
-                                .selectRole(UserRole.caregiver),
-                          ),
-                        ],
-                      ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: compactLayout ? 4 : 12),
+                    Text(
+                      l10n.chooseYourRole,
+                      style:
+                          Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                fontSize: compactLayout ? 24 : 28,
+                                fontWeight: FontWeight.w700,
+                              ),
                     ),
-                  ),
-                  SizedBox(height: gapBeforeContinue),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: selectedRole != null
-                          ? () => _onContinue(context, ref, selectedRole)
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(
-                          vertical: compactLayout ? 14 : 16,
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.chooseYourRoleSubtitle,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.secondary,
+                            fontSize: compactLayout ? 16 : 18,
+                          ),
+                    ),
+                    SizedBox(height: gapAfterHeader),
+                    _RoleCard(
+                      title: l10n.patientRole,
+                      description: l10n.patientRoleCardDescription,
+                      iconPath: 'assets/images/patient_icon.svg',
+                      isSelected: selectedRole == UserRole.patient,
+                      compactLayout: compactLayout,
+                      onTap: () => ref
+                          .read(selectedRoleProvider.notifier)
+                          .selectRole(UserRole.patient),
+                    ),
+                    SizedBox(height: gapBetweenCards),
+                    _RoleCard(
+                      title: l10n.caregiverRole,
+                      description: l10n.caregiverRoleCardDescription,
+                      iconPath: 'assets/images/caregiver_icon.svg',
+                      isSelected: selectedRole == UserRole.caregiver,
+                      compactLayout: compactLayout,
+                      onTap: () => ref
+                          .read(selectedRoleProvider.notifier)
+                          .selectRole(UserRole.caregiver),
+                    ),
+                    SizedBox(height: gapBeforeContinue),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: selectedRole != null
+                            ? () => _onContinue(context, ref, selectedRole)
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            vertical: compactLayout ? 14 : 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          backgroundColor: selectedRole != null
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).disabledColor,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        backgroundColor: selectedRole != null
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).disabledColor,
-                      ),
-                      child: Text(
-                        l10n.continueButton,
-                        style: TextStyle(
-                          fontSize: compactLayout ? 16 : 18,
-                          fontWeight: FontWeight.w600,
+                        child: Text(
+                          l10n.continueButton,
+                          style: TextStyle(
+                            fontSize: compactLayout ? 16 : 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: gapBeforeDots),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _IndicatorDot(isActive: false),
-                      SizedBox(width: 8),
-                      _IndicatorDot(isActive: true),
-                      SizedBox(width: 8),
-                      _IndicatorDot(isActive: false),
-                    ],
-                  ),
-                  SizedBox(height: gapBottom),
-                ],
+                    SizedBox(height: gapBeforeDots),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _IndicatorDot(isActive: false),
+                        SizedBox(width: 8),
+                        _IndicatorDot(isActive: true),
+                        SizedBox(width: 8),
+                        _IndicatorDot(isActive: false),
+                      ],
+                    ),
+                    SizedBox(height: gapBottom),
+                  ],
+                ),
               ),
+            );
+          },
         ),
       ),
     );
@@ -163,7 +163,7 @@ class _RoleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = isSelected ? _cream : _teal;
-    final verticalPadding = compactLayout ? 14.0 : 18.0;
+    final verticalPadding = compactLayout ? 12.0 : 16.0;
 
     return GestureDetector(
       onTap: onTap,
@@ -171,7 +171,7 @@ class _RoleCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
         padding: EdgeInsets.symmetric(
-          horizontal: compactLayout ? 16 : 20,
+          horizontal: compactLayout ? 14 : 18,
           vertical: verticalPadding,
         ),
         decoration: BoxDecoration(
@@ -187,10 +187,10 @@ class _RoleCard extends StatelessWidget {
           children: [
             SvgPicture.asset(
               iconPath,
-              width: 32,
-              height: 32,
+              width: compactLayout ? 28 : 32,
+              height: compactLayout ? 28 : 32,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,34 +199,36 @@ class _RoleCard extends StatelessWidget {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: compactLayout ? 20 : 22,
+                      fontSize: compactLayout ? 18 : 20,
                       fontWeight: FontWeight.w700,
                       fontFamily: 'Merriweather',
                       color: textColor,
-                      letterSpacing: -0.3,
+                      height: 1.15,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     description,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: compactLayout ? 14 : 15,
+                      fontSize: compactLayout ? 13 : 14,
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w400,
                       color: textColor,
-                      height: 1.35,
+                      height: 1.3,
                     ),
                   ),
                 ],
               ),
             ),
             if (isSelected)
-              const Padding(
-                padding: EdgeInsets.only(left: 8, top: 2),
+              Padding(
+                padding: const EdgeInsets.only(left: 6, top: 2),
                 child: Icon(
-                  Icons.check,
+                  Icons.check_circle,
                   color: _cream,
-                  size: 24,
+                  size: compactLayout ? 22 : 24,
                 ),
               ),
           ],

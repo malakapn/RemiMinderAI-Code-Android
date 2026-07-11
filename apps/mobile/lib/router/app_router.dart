@@ -161,6 +161,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const ProfileScreen(),
           ),
           GoRoute(
+            path: '/patient/language-settings',
+            builder: (context, state) => const LanguageSettingsScreen(),
+          ),
+          GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
           ),
@@ -248,10 +252,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/patient/reminders',
         builder: (context, state) => const RemindersScreen(),
-      ),
-      GoRoute(
-        path: '/patient/language-settings',
-        builder: (context, state) => const LanguageSettingsScreen(),
       ),
       GoRoute(
         path: '/patient/invitations',

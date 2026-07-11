@@ -10,6 +10,7 @@ import '../../../../core/providers/locale_provider.dart';
 import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../shared/widgets/scroll_bottom_fade.dart';
 import '../../data/services/patient_api_service.dart';
 
 class LanguageSettingsScreen extends ConsumerStatefulWidget {
@@ -131,18 +132,22 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
               ),
             ),
             Expanded(
-              child: ListView.separated(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                itemCount: languageCount,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, index) => _languageTile(
-                  theme: theme,
-                  l10n: l10n,
-                  index: index,
-                  selectedCode: selectedCode,
+              child: ScrollBottomFade.builder(
+                fadeColor: RemiShellUi.bodyCream,
+                builder: (context, controller) => ListView.separated(
+                  controller: controller,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  itemCount: languageCount,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) => _languageTile(
+                    theme: theme,
+                    l10n: l10n,
+                    index: index,
+                    selectedCode: selectedCode,
+                  ),
                 ),
               ),
             ),
