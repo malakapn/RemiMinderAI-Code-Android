@@ -12,25 +12,25 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compactLayout = MediaQuery.sizeOf(context).height < 700;
+    final compactLayout = MediaQuery.sizeOf(context).height < 820;
 
-    final gapAfterSkip = compactLayout ? 32.0 : 40.0;
-    final gapAfterLogo = compactLayout ? 24.0 : 32.0;
-    final gapAfterTitle = compactLayout ? 12.0 : 16.0;
-    final gapAfterTagline = compactLayout ? 16.0 : 24.0;
-    final gapBeforeButton = compactLayout ? 32.0 : 48.0;
+    final gapAfterSkip = compactLayout ? 24.0 : 32.0;
+    final gapAfterLogo = compactLayout ? 20.0 : 32.0;
+    final gapAfterTitle = compactLayout ? 10.0 : 16.0;
+    final gapAfterTagline = compactLayout ? 12.0 : 24.0;
+    final gapBeforeButton = compactLayout ? 24.0 : 48.0;
     final gapBelowExpanded = compactLayout ? 16.0 : 24.0;
     final gapBottom = compactLayout ? 12.0 : 16.0;
 
     final brandingColumn = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const BrandLogo(size: 120),
+        BrandLogo(size: compactLayout ? 100 : 120),
         SizedBox(height: gapAfterLogo),
         Text(
           'Welcome to RemiMinder',
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                fontSize: 28,
+                fontSize: compactLayout ? 24 : 28,
                 fontWeight: FontWeight.bold,
               ),
           textAlign: TextAlign.center,
@@ -40,7 +40,7 @@ class WelcomeScreen extends StatelessWidget {
           _tagline,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.secondary,
-                fontSize: 18,
+                fontSize: compactLayout ? 16 : 18,
               ),
           textAlign: TextAlign.center,
         ),
@@ -49,6 +49,7 @@ class WelcomeScreen extends StatelessWidget {
           _bodyCopy,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 height: 1.5,
+                fontSize: compactLayout ? 14 : null,
               ),
           textAlign: TextAlign.center,
         ),
@@ -105,34 +106,34 @@ class WelcomeScreen extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: compactLayout
-              ? SingleChildScrollView(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      skipButton,
-                      SizedBox(height: gapAfterSkip),
-                      brandingColumn,
-                      SizedBox(height: gapBelowExpanded),
-                      pageDots,
-                      SizedBox(height: gapBottom),
+                      Column(
+                        children: [
+                          skipButton,
+                          SizedBox(height: gapAfterSkip),
+                          brandingColumn,
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          SizedBox(height: gapBelowExpanded),
+                          pageDots,
+                          SizedBox(height: gapBottom),
+                        ],
+                      ),
                     ],
                   ),
-                )
-              : Column(
-                  children: [
-                    skipButton,
-                    SizedBox(height: gapAfterSkip),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [brandingColumn],
-                      ),
-                    ),
-                    SizedBox(height: gapBelowExpanded),
-                    pageDots,
-                    SizedBox(height: gapBottom),
-                  ],
                 ),
+              );
+            },
+          ),
         ),
       ),
     );

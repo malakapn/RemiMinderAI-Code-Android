@@ -15,12 +15,12 @@ class RoleSelectionScreen extends ConsumerWidget {
     final selectedRole = ref.watch(selectedRoleProvider);
     final l10n = AppLocalizations.of(context)!;
 
-    final compactLayout = MediaQuery.sizeOf(context).height < 700;
-    final gapAfterHeader = compactLayout ? 24.0 : 48.0;
-    final gapBetweenCards = compactLayout ? 16.0 : 24.0;
-    final gapBeforeContinue = compactLayout ? 16.0 : 32.0;
-    final gapBeforeDots = compactLayout ? 16.0 : 24.0;
-    final gapBottom = compactLayout ? 12.0 : 16.0;
+    final compactLayout = MediaQuery.sizeOf(context).height < 820;
+    final gapAfterHeader = compactLayout ? 16.0 : 32.0;
+    final gapBetweenCards = compactLayout ? 12.0 : 20.0;
+    final gapBeforeContinue = compactLayout ? 12.0 : 24.0;
+    final gapBeforeDots = compactLayout ? 12.0 : 20.0;
+    final gapBottom = compactLayout ? 8.0 : 12.0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -41,91 +41,93 @@ class RoleSelectionScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: compactLayout ? 12 : 20),
-              Text(
-                l10n.chooseYourRole,
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontSize: compactLayout ? 28 : 32,
-                      fontWeight: FontWeight.w700,
+                  SizedBox(height: compactLayout ? 4 : 12),
+                  Text(
+                    l10n.chooseYourRole,
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          fontSize: compactLayout ? 24 : 28,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.chooseYourRoleSubtitle,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.secondary,
+                          fontSize: compactLayout ? 16 : 18,
+                        ),
+                  ),
+                  SizedBox(height: gapAfterHeader),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _RoleCard(
+                            title: l10n.patientRole,
+                            description: l10n.patientRoleCardDescription,
+                            iconPath: 'assets/images/patient_icon.svg',
+                            isSelected: selectedRole == UserRole.patient,
+                            compactLayout: compactLayout,
+                            onTap: () => ref
+                                .read(selectedRoleProvider.notifier)
+                                .selectRole(UserRole.patient),
+                          ),
+                          SizedBox(height: gapBetweenCards),
+                          _RoleCard(
+                            title: l10n.caregiverRole,
+                            description: l10n.caregiverRoleCardDescription,
+                            iconPath: 'assets/images/caregiver_icon.svg',
+                            isSelected: selectedRole == UserRole.caregiver,
+                            compactLayout: compactLayout,
+                            onTap: () => ref
+                                .read(selectedRoleProvider.notifier)
+                                .selectRole(UserRole.caregiver),
+                          ),
+                        ],
+                      ),
                     ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                l10n.chooseYourRoleSubtitle,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.secondary,
-                      fontSize: 18,
+                  ),
+                  SizedBox(height: gapBeforeContinue),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: selectedRole != null
+                          ? () => _onContinue(context, ref, selectedRole)
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(
+                          vertical: compactLayout ? 14 : 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        backgroundColor: selectedRole != null
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).disabledColor,
+                      ),
+                      child: Text(
+                        l10n.continueButton,
+                        style: TextStyle(
+                          fontSize: compactLayout ? 16 : 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-              ),
-              SizedBox(height: gapAfterHeader),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
+                  ),
+                  SizedBox(height: gapBeforeDots),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _RoleCard(
-                        title: l10n.patientRole,
-                        description: l10n.patientRoleCardDescription,
-                        iconPath: 'assets/images/patient_icon.svg',
-                        isSelected: selectedRole == UserRole.patient,
-                        compactLayout: compactLayout,
-                        onTap: () => ref
-                            .read(selectedRoleProvider.notifier)
-                            .selectRole(UserRole.patient),
-                      ),
-                      SizedBox(height: gapBetweenCards),
-                      _RoleCard(
-                        title: l10n.caregiverRole,
-                        description: l10n.caregiverRoleCardDescription,
-                        iconPath: 'assets/images/caregiver_icon.svg',
-                        isSelected: selectedRole == UserRole.caregiver,
-                        compactLayout: compactLayout,
-                        onTap: () => ref
-                            .read(selectedRoleProvider.notifier)
-                            .selectRole(UserRole.caregiver),
-                      ),
+                      _IndicatorDot(isActive: false),
+                      SizedBox(width: 8),
+                      _IndicatorDot(isActive: true),
+                      SizedBox(width: 8),
+                      _IndicatorDot(isActive: false),
                     ],
                   ),
-                ),
-              ),
-              SizedBox(height: gapBeforeContinue),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: selectedRole != null
-                      ? () => _onContinue(context, ref, selectedRole)
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    backgroundColor: selectedRole != null
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).disabledColor,
-                  ),
-                  child: Text(
-                    l10n.continueButton,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: gapBeforeDots),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _IndicatorDot(isActive: false),
-                  SizedBox(width: 8),
-                  _IndicatorDot(isActive: true),
-                  SizedBox(width: 8),
-                  _IndicatorDot(isActive: false),
+                  SizedBox(height: gapBottom),
                 ],
               ),
-              SizedBox(height: gapBottom),
-            ],
-          ),
         ),
       ),
     );
