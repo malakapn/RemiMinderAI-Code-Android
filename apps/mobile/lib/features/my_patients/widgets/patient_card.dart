@@ -112,7 +112,8 @@ class _PatientCardState extends State<PatientCard> {
                       style: const TextStyle(
                         color: RemiCareUiColors.sectionHeaderText,
                         fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Merriweather',
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),

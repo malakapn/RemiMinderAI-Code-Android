@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/visit_context.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 
 enum NavigationItem {
@@ -265,30 +266,7 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
     return Container(
       margin: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 12),
       height: 70,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF1A4D4D), // Dark teal-green
-            Color(0xFF051818), // Very dark green/black
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(35),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 25,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: const Border(
-          top: BorderSide(
-            color: Colors.white,
-            width: 0.5,
-          ),
-        ),
-      ),
+      decoration: RemiShellUi.navBarDecoration,
       child: Row(
         children: widget.routes != null
             ? _caregiverNavItems(AppLocalizations.of(context)!)
@@ -392,7 +370,7 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFF2C6E6E).withOpacity(0.9)
+                ? RemiShellUi.navActivePill.withValues(alpha: 0.9)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
@@ -402,8 +380,8 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
               Icon(
                 isSelected ? activeIcon : inactiveIcon,
                 color: isSelected
-                    ? const Color(0xFFFFD700)
-                    : const Color(0xFFE6CFA1),
+                    ? RemiShellUi.navActiveIcon
+                    : RemiShellUi.navInactiveIcon,
                 size: compact ? 22 : 24,
               ),
               const SizedBox(height: 2),
@@ -417,11 +395,9 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
                   style: TextStyle(
                     fontSize: compact ? 9 : 10,
                     height: 1.05,
-                    color: isSelected
-                        ? Colors.white
-                        : const Color(0xFFE6CFA1),
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Roboto',
+                    fontFamily: 'Poppins',
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: Colors.white,
                   ),
                 ),
               ),

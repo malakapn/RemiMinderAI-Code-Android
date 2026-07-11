@@ -5,8 +5,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/environment.dart';
 import '../../../../core/config/supported_languages.dart';
+import '../../../../core/models/user.dart';
 import '../../../../core/providers/locale_provider.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/services/patient_api_service.dart';
 
 class LanguageSettingsScreen extends ConsumerStatefulWidget {
@@ -49,7 +52,9 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
       context.pop();
       return;
     }
-    context.go('/patient/home');
+    final isCaregiver =
+        ref.read(authNotifierProvider).user?.role == UserRole.caregiver;
+    context.go(isCaregiver ? '/caregiver/home' : '/patient/home');
   }
 
   Future<void> _onSelectLanguage(String code) async {
@@ -94,43 +99,14 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
     final languageCount = kSupportedLanguages.length;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: RemiShellUi.bodyCream,
       body: SafeArea(
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF1A4D4D),
-                    Color(0xFF051818),
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: _navigateBack,
-                  ),
-                  Expanded(
-                    child: Text(
-                      l10n.language,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
+            RemiShellUi.screenHeader(
+              context: context,
+              title: l10n.language,
+              onBack: _navigateBack,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -199,16 +175,23 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
             vertical: 14,
           ),
           decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primary.withValues(alpha: 0.08)
-                : theme.colorScheme.primary.withValues(alpha: 0.04),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
                   ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.08),
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.12),
               width: isSelected ? 2 : 1,
             ),
+            boxShadow: isSelected
+                ? null
+                : const [
+                    BoxShadow(
+                      color: Color(0x0F000000),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
           ),
           child: Row(
             children: [
@@ -233,7 +216,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                 Icon(
                   Icons.check_circle,
                   color: theme.colorScheme.primary,
-                  size: 26,
+                  size: 22,
                 ),
               ],
             ],

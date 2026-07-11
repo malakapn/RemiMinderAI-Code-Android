@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 class RemiCareUiColors {
   RemiCareUiColors._();
 
-  static const Color primaryDarkTeal = Color(0xFF1B3A30);
-  static const Color activeTealAccent = Color(0xFF2E7D62);
-  static const Color bodyBackground = Color(0xFFEDEAE1);
+  static const Color primaryDarkTeal = Color(0xFF1B4E59);
+  static const Color activeTealAccent = Color(0xFF3AA8A1);
+  static const Color bodyBackground = Color(0xFFF8F4E8);
   static const Color cardBackground = Color(0xFFFFFFFF);
   static const Color sectionHeaderText = Color(0xFF1B1B1B);
   static const Color bodySubtitleText = Color(0xFF6B6B6B);

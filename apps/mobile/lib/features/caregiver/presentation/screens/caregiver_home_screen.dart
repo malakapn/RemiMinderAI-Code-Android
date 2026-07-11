@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/config/theme.dart';
 import '../../../../core/utils/locale_format.dart';
@@ -13,9 +12,9 @@ import '../../../../models/caregiver_invitation.dart';
 import '../../../../providers/invitation_provider.dart';
 import '../../../../core/services/backend_api_service.dart';
 
-// Caregiver home palette
-const Color _teal = Color(0xFF0D3D38);
-const Color _cream = Color(0xFFEDEAE1);
+// Caregiver home palette (iOS ASC parity)
+const Color _teal = AppTheme.primaryColor;
+const Color _cream = AppTheme.backgroundColor;
 const Color _sage = Color(0xFF7DA68A);
 const Color _sagePale = Color(0xFFD6E8DC);
 const Color _sageDark = Color(0xFF4F7A61);
@@ -37,8 +36,14 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
   List<Map<String, dynamic>> _connectedPatients = [];
   bool _isLoadingAlerts = true;
 
-  TextStyle get _bodyStyle => GoogleFonts.dmSans();
-  TextStyle get _displayStyle => GoogleFonts.dmSerifDisplay();
+  TextStyle _bodyStyle(BuildContext context) =>
+      Theme.of(context).textTheme.bodyMedium!.copyWith(fontFamily: 'Poppins');
+
+  TextStyle _displayStyle(BuildContext context) =>
+      Theme.of(context).textTheme.headlineSmall!.copyWith(
+            fontFamily: 'Merriweather',
+            fontWeight: FontWeight.w700,
+          );
 
   @override
   void initState() {
@@ -256,7 +261,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
                   children: [
                     Text(
                       greeting,
-                      style: _bodyStyle.copyWith(
+                      style: _bodyStyle(context).copyWith(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
                         color: _cream.withValues(alpha: 0.65),
@@ -265,7 +270,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
                     const SizedBox(height: 2),
                     Text(
                       firstName,
-                      style: _displayStyle.copyWith(
+                      style: _displayStyle(context).copyWith(
                         fontSize: 22,
                         color: _cream,
                         height: 1.1,
@@ -343,7 +348,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
       children: [
         Text(
           LocaleFormat.number(context, value),
-          style: _displayStyle.copyWith(
+          style: _displayStyle(context).copyWith(
             fontSize: 22,
             color: _cream,
             height: 1.1,
@@ -352,7 +357,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: _bodyStyle.copyWith(
+          style: _bodyStyle(context).copyWith(
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.08,
@@ -374,7 +379,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
         children: [
           Text(
             title.toUpperCase(),
-            style: _bodyStyle.copyWith(
+            style: _bodyStyle(context).copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
@@ -387,7 +392,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
               onTap: onTrailing,
               child: Text(
                 trailing,
-                style: _bodyStyle.copyWith(
+                style: _bodyStyle(context).copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: _sageDark,
@@ -433,7 +438,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
           Expanded(
             child: Text(
               message,
-              style: _bodyStyle.copyWith(
+              style: _bodyStyle(context).copyWith(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w500,
                 color: _textSecondary,
@@ -445,7 +450,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
               onTap: onAction,
               child: Text(
                 actionLabel,
-                style: _bodyStyle.copyWith(
+                style: _bodyStyle(context).copyWith(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   color: _sageDark,
@@ -536,7 +541,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
               children: [
                 Text(
                   alert['message']?.toString() ?? '',
-                  style: _bodyStyle.copyWith(
+                  style: _bodyStyle(context).copyWith(
                     fontSize: 14,
                     fontWeight: isRead ? FontWeight.w400 : FontWeight.w600,
                     color: _textPrimary,
@@ -549,7 +554,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
                       alert['patient']?.toString() ?? l10n.defaultPatient,
                       timeLabel,
                     ),
-                    style: _bodyStyle.copyWith(
+                    style: _bodyStyle(context).copyWith(
                       fontSize: 12,
                       color: _textMuted,
                     ),
@@ -607,7 +612,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
               const SizedBox(width: 12),
               Text(
                 l10n.pendingInvitationsTitle,
-                style: _bodyStyle.copyWith(
+                style: _bodyStyle(context).copyWith(
                   color: _cream.withValues(alpha: 0.9),
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -621,7 +626,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
               context,
               l10n.invitationsWaiting(count),
             ),
-            style: _displayStyle.copyWith(
+            style: _displayStyle(context).copyWith(
               fontSize: 24,
               color: _cream,
             ),
@@ -629,7 +634,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
           const SizedBox(height: 4),
           Text(
             l10n.reviewAcceptInvitations,
-            style: _bodyStyle.copyWith(
+            style: _bodyStyle(context).copyWith(
               color: _cream.withValues(alpha: 0.8),
               fontSize: 14,
             ),
@@ -651,7 +656,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
               ),
               child: Text(
                 l10n.viewInvitations,
-                style: _bodyStyle.copyWith(
+                style: _bodyStyle(context).copyWith(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),

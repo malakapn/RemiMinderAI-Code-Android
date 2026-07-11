@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/user_api_service.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'account_details_screen.dart';
@@ -33,32 +34,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF1A4D4D), // Dark teal-green
-                    Color(0xFF051818), // Very dark green/black
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  l10n.profileSettings,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            RemiShellUi.screenHeader(
+              context: context,
+              title: l10n.profileSettings,
             ),
 
             // Scrollable Content

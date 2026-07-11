@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/utils/locale_format.dart';
+import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../data/services/patient_api_service.dart';
 import '../../data/models/summary_item.dart';
@@ -289,47 +290,17 @@ class _OverviewScreenState extends State<OverviewScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF1A4D4D), // Dark teal-green
-                    Color(0xFF051818), // Very dark green/black
-                  ],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
+            RemiShellUi.screenHeader(
+              context: context,
+              title: l10n.navOverview,
+              trailing: IconButton(
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.white,
                 ),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 48),
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        l10n.navOverview,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.delete_outline,
-                      color: Colors.white,
-                    ),
-                    onPressed: _isSelectionMode
-                        ? _deleteSelectedSummaries
-                        : _enterSelectionMode,
-                  ),
-                ],
+                onPressed: _isSelectionMode
+                    ? _deleteSelectedSummaries
+                    : _enterSelectionMode,
               ),
             ),
 

@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/config/environment.dart';
+import '../../../../core/config/theme.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/utils/locale_format.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -14,10 +14,10 @@ import '../../data/models/patient_task.dart';
 import '../../data/services/patient_tasks_api_service.dart';
 import '../../../shared/widgets/scroll_bottom_fade.dart';
 
-// Home screen palette
-const Color _teal = Color(0xFF0D3D38);
-const Color _tealMid = Color(0xFF155048);
-const Color _cream = Color(0xFFEDEAE1);
+// Home screen palette (iOS ASC parity)
+const Color _teal = AppTheme.primaryColor;
+const Color _tealMid = Color(0xFF2A6B63);
+const Color _cream = AppTheme.backgroundColor;
 const Color _gold = Color(0xFFC9A84C);
 const Color _goldLight = Color(0xFFF0D080);
 const Color _white20 = Color(0x33FFFFFF);
@@ -211,8 +211,14 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
 
   // ── UI-only helpers (used by build methods below) ──
 
-  TextStyle get _bodyStyle => GoogleFonts.dmSans();
-  TextStyle get _headerStyle => GoogleFonts.dmSerifDisplay();
+  TextStyle _bodyStyle(BuildContext context) =>
+      Theme.of(context).textTheme.bodyMedium!.copyWith(fontFamily: 'Poppins');
+
+  TextStyle _headerStyle(BuildContext context) =>
+      Theme.of(context).textTheme.headlineSmall!.copyWith(
+            fontFamily: 'Merriweather',
+            fontWeight: FontWeight.w700,
+          );
 
   bool _isReminderDone(Map<String, dynamic> reminder) {
     final status =
@@ -400,7 +406,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                   children: [
                     Text(
                       greeting,
-                      style: _bodyStyle.copyWith(
+                      style: _bodyStyle(context).copyWith(
                         fontSize: 13,
                         color: Colors.white.withValues(alpha: 0.6),
                       ),
@@ -408,7 +414,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                     const SizedBox(height: 2),
                     Text(
                       '$firstName ✨',
-                      style: _headerStyle.copyWith(
+                      style: _headerStyle(context).copyWith(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -417,7 +423,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                     const SizedBox(height: 2),
                     Text(
                       l10n.howAreYouFeeling,
-                      style: _bodyStyle.copyWith(
+                      style: _bodyStyle(context).copyWith(
                         fontSize: 12,
                         color: Colors.white.withValues(alpha: 0.5),
                       ),
@@ -456,7 +462,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
               children: [
                 Text(
                   l10n.todaysProgress,
-                  style: _bodyStyle.copyWith(
+                  style: _bodyStyle(context).copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Colors.white.withValues(alpha: 0.85),
@@ -468,7 +474,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                     context,
                     l10n.doneCount(done, total),
                   ),
-                  style: _headerStyle.copyWith(
+                  style: _headerStyle(context).copyWith(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -491,7 +497,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                 ),
                 Text(
                   LocaleFormat.localizeDigitsInText(context, '$percent%'),
-                  style: _bodyStyle.copyWith(
+                  style: _bodyStyle(context).copyWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -512,7 +518,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         const SizedBox(width: 8),
         Text(
           l10n.yourSchedule,
-          style: _headerStyle.copyWith(
+          style: _headerStyle(context).copyWith(
             fontSize: 17,
             color: _teal,
             fontWeight: FontWeight.w600,
@@ -529,7 +535,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
           ),
           child: Text(
             l10n.seeAll,
-            style: _bodyStyle.copyWith(
+            style: _bodyStyle(context).copyWith(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: _teal,
@@ -547,7 +553,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         const SizedBox(width: 8),
         Text(
           l10n.myTasks,
-          style: _headerStyle.copyWith(
+          style: _headerStyle(context).copyWith(
             fontSize: 17,
             color: _teal,
             fontWeight: FontWeight.w600,
@@ -565,7 +571,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
               context,
               l10n.pendingCount(_pendingTaskCount),
             ),
-            style: _bodyStyle.copyWith(
+            style: _bodyStyle(context).copyWith(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: _teal,
@@ -624,7 +630,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
               icon: const Icon(Icons.add_alert_outlined, color: _gold),
               label: Text(
                 l10n.addReminder,
-                style: _bodyStyle.copyWith(
+                style: _bodyStyle(context).copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
@@ -650,7 +656,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
         message,
-        style: _bodyStyle.copyWith(
+        style: _bodyStyle(context).copyWith(
           fontSize: 14,
           color: _teal.withValues(alpha: 0.6),
         ),
@@ -689,7 +695,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
               children: [
                 Text(
                   label,
-                  style: _bodyStyle.copyWith(
+                  style: _bodyStyle(context).copyWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: _teal,
@@ -708,7 +714,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                       _parseScheduledTimeLocal(scheduledTime),
                       includeDate: isFutureDay,
                     ),
-                    style: _bodyStyle.copyWith(
+                    style: _bodyStyle(context).copyWith(
                       fontSize: 12,
                       color: _teal.withValues(alpha: 0.55),
                     ),
@@ -743,7 +749,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
       ),
       child: Text(
         label,
-        style: _bodyStyle.copyWith(
+        style: _bodyStyle(context).copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w600,
           color: foreground,
@@ -783,7 +789,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 l10n.noTasksYet,
-                style: _bodyStyle.copyWith(
+                style: _bodyStyle(context).copyWith(
                   fontSize: 14,
                   color: _teal.withValues(alpha: 0.6),
                 ),
@@ -839,7 +845,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
               icon: const Icon(Icons.add, color: _teal),
               label: Text(
                 l10n.addTask,
-                style: _bodyStyle.copyWith(
+                style: _bodyStyle(context).copyWith(
                   color: _teal,
                   fontWeight: FontWeight.w600,
                 ),
@@ -899,7 +905,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                 children: [
                   Text(
                     title,
-                    style: _bodyStyle.copyWith(
+                    style: _bodyStyle(context).copyWith(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: _teal,
@@ -909,7 +915,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
                   ),
                   Text(
                     'Due $subtitle',
-                    style: _bodyStyle.copyWith(
+                    style: _bodyStyle(context).copyWith(
                       fontSize: 12,
                       color: _teal.withValues(alpha: 0.55),
                     ),
@@ -927,7 +933,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
             ),
             child: Text(
               tag,
-              style: _bodyStyle.copyWith(
+              style: _bodyStyle(context).copyWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: _tealMid,
