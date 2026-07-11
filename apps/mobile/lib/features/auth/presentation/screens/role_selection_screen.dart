@@ -16,10 +16,10 @@ class RoleSelectionScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     final compactLayout = MediaQuery.sizeOf(context).height < 820;
-    final gapAfterHeader = compactLayout ? 16.0 : 24.0;
-    final gapBetweenCards = compactLayout ? 12.0 : 16.0;
-    final gapBeforeContinue = compactLayout ? 16.0 : 24.0;
-    final gapBeforeDots = compactLayout ? 12.0 : 16.0;
+    final gapAfterHeader = compactLayout ? 12.0 : 20.0;
+    final gapBetweenCards = compactLayout ? 10.0 : 14.0;
+    final gapBeforeContinue = compactLayout ? 14.0 : 20.0;
+    final gapBeforeDots = compactLayout ? 10.0 : 14.0;
     final gapBottom = compactLayout ? 8.0 : 12.0;
 
     return Scaffold(
@@ -45,7 +45,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(height: compactLayout ? 4 : 12),
+                    SizedBox(height: compactLayout ? 2 : 8),
                     Text(
                       l10n.chooseYourRole,
                       style:
@@ -54,12 +54,12 @@ class RoleSelectionScreen extends ConsumerWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       l10n.chooseYourRoleSubtitle,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Theme.of(context).colorScheme.secondary,
-                            fontSize: compactLayout ? 16 : 18,
+                            fontSize: compactLayout ? 15 : 17,
                           ),
                     ),
                     SizedBox(height: gapAfterHeader),
@@ -93,7 +93,7 @@ class RoleSelectionScreen extends ConsumerWidget {
                             : null,
                         style: ElevatedButton.styleFrom(
                           padding: EdgeInsets.symmetric(
-                            vertical: compactLayout ? 14 : 16,
+                            vertical: compactLayout ? 13 : 15,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
@@ -163,16 +163,20 @@ class _RoleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = isSelected ? _cream : _teal;
-    final verticalPadding = compactLayout ? 12.0 : 16.0;
+    final iconSize = compactLayout ? 26.0 : 30.0;
+    final textScaler = MediaQuery.textScalerOf(context).clamp(
+      maxScaleFactor: 1.1,
+    );
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
+        width: double.infinity,
         padding: EdgeInsets.symmetric(
-          horizontal: compactLayout ? 14 : 18,
-          vertical: verticalPadding,
+          horizontal: compactLayout ? 12 : 16,
+          vertical: compactLayout ? 10 : 14,
         ),
         decoration: BoxDecoration(
           color: isSelected ? _teal : _cream,
@@ -182,55 +186,58 @@ class _RoleCard extends StatelessWidget {
             width: 2,
           ),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset(
-              iconPath,
-              width: compactLayout ? 28 : 32,
-              height: compactLayout ? 28 : 32,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SvgPicture.asset(
+                  iconPath,
+                  width: iconSize,
+                  height: iconSize,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
                     title,
+                    textScaler: textScaler,
                     style: TextStyle(
-                      fontSize: compactLayout ? 18 : 20,
+                      fontSize: compactLayout ? 17 : 19,
                       fontWeight: FontWeight.w700,
                       fontFamily: 'Merriweather',
                       color: textColor,
-                      height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: compactLayout ? 13 : 14,
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w400,
-                      color: textColor,
-                      height: 1.3,
+                ),
+                if (isSelected)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: _cream,
+                      size: compactLayout ? 20 : 22,
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
-            if (isSelected)
-              Padding(
-                padding: const EdgeInsets.only(left: 6, top: 2),
-                child: Icon(
-                  Icons.check_circle,
-                  color: _cream,
-                  size: compactLayout ? 22 : 24,
+            SizedBox(height: compactLayout ? 5 : 6),
+            Padding(
+              padding: EdgeInsets.only(left: iconSize + 10),
+              child: Text(
+                description,
+                textScaler: textScaler,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: compactLayout ? 12.5 : 13.5,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w400,
+                  color: textColor,
                 ),
               ),
+            ),
           ],
         ),
       ),
