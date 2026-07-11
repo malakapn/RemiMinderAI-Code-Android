@@ -7,6 +7,7 @@ import '../../../../core/models/user.dart';
 import '../../../../core/services/secure_storage.dart';
 import '../../../../core/widgets/brand_logo.dart';
 import '../../../../services/post_auth_navigation.dart';
+import '../../../../services/pending_invite_token.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -103,6 +104,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Get role from navigation parameters
     final uri = Uri.parse(GoRouterState.of(context).uri.toString());
     _userRole = uri.queryParameters['role'];
+    final token =
+        uri.queryParameters['token'] ?? uri.queryParameters['inviteToken'];
+    if (token != null && token.trim().isNotEmpty) {
+      PendingInviteToken.save(token.trim());
+    }
     // Load remember me preference
     _loadRememberMePreference();
   }

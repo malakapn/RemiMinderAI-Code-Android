@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/models/user.dart';
+import '../../../../services/pending_invite_token.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -56,6 +57,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     // Generic fallback
     return 'Registration failed. Please try again or contact support if the problem persists.';
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final token = GoRouterState.of(context).uri.queryParameters['token'] ??
+        GoRouterState.of(context).uri.queryParameters['inviteToken'];
+    if (token != null && token.trim().isNotEmpty) {
+      PendingInviteToken.save(token.trim());
+    }
+    final email = GoRouterState.of(context).uri.queryParameters['email'];
+    if (email != null && email.isNotEmpty) {
+      _emailController.text = email;
+    }
   }
 
   @override
@@ -496,12 +511,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).pop(); // Close dialog
-                      // Navigate back to login screen
+                      // Navigate back to login screen, preserving invite token
                       final selectedRole = ref.read(selectedRoleProvider);
                       final roleParam = selectedRole == UserRole.patient
                           ? 'patient'
                           : 'caregiver';
-                      context.go('/login?role=$roleParam');
+                      PendingInviteToken.read().then((token) {
+                        if (!context.mounted) return;
+                        final query = StringBuffer('role=$roleParam');
+                        if (token != null && token.isNotEmpty) {
+                          query.write(
+                              '&token=${Uri.encodeQueryComponent(token)}');
+                        }
+                        context.go('/login?${query.toString()}');
+                      });
                     },
                     child: const Text('Go to Sign In'),
                   ),

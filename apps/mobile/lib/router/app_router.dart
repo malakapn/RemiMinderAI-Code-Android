@@ -15,10 +15,12 @@ import '../features/caregiver/presentation/screens/patient_tab_screen.dart';
 import '../features/caregiver/presentation/screens/patient_overview_screen.dart';
 import '../features/caregiver/presentation/screens/alert_list_screen.dart';
 import '../features/caregiver/presentation/screens/accept_invitations_screen.dart';
+import '../features/caregiver/presentation/screens/caregiver_reminder_timeline_screen.dart';
 import '../features/patient/presentation/screens/visit_recording_screen.dart';
 import '../features/patient/presentation/screens/visit_details_screen.dart';
 import '../features/patient/presentation/screens/overview_screen.dart';
 import '../features/patient/presentation/screens/reminders_screen.dart';
+import '../features/patient/presentation/screens/reminder_detail_screen.dart';
 import '../features/patient/presentation/screens/camera_screen.dart';
 import '../features/patient/presentation/screens/care_team_screen.dart';
 import '../features/patient/presentation/screens/profile_screen.dart';
@@ -185,6 +187,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return AcceptInvitationsScreen(inviteToken: token);
             },
           ),
+          GoRoute(
+            path: '/caregiver/reminders-timeline',
+            builder: (context, state) => CaregiverReminderTimelineScreen(
+              initialPatientId: state.uri.queryParameters['patientId'],
+              initialReminderType: state.uri.queryParameters['type'],
+            ),
+          ),
         ],
       ),
 
@@ -258,7 +267,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/patient/reminder/:reminderId',
         builder: (context, state) {
-          return const RemindersScreen();
+          final id = state.pathParameters['reminderId']!;
+          return ReminderDetailScreen(reminderId: id);
         },
       ),
     ],

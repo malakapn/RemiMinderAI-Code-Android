@@ -29,6 +29,7 @@ class NotificationService {
   AuthService? _authService;
   AuthService get _auth => _authService ??= AuthService();
   void Function(String route)? _navigationHandler;
+  String? _pendingNavigationRoute;
 
   /// New id so Android recreates the channel with sound + max importance (channel
   /// settings are fixed after first creation on the device).
@@ -167,6 +168,21 @@ class NotificationService {
 
   void setNavigationHandler(void Function(String route) handler) {
     _navigationHandler = handler;
+    final pending = _pendingNavigationRoute;
+    if (pending != null) {
+      _pendingNavigationRoute = null;
+      handler(pending);
+    }
+  }
+
+  void _navigateTo(String route) {
+    final path = route.startsWith('/') ? route : '/patient/reminder/$route';
+    final handler = _navigationHandler;
+    if (handler != null) {
+      handler(path);
+    } else {
+      _pendingNavigationRoute = path;
+    }
   }
 
   void _onNotificationResponse(NotificationResponse response) {
@@ -235,14 +251,14 @@ class NotificationService {
     await snoozeFromReminderId(reminderId);
   }
 
-  void _openMedicationDetail(String reminderId) {
-    _navigationHandler?.call('/patient/reminder/$reminderId');
+  void _openMedicationDetail(String reminderIdOrRoute) {
+    _navigateTo(reminderIdOrRoute);
   }
 
   void _handleRemoteOpen(RemoteMessage message) {
     final deep = message.data['deep_link'];
     if (deep is String && deep.isNotEmpty) {
-      _navigationHandler?.call(deep);
+      _navigateTo(deep);
       return;
     }
     final reminderId =

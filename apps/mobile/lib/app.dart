@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/config/theme.dart';
 import 'core/providers/locale_provider.dart';
+import 'core/services/notification_service.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/data/models/auth_state.dart';
 import 'l10n/app_localizations.dart';
@@ -28,6 +28,16 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
   void initState() {
     super.initState();
     _initDeepLinks();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _wireNotifications());
+  }
+
+  void _wireNotifications() {
+    final router = ref.read(appRouterProvider);
+    NotificationService().setNavigationHandler((route) {
+      final path = route.startsWith('/') ? route : '/$route';
+      router.go(path);
+    });
+    unawaited(NotificationService().ensureRuntimePermissions());
   }
 
   Future<void> _initDeepLinks() async {
@@ -125,6 +135,7 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
   @override
   void dispose() {
     _linkSubscription?.cancel();
+    NotificationService().setNavigationHandler((_) {});
     super.dispose();
   }
 
