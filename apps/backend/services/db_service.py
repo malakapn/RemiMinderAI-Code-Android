@@ -471,14 +471,19 @@ async def update_visit_with_structured_data(visit_id: str, doctor_name: str = No
         raise
 
 
-async def delete_user_summary(summary_id: str, user_id: str) -> bool:
+async def delete_user_summary(
+    summary_id: str,
+    user_id: str,
+    firebase_uid: Optional[str] = None,
+) -> bool:
     """
     Delete a summary from summaries_log table.
     Only allows deletion if the summary belongs to the specified user.
 
     Args:
         summary_id: The UUID of the summary to delete
-        user_id: The UUID of the user (to verify ownership)
+        user_id: The internal users.id UUID (to verify ownership)
+        firebase_uid: Firebase UID for rows stored with firebase_uid as user_id
 
     Returns:
         bool: True if summary was deleted, False if not found or not owned by user
@@ -489,15 +494,20 @@ async def delete_user_summary(summary_id: str, user_id: str) -> bool:
     try:
         engine = get_cloud_sql_engine()
         with engine.begin() as conn:
-            # Delete query that checks ownership
+            # summaries_log.user_id may be internal uuid or firebase_uid depending on pipeline age
             delete_query = text("""
                 DELETE FROM summaries_log
-                WHERE id = :summary_id AND user_id = :user_id
+                WHERE id = :summary_id
+                  AND (
+                    user_id::text = :user_id
+                    OR (:firebase_uid IS NOT NULL AND user_id::text = :firebase_uid)
+                  )
             """)
 
             result = conn.execute(delete_query, {
                 "summary_id": summary_id,
                 "user_id": user_id,
+                "firebase_uid": firebase_uid,
             })
 
             deleted_count = result.rowcount
@@ -586,7 +596,10 @@ async def get_latest_ai_structured_summary_for_visit(visit_id: str, user_id: str
         raise
 
 
-async def get_user_summaries(user_id: str) -> list[dict]:
+async def get_user_summaries(
+    user_id: str,
+    firebase_uid: Optional[str] = None,
+) -> list[dict]:
     """
     Get all summaries for a user by joining summaries_log and visits tables.
     Returns list of summary objects with visit metadata, ordered by newest first.
@@ -609,11 +622,15 @@ async def get_user_summaries(user_id: str) -> list[dict]:
                     s.created_at AS visit_date
                 FROM summaries_log s
                 JOIN visits v ON v.id = s.visit_id
-                WHERE s.user_id = :user_id
+                WHERE s.user_id::text = :user_id
+                   OR s.user_id::text = :firebase_uid
                 ORDER BY s.created_at DESC;
             """)
 
-            result = conn.execute(query, {"user_id": user_id})
+            result = conn.execute(query, {
+                "user_id": user_id,
+                "firebase_uid": firebase_uid or user_id,
+            })
             rows = result.fetchall()
 
             summaries = []

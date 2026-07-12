@@ -427,64 +427,84 @@ class _OverviewScreenState extends State<OverviewScreen>
     );
   }
 
-  void _confirmDelete() async {
+  Future<void> _confirmDelete() async {
+    final l10n = AppLocalizations.of(context)!;
+    final summariesToDelete = _selectedSummaryIds.toSet();
+    var deletedCount = 0;
+    String? lastError;
+
     try {
-      // Get authentication token
-      final authToken = await AuthService().getAccessToken();
-      if (authToken == null) {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  AppLocalizations.of(context)!.authenticationErrorLoginAgain)),
+          SnackBar(content: Text(l10n.authenticationErrorLoginAgain)),
         );
         return;
       }
 
-      // Create API service
+      final authToken = await firebaseUser.getIdToken(true);
+      if (authToken == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.authenticationErrorLoginAgain)),
+        );
+        return;
+      }
+
       final apiService = PatientApiService(
         baseUrl: Environment.apiBaseUrl,
         authToken: authToken,
       );
 
-      // Delete each selected summary
-      final summariesToDelete = _selectedSummaryIds
-          .toSet(); // Copy to avoid modification during iteration
-
       for (final summaryId in summariesToDelete) {
         try {
           await apiService.deleteSummary(summaryId);
-          // Remove from local list on successful deletion
+          deletedCount++;
           if (!mounted) return;
           setState(() {
             _summaries.removeWhere((summary) => summary.summaryId == summaryId);
             _selectedSummaryIds.remove(summaryId);
+            _seenSummaryIds.remove(summaryId);
           });
         } catch (e) {
-          // Continue with other deletions even if one fails
+          lastError = e.toString();
         }
       }
 
-      // Show success message
-      final deletedCount =
-          summariesToDelete.length - _selectedSummaryIds.length;
+      if (!mounted) return;
+
+      PatientApiService.setCachedSummaries(List<SummaryItem>.from(_summaries));
+      await _persistSeenSummaryIds();
+
       if (deletedCount > 0) {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  'Successfully deleted $deletedCount summary${deletedCount == 1 ? '' : 'ies'}')),
+            content: Text(
+              deletedCount == 1
+                  ? 'Successfully deleted 1 summary'
+                  : 'Successfully deleted $deletedCount summaries',
+            ),
+          ),
+        );
+      }
+
+      if (deletedCount < summariesToDelete.length) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(lastError ?? l10n.failedToDeleteSummaries)),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(AppLocalizations.of(context)!.failedToDeleteSummaries)),
+        SnackBar(content: Text(l10n.failedToDeleteSummaries)),
       );
     } finally {
       if (!mounted) return;
       _exitSelectionMode();
+      if (deletedCount > 0) {
+        await _fetchSummaries();
+      }
     }
   }
 

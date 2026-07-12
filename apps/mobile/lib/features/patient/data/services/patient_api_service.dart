@@ -29,6 +29,10 @@ class PatientApiService {
     _summariesCache = CacheEntry(summaries, DateTime.now());
   }
 
+  static void invalidateSummariesCache() {
+    _summariesCache = null;
+  }
+
   static void setCachedLatestVisitStatus(Map<String, dynamic> status) {
     _latestStatusCache = CacheEntry(status, DateTime.now());
   }

@@ -557,7 +557,7 @@ async def get_user_summaries_endpoint(
         cached = get(cache_key)
         if cached is not None:
             return cached
-        summaries = await get_user_summaries(user_uuid)
+        summaries = await get_user_summaries(user_uuid, firebase_uid=user_id)
 
         logger.info(f"Returning {len(summaries)} summaries for user_uuid={user_uuid}")
         set(cache_key, summaries, 120)
@@ -591,7 +591,7 @@ async def delete_user_summary_endpoint(
         logger.info(f"Resolved firebase_uid={user_id} to user_uuid={user_uuid}")
 
         # Step 2: Delete the summary (only if it belongs to this user)
-        deleted = await delete_user_summary(summary_id, user_uuid)
+        deleted = await delete_user_summary(summary_id, user_uuid, firebase_uid=user_id)
 
         if not deleted:
             logger.warning(f"Summary {summary_id} not found or not owned by user {user_uuid}")
