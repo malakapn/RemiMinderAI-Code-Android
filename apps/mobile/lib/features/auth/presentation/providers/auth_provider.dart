@@ -95,11 +95,11 @@ class AuthNotifier extends Notifier<AuthState> {
   /// Explicit initialization trigger (called from LoadingScreen)
   Future<void> initialize() async {
     if (kDebugMode) {
-      print("🔥 AuthNotifier.initialize() called");
+      print("🔥 AuthNotifier.initialize() called (status: ${state.status})");
     }
-    // Avoid re-running if already authenticated or loading
-    if (state.isLoading || state.isAuthenticated) return;
-    await _checkAuthStatus();
+    if (state.status == AuthStatus.initial) {
+      await _checkAuthStatus();
+    }
   }
 
   /// Sign up a new user

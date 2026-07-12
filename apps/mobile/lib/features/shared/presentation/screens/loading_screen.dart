@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -24,16 +26,39 @@ class LoadingScreen extends ConsumerStatefulWidget {
 
 class _LoadingScreenState extends ConsumerState<LoadingScreen> {
   bool _hasNavigated = false;
+  Timer? _stuckTimer;
+
   @override
   void initState() {
     super.initState();
     if (kDebugMode) print('🔄 LoadingScreen: Initializing app...');
 
-    // Explicitly trigger auth initialization
-    Future.microtask(() {
+    // If auth resolves before ref.listen attaches, we still need to navigate once.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(authNotifierProvider.notifier).initialize();
+      unawaited(_bootstrapNavigation());
     });
+
+    _stuckTimer = Timer(const Duration(seconds: 15), () {
+      if (!mounted || _hasNavigated) return;
+      if (kDebugMode) {
+        print('🔄 LoadingScreen: safety timeout — navigating to welcome');
+      }
+      _hasNavigated = true;
+      context.go('/welcome');
+    });
+  }
+
+  Future<void> _bootstrapNavigation() async {
+    await ref.read(authNotifierProvider.notifier).initialize();
+    if (!mounted) return;
+    await _handleAuthState(ref.read(authNotifierProvider));
+  }
+
+  @override
+  void dispose() {
+    _stuckTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _handleAuthState(AuthState authState) async {
@@ -101,6 +126,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
 
       // Route based on saved role — skip role selection if already chosen
       _hasNavigated = true;
+      _stuckTimer?.cancel();
       final role = authState.user?.role;
       final inviteRoute = await PendingInviteToken.consumeRoute();
       if (inviteRoute != null) {
@@ -124,21 +150,24 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
         if (!mounted) return;
         context.go('/role-selection');
       }
-    } else if (authState.status == AuthStatus.unauthenticated) {
+    } else if (authState.status == AuthStatus.unauthenticated ||
+        authState.status == AuthStatus.error) {
       _hasNavigated = false;
-      if (kDebugMode) print(
-          '🔄 LoadingScreen: User not authenticated, going to welcome screen...');
-      // Go to welcome/onboarding flow
+      if (kDebugMode) {
+        print(
+          '🔄 LoadingScreen: Auth ${authState.status.name}, going to welcome screen...',
+        );
+      }
+      _hasNavigated = true;
+      _stuckTimer?.cancel();
       if (!mounted) return;
       context.go('/welcome');
-    } else if (authState.status == AuthStatus.error) {
-      if (kDebugMode) print(
-          '🔄 LoadingScreen: Auth error occurred, going to welcome screen...');
-      // Go to welcome/onboarding flow
-      if (!mounted) return;
-      context.go('/welcome');
+    } else if (authState.status == AuthStatus.initial ||
+        authState.status == AuthStatus.loading) {
+      if (kDebugMode) {
+        print('🔄 LoadingScreen: Waiting for auth (${authState.status.name})...');
+      }
     }
-    // If still loading, continue showing loading screen
   }
 
   @override

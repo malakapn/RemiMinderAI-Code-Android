@@ -19,7 +19,7 @@ git fetch origin main 2>/dev/null || true
 git log --oneline -5 origin/main 2>/dev/null || git log --oneline -5
 echo
 
-EXPECTED_COMMIT="ae63d80"
+EXPECTED_COMMIT="e0079a4"
 if git merge-base --is-ancestor "$EXPECTED_COMMIT" HEAD 2>/dev/null; then
   echo "OK: This checkout includes caregiver UX commit $EXPECTED_COMMIT"
 else
@@ -40,7 +40,8 @@ check_marker() {
   fi
 }
 
-check_marker "lib/core/config/app_build_info.dart" "1.3.2" "Build label v1.3.2"
+check_marker "lib/core/config/app_build_info.dart" "build 64" "Build label v1.3.2 build 64"
+check_marker "lib/features/shared/presentation/screens/loading_screen.dart" "_bootstrapNavigation" "Loading screen bootstrap navigation"
 check_marker "lib/features/caregiver/presentation/screens/caregiver_home_screen.dart" "_buildHeader" "Caregiver gradient header"
 check_marker "lib/features/caregiver/presentation/screens/alert_list_screen.dart" "RemiShellUi.screenHeader" "Caregiver alerts RemiShellUi"
 check_marker "lib/features/auth/presentation/screens/role_selection_screen.dart" "crossAxisAlignment: CrossAxisAlignment.start" "Role card column layout"
@@ -67,4 +68,4 @@ echo "  cd $MOBILE_DIR"
 echo "  flutter clean && flutter pub get"
 echo "  flutter run -d RFGYC218FBD"
 echo
-echo "On device: Profile tab should show footer: RemiMinder v1.3.2 (build 62) · ae63d80"
+echo "On device: Profile tab should show footer: RemiMinder v1.3.2 (build 64) · loading-nav-fix"
