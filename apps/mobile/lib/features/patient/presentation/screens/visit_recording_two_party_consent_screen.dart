@@ -106,16 +106,16 @@ class _VisitRecordingTwoPartyConsentScreenState
                     const SizedBox(height: 32),
                     OutlinedButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: Text(
-                        'Cancel',
-                        style: textTheme.labelLarge,
-                      ),
+                      child: const Text('Cancel'),
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
                         foregroundColor: Colors.white,
-                        disabledForegroundColor: Colors.white70,
+                        disabledBackgroundColor: Colors.grey.shade300,
+                        disabledForegroundColor: Colors.grey.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: _accepted
                           ? () async {
@@ -124,10 +124,7 @@ class _VisitRecordingTwoPartyConsentScreenState
                               Navigator.of(context).pop(true);
                             }
                           : null,
-                      child: Text(
-                        'Start Recording',
-                        style: textTheme.labelLarge,
-                      ),
+                      child: const Text('Start Recording'),
                     ),
                   ],
                 ),
