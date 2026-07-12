@@ -1,6 +1,6 @@
 # Google Play Console — Data Safety & Declarations
 
-Use this checklist when submitting **RemiMinder** (`com.remiminder.app.dev`). Align answers with the live app and [privacy-policy.html](../../privacy-policy.html).
+Use this checklist when submitting **RemiMinder** (`com.remiminderai.app`). Align answers with the live app and [privacy-policy.html](../../privacy-policy.html).
 
 ## Store listing
 
@@ -81,7 +81,7 @@ Use this checklist when submitting **RemiMinder** (`com.remiminder.app.dev`). Al
 
 ## Before upload
 
-1. Production `google-services.json` for `com.remiminder.app.dev` in `android/app/`
+1. Production `google-services.json` for `com.remiminderai.app` in `android/app/`
 2. Release keystore configured via `android/key.properties` (see [ANDROID_RELEASE.md](ANDROID_RELEASE.md))
 3. Privacy policy live at `https://remiminderai.com/privacy` matches this document
 4. Run `flutter build appbundle --release` and verify merged manifest has no legacy storage permissions

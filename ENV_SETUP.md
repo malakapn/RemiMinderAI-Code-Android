@@ -112,7 +112,7 @@ If the app **installs but closes immediately** on a real phone, the most common 
    keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep SHA1
    ```
 
-2. [Firebase Console](https://console.firebase.google.com/) → project **stunning-ripsaw-480402-i4** → Project settings → Your apps → Android app **`com.remiminder.app.dev`** → **Add fingerprint** → paste SHA-1.
+2. [Firebase Console](https://console.firebase.google.com/) → project **stunning-ripsaw-480402-i4** → Project settings → Your apps → Android app **`com.remiminderai.app`** → **Add fingerprint** → paste SHA-1.
 
 3. Download **`google-services.json`** and replace:
 

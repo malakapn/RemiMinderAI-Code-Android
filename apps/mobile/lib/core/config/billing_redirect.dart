@@ -1,7 +1,4 @@
-import 'dart:io' show Platform;
-
-/// iOS uses `com.remiminderai.app` in Info.plist; Android uses `com.remiminder.app.dev`.
+/// Shared billing deep-link scheme on iOS and Android.
 String defaultBillingUrlScheme() {
-  if (Platform.isIOS) return 'com.remiminderai.app';
-  return 'com.remiminder.app.dev';
+  return 'com.remiminderai.app';
 }

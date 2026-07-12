@@ -109,7 +109,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_JSON }}
-          packageName: com.remiminder.app.dev
+          packageName: com.remiminderai.app
           releaseFiles: apps/mobile/build/app/outputs/bundle/release/app-release.aab
           track: internal
           status: completed

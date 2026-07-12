@@ -12,7 +12,7 @@ Future<String> resolveGoogleWebClientId() async {
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     try {
       const channel =
-          MethodChannel('com.remiminder.app.dev/google_auth');
+          MethodChannel('com.remiminderai.app/google_auth');
       final native = await channel.invokeMethod<String>('getWebClientId');
       final n = native?.trim();
       if (n != null && n.isNotEmpty) {
