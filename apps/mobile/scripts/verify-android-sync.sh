@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Run on your Mac from the repo root to confirm you have the latest Android UI fixes.
+# Run from repo root: bash apps/mobile/scripts/verify-android-sync.sh
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-MOBILE_DIR="$REPO_ROOT/apps/mobile"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MOBILE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$MOBILE_DIR/../.." && pwd)"
 
 echo "== RemiMinder Android build verification =="
-echo "Repo: $REPO_ROOT"
+echo "Repo:  $REPO_ROOT"
+echo "Mobile: $MOBILE_DIR"
 echo
 
 cd "$REPO_ROOT"
@@ -19,9 +21,9 @@ git fetch origin main 2>/dev/null || true
 git log --oneline -5 origin/main 2>/dev/null || git log --oneline -5
 echo
 
-EXPECTED_COMMIT="e0079a4"
+EXPECTED_COMMIT="f5ae071"
 if git merge-base --is-ancestor "$EXPECTED_COMMIT" HEAD 2>/dev/null; then
-  echo "OK: This checkout includes caregiver UX commit $EXPECTED_COMMIT"
+  echo "OK: This checkout includes loading-nav fix commit $EXPECTED_COMMIT"
 else
   echo "MISSING: Run: git pull origin main"
   echo "       Expected ancestor commit: $EXPECTED_COMMIT"
