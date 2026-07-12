@@ -1,5 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import 'dart:convert';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -44,6 +46,9 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   String? _visitDoctor;
   String? _visitSpecialty;
   String? _visitTitle;
+  Timer? _summaryPollTimer;
+  int _processingPollCount = 0;
+  static const _maxProcessingPolls = 24;
 
   @override
   void initState() {
@@ -52,15 +57,50 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     _fetchAISummary();
   }
 
-  Future<void> _fetchAISummary() async {
+  @override
+  void dispose() {
+    _summaryPollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _syncSummaryPollTimer() {
+    if (_summaryStatus == 'processing') {
+      _summaryPollTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
+        if (!mounted) return;
+        _processingPollCount++;
+        if (_processingPollCount >= _maxProcessingPolls) {
+          _summaryPollTimer?.cancel();
+          _summaryPollTimer = null;
+          setState(() {
+            _summaryStatus = 'error';
+          });
+          return;
+        }
+        if (_processingPollCount == 6) {
+          setState(() {});
+        }
+        _fetchAISummary(silent: true);
+      });
+      return;
+    }
+
+    _summaryPollTimer?.cancel();
+    _summaryPollTimer = null;
+    _processingPollCount = 0;
+  }
+
+  Future<void> _fetchAISummary({bool silent = false}) async {
     if (kDebugMode) {
       print("🔍 _fetchAISummary called for visitId: ${widget.visitId}");
     }
 
-    setState(() {
-      _isLoadingSummary = true;
-      _summaryStatus = 'loading';
-    });
+    if (!silent) {
+      setState(() {
+        _isLoadingSummary = true;
+        _summaryStatus = 'loading';
+      });
+      _syncSummaryPollTimer();
+    }
 
     try {
       final firebaseUser = FirebaseAuth.instance.currentUser;
@@ -95,6 +135,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
           _summaryStatus = 'processing';
           _isLoadingSummary = false;
         });
+        _syncSummaryPollTimer();
       } else if (_hasStructuredSummaryPayload(data)) {
         if (kDebugMode) {
           print("🔍 Found structured summary, setting to ready state");
@@ -109,6 +150,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
           _summaryStatus = 'ready';
           _isLoadingSummary = false;
         });
+        _syncSummaryPollTimer();
       } else {
         if (kDebugMode) {
           print("🔍 Unexpected structured response, trying plain summary: $data");
@@ -119,6 +161,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
             _summaryStatus = 'error';
             _isLoadingSummary = false;
           });
+          _syncSummaryPollTimer();
         }
       }
     } catch (e) {
@@ -142,6 +185,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
         _summaryStatus = 'error';
         _isLoadingSummary = false;
       });
+      _syncSummaryPollTimer();
     }
   }
 
@@ -157,6 +201,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
           _summaryStatus = 'processing';
           _isLoadingSummary = false;
         });
+        _syncSummaryPollTimer();
         return true;
       }
       if (_hasStructuredSummaryPayload(data)) {
@@ -171,6 +216,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
           _summaryStatus = 'ready';
           _isLoadingSummary = false;
         });
+        _syncSummaryPollTimer();
         return true;
       }
       final plain = data['summary']?.toString().trim() ?? '';
@@ -185,6 +231,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
           _summaryStatus = 'ready';
           _isLoadingSummary = false;
         });
+        _syncSummaryPollTimer();
         return true;
       }
     } catch (e) {
@@ -196,6 +243,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   }
 
   Future<void> _retrySummaryWithProcessing() async {
+    _processingPollCount = 0;
     try {
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser == null) return;
@@ -507,6 +555,9 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
                 color: Colors.orange,
                 title: l10n.preparingVisitSummary,
                 subtitle: l10n.preparingVisitSubtitle,
+                showRetry: _processingPollCount >= 6,
+                retryLabel: l10n.retry,
+                onRetry: _retrySummaryWithProcessing,
               )
             else if (_summaryStatus == 'error')
               _buildInlineStatusBanner(
