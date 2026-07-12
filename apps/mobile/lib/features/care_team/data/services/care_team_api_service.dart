@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../../core/config/environment.dart';
 import '../../../../services/invitation_service.dart';
-import '../care_team_permission.dart';
+import '../../care_team_permission.dart';
 import '../models/care_team_invitation.dart';
 import '../models/care_team_member.dart';
 
