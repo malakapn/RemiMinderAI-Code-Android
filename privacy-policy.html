@@ -1,33 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RemiMinder Privacy Policy</title>
 </head>
 <body>
     <h1>Privacy Policy for RemiMinder</h1>
-    <p>Last updated: February 26, 2026</p>
+    <p><strong>Last updated:</strong> July 12, 2026</p>
+    <p><strong>Contact:</strong> <a href="mailto:privacy@remiminder.ai">privacy@remiminder.ai</a></p>
+    <p><strong>Website:</strong> <a href="https://remiminderai.com/privacy">https://remiminderai.com/privacy</a></p>
 
-    <h2>Permissions We Use</h2>
+    <h2>Overview</h2>
+    <p>RemiMinder helps patients and caregivers manage medications, visit recordings, reminders, and health documents. This policy describes what we collect, how we use it, and your choices.</p>
 
+    <h2>Information We Collect</h2>
+    <ul>
+        <li><strong>Account information:</strong> name, email address, phone (optional), role (patient or caregiver), authentication identifiers from Firebase Auth.</li>
+        <li><strong>Health information:</strong> medication reminders, visit audio recordings, AI-generated visit summaries, scanned prescriptions/lab reports, care-team sharing preferences.</li>
+        <li><strong>Device data:</strong> Firebase Cloud Messaging (FCM) token for push notifications only; device language and timezone for scheduling reminders.</li>
+        <li><strong>Consent records:</strong> timestamps when you accept microphone, camera, and AI processing consent before recording or scanning.</li>
+    </ul>
+    <p>We do <strong>not</strong> sell your personal information. We do <strong>not</strong> use advertising IDs or third-party analytics SDKs in the mobile app.</p>
+
+    <h2>How We Use Information</h2>
+    <ul>
+        <li>Provide medication reminders and local/push notifications.</li>
+        <li>Record, transcribe, and summarize healthcare visits using Google Cloud Speech-to-Text and Google Gemini (via our secure backend).</li>
+        <li>Scan documents with AI to extract medication and health details.</li>
+        <li>Share selected health data with caregivers you invite and authorize.</li>
+        <li>Operate authentication, sync, and account management.</li>
+    </ul>
+
+    <h2>Third-Party Services</h2>
+    <p>We use trusted processors including Google Firebase (authentication, messaging, Firestore), Google Cloud Platform (storage and APIs), and Google AI services for transcription and summarization. Data is transmitted over HTTPS.</p>
+
+    <h2>Permissions (Android / iOS)</h2>
     <h3>Camera</h3>
-    <p>We use your camera to scan medication labels and prescriptions to help set up medication reminders.</p>
+    <p>Used to scan prescriptions, lab reports, and medication labels. You must accept in-app consent before scanning.</p>
+    <h3>Microphone</h3>
+    <p>Used only while you actively record a visit. Recording requires explicit in-app consent. We do not record in the background.</p>
+    <h3>Notifications</h3>
+    <p>Used for medication reminders and care alerts. You can disable notifications in device settings or in the app.</p>
+    <h3>Exact alarms (Android)</h3>
+    <p>Used to deliver medication reminders at scheduled times when the app is not open.</p>
+    <p>We do <strong>not</strong> request broad device storage, SMS, location, or contacts access for core app features.</p>
 
-    <h3>Microphone / Record Audio</h3>
-    <p>We use your microphone to allow voice input for setting medication reminders and speech-to-text features.</p>
+    <h2>Data Retention and Deletion</h2>
+    <p>You can delete your account in the app (Profile or Privacy Settings). This permanently deletes your account and associated data on our servers. To export data or request deletion of specific medical records, contact <a href="mailto:privacy@remiminder.ai">privacy@remiminder.ai</a>.</p>
 
-    <h3>Internet & Network Access</h3>
-    <p>We use internet and network access to sync your reminders, communicate with our servers, and deliver notifications.</p>
+    <h2>Security</h2>
+    <p>Data in transit is encrypted with HTTPS/TLS. Authentication tokens are stored in the device secure keystore. Health data is stored on Google Cloud infrastructure with access controls.</p>
 
-    <h3>Storage (Read & Write)</h3>
-    <p>We use storage access to save and retrieve medication information, audio files, and app data on your device.</p>
+    <h2>Medical Disclaimer</h2>
+    <p>RemiMinder is not a medical device and does not provide medical diagnosis or treatment. AI-generated summaries are informational only and are not a substitute for professional medical advice.</p>
 
-    <h2>Data Collection</h2>
-    <p>We collect only the information necessary to provide medication reminder services. This includes medication names, reminder schedules, and voice recordings used solely for transcription. We do not sell your data to third parties.</p>
+    <h2>Children</h2>
+    <p>RemiMinder is not directed at children under 13. We do not knowingly collect personal information from children.</p>
 
-    <h2>Data Security</h2>
-    <p>All data is transmitted securely using HTTPS encryption. We store your data on secure Google Cloud servers.</p>
+    <h2>Changes</h2>
+    <p>We may update this policy. Material changes will be reflected on this page with an updated date.</p>
 
-    <h2>Contact</h2>
-    <p>For questions about this privacy policy, contact us at: team@remiminderai.com</p>
+    <h2>Contact Us</h2>
+    <p>Questions or privacy requests: <a href="mailto:privacy@remiminder.ai">privacy@remiminder.ai</a></p>
 </body>
 </html>

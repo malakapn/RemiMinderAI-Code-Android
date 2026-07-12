@@ -1044,7 +1044,7 @@ class _OverviewScreenState extends State<OverviewScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'AI-generated summary. Not a substitute for professional medical advice.',
+                l10n.aiSummaryDisclaimer,
                 style: TextStyle(
                   fontSize: 12,
                   fontStyle: FontStyle.italic,

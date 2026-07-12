@@ -2,17 +2,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- Camera and Microphone Permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
         android:label="RemiMinder"
@@ -23,7 +19,7 @@
         <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="reminders"/>
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@mipmap/launcher_icon"/>
         <activity
-            android:name="com.remiminder.app.dev.MainActivity"
+            android:name="com.remiminder.app.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
@@ -38,13 +34,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Stripe Checkout return URLs: com.remiminder.app.dev://billing/... -->
+            <!-- Stripe Checkout return URLs: com.remiminder.app://billing/... -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
-                    android:scheme="com.remiminder.app.dev"
+                    android:scheme="com.remiminder.app"
                     android:host="billing"/>
             </intent-filter>
             <!-- Care-team invite deep links: remiminder://accept-invitation?token=... -->
@@ -56,12 +52,12 @@
                     android:scheme="remiminder"
                     android:host="accept-invitation"/>
             </intent-filter>
-            <!-- Auth deep links: com.remiminder.app.dev://login|register?... -->
+            <!-- Auth deep links: com.remiminder.app://login|register?... -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.remiminder.app.dev"/>
+                <data android:scheme="com.remiminder.app"/>
             </intent-filter>
         </activity>
         <meta-data

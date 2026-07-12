@@ -1454,4 +1454,65 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get authenticationErrorLoginAgain =>
       'Authentication error. Please log in again.';
+
+  @override
+  String get aiSummaryDisclaimer =>
+      'AI-generated summary. Not a substitute for professional medical advice.';
+
+  @override
+  String get recordingMicrophoneConsent =>
+      'I consent to this conversation being recorded and transcribed.';
+
+  @override
+  String get recordingAiConsent =>
+      'I understand this recording will be processed by AI (Google Speech-to-Text and Gemini) to generate a summary.';
+
+  @override
+  String get cameraScanAiConsent =>
+      'I consent to this document being scanned and processed by AI to extract relevant health information.';
+
+  @override
+  String get authLegalPrefix => 'By continuing, you agree to our ';
+
+  @override
+  String get authLegalAnd => ' and ';
+
+  @override
+  String get couldNotOpenTerms => 'Could not open Terms of Service. Try again.';
+
+  @override
+  String get couldNotOpenPrivacyPolicy =>
+      'Could not open Privacy Policy. Try again.';
+
+  @override
+  String accountDeletionFailed(String error) {
+    return 'Could not delete account: $error';
+  }
+
+  @override
+  String get dataExportEmailSubject => 'RemiMinder data export request';
+
+  @override
+  String get dataExportEmailBody =>
+      'Please export all personal and health data associated with my RemiMinder account.';
+
+  @override
+  String get dataExportRequestSent =>
+      'Your email app was opened to send a data export request to privacy@remiminder.ai.';
+
+  @override
+  String get deleteRecordsEmailSubject =>
+      'RemiMinder medical records deletion request';
+
+  @override
+  String get deleteRecordsEmailBody =>
+      'Please permanently delete all medical records associated with my RemiMinder account.';
+
+  @override
+  String get deleteRecordsRequestSent =>
+      'Your email app was opened to send a medical records deletion request to privacy@remiminder.ai.';
+
+  @override
+  String get caregiverSyncRetry =>
+      'Caregiver record is syncing. Try again in a moment.';
 }

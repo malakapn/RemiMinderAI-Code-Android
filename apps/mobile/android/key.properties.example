@@ -1,0 +1,4 @@
+storePassword=
+keyPassword=
+keyAlias=remiminder
+storeFile=/absolute/path/to/remiminder-release.keystore

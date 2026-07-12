@@ -2747,6 +2747,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Authentication error. Please log in again.'**
   String get authenticationErrorLoginAgain;
+
+  /// No description provided for @aiSummaryDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-generated summary. Not a substitute for professional medical advice.'**
+  String get aiSummaryDisclaimer;
+
+  /// No description provided for @recordingMicrophoneConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'I consent to this conversation being recorded and transcribed.'**
+  String get recordingMicrophoneConsent;
+
+  /// No description provided for @recordingAiConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand this recording will be processed by AI (Google Speech-to-Text and Gemini) to generate a summary.'**
+  String get recordingAiConsent;
+
+  /// No description provided for @cameraScanAiConsent.
+  ///
+  /// In en, this message translates to:
+  /// **'I consent to this document being scanned and processed by AI to extract relevant health information.'**
+  String get cameraScanAiConsent;
+
+  /// No description provided for @authLegalPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'By continuing, you agree to our '**
+  String get authLegalPrefix;
+
+  /// No description provided for @authLegalAnd.
+  ///
+  /// In en, this message translates to:
+  /// **' and '**
+  String get authLegalAnd;
+
+  /// No description provided for @couldNotOpenTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open Terms of Service. Try again.'**
+  String get couldNotOpenTerms;
+
+  /// No description provided for @couldNotOpenPrivacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open Privacy Policy. Try again.'**
+  String get couldNotOpenPrivacyPolicy;
+
+  /// No description provided for @accountDeletionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete account: {error}'**
+  String accountDeletionFailed(String error);
+
+  /// No description provided for @dataExportEmailSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'RemiMinder data export request'**
+  String get dataExportEmailSubject;
+
+  /// No description provided for @dataExportEmailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Please export all personal and health data associated with my RemiMinder account.'**
+  String get dataExportEmailBody;
+
+  /// No description provided for @dataExportRequestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Your email app was opened to send a data export request to privacy@remiminder.ai.'**
+  String get dataExportRequestSent;
+
+  /// No description provided for @deleteRecordsEmailSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'RemiMinder medical records deletion request'**
+  String get deleteRecordsEmailSubject;
+
+  /// No description provided for @deleteRecordsEmailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Please permanently delete all medical records associated with my RemiMinder account.'**
+  String get deleteRecordsEmailBody;
+
+  /// No description provided for @deleteRecordsRequestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Your email app was opened to send a medical records deletion request to privacy@remiminder.ai.'**
+  String get deleteRecordsRequestSent;
+
+  /// No description provided for @caregiverSyncRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Caregiver record is syncing. Try again in a moment.'**
+  String get caregiverSyncRetry;
 }
 
 class _AppLocalizationsDelegate

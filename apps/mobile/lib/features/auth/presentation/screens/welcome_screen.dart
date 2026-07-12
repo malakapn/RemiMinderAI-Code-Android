@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/brand_logo.dart';
+import '../../../../core/widgets/legal_agreement_footer.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -124,6 +125,8 @@ class WelcomeScreen extends StatelessWidget {
                       Column(
                         children: [
                           SizedBox(height: gapBelowExpanded),
+                          const LegalAgreementFooter(),
+                          const SizedBox(height: 16),
                           pageDots,
                           SizedBox(height: gapBottom),
                         ],

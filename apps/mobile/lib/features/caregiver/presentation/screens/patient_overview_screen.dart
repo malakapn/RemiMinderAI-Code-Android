@@ -407,7 +407,7 @@ class _PatientOverviewScreenState extends State<PatientOverviewScreen>
                 if ((visit['summary'] as String? ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'AI-generated summary. Not a substitute for professional medical advice.',
+                    l10n.aiSummaryDisclaimer,
                     style: TextStyle(
                       fontSize: 12,
                       fontStyle: FontStyle.italic,

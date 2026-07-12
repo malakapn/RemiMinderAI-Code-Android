@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/config/legal_urls.dart';
+import '../../../../core/services/account_data_actions.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -7,14 +10,15 @@ import '../../../care_team/care_team_permission.dart';
 import '../../../care_team/data/models/care_team_member.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
 
-class PrivacySettingsScreen extends StatefulWidget {
+class PrivacySettingsScreen extends ConsumerStatefulWidget {
   const PrivacySettingsScreen({super.key});
 
   @override
-  State<PrivacySettingsScreen> createState() => _PrivacySettingsScreenState();
+  ConsumerState<PrivacySettingsScreen> createState() =>
+      _PrivacySettingsScreenState();
 }
 
-class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
+class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
   bool _allowCaregiverSummaries = true;
   bool _allowCaregiverMedications = false;
   bool _allowCaregiverReminders = true;
@@ -34,13 +38,39 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     _loadCaregiver();
   }
 
-  void _showPrivacySupportContact() {
+  Future<void> _exportMyData() async {
+    await AccountDataActions.requestDataExport(context);
+  }
+
+  Future<void> _deleteMedicalRecords() async {
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.privacyDataRequestMessage),
-        duration: const Duration(seconds: 4),
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteMedicalRecordsTitle),
+        content: Text(l10n.deleteMedicalRecordsMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l10n.deleteRecords),
+          ),
+        ],
       ),
+    );
+    if (confirmed == true && mounted) {
+      await AccountDataActions.requestMedicalRecordsDeletion(context);
+    }
+  }
+
+  Future<void> _deleteMyAccount() async {
+    await AccountDataActions.confirmAndDeleteAccount(
+      context: context,
+      ref: ref,
     );
   }
 
@@ -188,47 +218,13 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
   String _friendlyError(Object error) {
     final message = error.toString();
     if (message.contains('not-found')) {
-      return 'Caregiver record is syncing. Try again in a moment.';
+      return AppLocalizations.of(context)!.caregiverSyncRetry;
     }
     return message;
   }
 
-  Future<void> _showDeleteConfirmationDialog(
-    BuildContext context,
-    String title,
-    String content,
-    String action,
-    Color actionColor,
-  ) async {
-    final l10n = AppLocalizations.of(context)!;
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: actionColor,
-            ),
-            child: Text(action),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      _showPrivacySupportContact();
-    }
-  }
-
   Future<void> _openTermsOfService() async {
-    final uri = Uri.parse('https://remiminderai.com/terms');
+    final uri = Uri.parse(LegalUrls.terms);
     final launched = await launchUrl(
       uri,
       mode: LaunchMode.externalApplication,
@@ -236,15 +232,13 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     if (!mounted) return;
     if (!launched) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open Terms of Service. Try again.'),
-        ),
+        SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenTerms)),
       );
     }
   }
 
   Future<void> _openPrivacyPolicy() async {
-    final uri = Uri.parse('https://remiminderai.com/privacy');
+    final uri = Uri.parse(LegalUrls.privacy);
     final launched = await launchUrl(
       uri,
       mode: LaunchMode.externalApplication,
@@ -252,8 +246,8 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     if (!mounted) return;
     if (!launched) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open Privacy Policy. Try again.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.couldNotOpenPrivacyPolicy),
         ),
       );
     }
@@ -355,30 +349,18 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                     _buildActionButton(
                       l10n.exportMyData,
                       Icons.download,
-                      _showPrivacySupportContact,
+                      _exportMyData,
                     ),
                     const SizedBox(height: 8),
                     _buildActionButton(
                       l10n.deleteAllMedicalRecords,
                       Icons.delete_forever,
-                      () => _showDeleteConfirmationDialog(
-                        context,
-                        l10n.deleteMedicalRecordsTitle,
-                        l10n.deleteMedicalRecordsMessage,
-                        l10n.deleteRecords,
-                        Colors.red,
-                      ),
+                      _deleteMedicalRecords,
                     ),
                     const SizedBox(height: 8),
                     _buildDangerButton(
                       l10n.deleteMyAccount,
-                      () => _showDeleteConfirmationDialog(
-                        context,
-                        l10n.deleteAccountTitle,
-                        l10n.deleteAccountMessage,
-                        l10n.deleteAccount,
-                        Colors.red,
-                      ),
+                      _deleteMyAccount,
                     ),
                     const SizedBox(height: 24),
                     _buildSectionHeader(l10n.legal, Icons.gavel),

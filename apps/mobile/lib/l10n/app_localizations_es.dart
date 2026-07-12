@@ -595,16 +595,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String featureComingSoon(String feature) {
-    return '$feature próximamente';
+    return 'Contacte a privacy@remiminder.ai para solicitudes de $feature.';
   }
 
   @override
   String get emailNotificationPreferenceMessage =>
-      'Email notification preferences are managed by our support team. Contact privacy@remiminder.ai to update them.';
+      'Las preferencias de notificaciones por correo las gestiona nuestro equipo de soporte. Contacte a privacy@remiminder.ai para actualizarlas.';
 
   @override
   String get pushNotificationsDisabled =>
-      'Push notifications are disabled. Enable them in your device settings to receive alerts.';
+      'Las notificaciones push están desactivadas. Actívelas en la configuración del dispositivo para recibir alertas.';
 
   @override
   String get caregiverSharingEnabled => 'Compartir con cuidador activado';
@@ -1401,7 +1401,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get stopRecordingMessage =>
-      'Are you sure you want to stop recording? This action cannot be undone.';
+      '¿Seguro que desea detener la grabación? Esta acción no se puede deshacer.';
 
   @override
   String get continueRecording => 'Continuar grabando';
@@ -1467,4 +1467,67 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get authenticationErrorLoginAgain =>
       'Error de autenticación. Inicia sesión de nuevo.';
+
+  @override
+  String get aiSummaryDisclaimer =>
+      'Resumen generado por IA. No sustituye el consejo médico profesional.';
+
+  @override
+  String get recordingMicrophoneConsent =>
+      'Consiento que esta conversación sea grabada y transcrita.';
+
+  @override
+  String get recordingAiConsent =>
+      'Entiendo que esta grabación será procesada por IA (Google Speech-to-Text y Gemini) para generar un resumen.';
+
+  @override
+  String get cameraScanAiConsent =>
+      'Consiento que este documento sea escaneado y procesado por IA para extraer información de salud relevante.';
+
+  @override
+  String get authLegalPrefix => 'Al continuar, acepta nuestros ';
+
+  @override
+  String get authLegalAnd => ' y ';
+
+  @override
+  String get couldNotOpenTerms =>
+      'No se pudieron abrir los Términos de servicio. Inténtelo de nuevo.';
+
+  @override
+  String get couldNotOpenPrivacyPolicy =>
+      'No se pudo abrir la Política de privacidad. Inténtelo de nuevo.';
+
+  @override
+  String accountDeletionFailed(String error) {
+    return 'No se pudo eliminar la cuenta: $error';
+  }
+
+  @override
+  String get dataExportEmailSubject =>
+      'Solicitud de exportación de datos de RemiMinder';
+
+  @override
+  String get dataExportEmailBody =>
+      'Exporte todos los datos personales y de salud asociados con mi cuenta de RemiMinder.';
+
+  @override
+  String get dataExportRequestSent =>
+      'Se abrió su aplicación de correo para enviar una solicitud de exportación a privacy@remiminder.ai.';
+
+  @override
+  String get deleteRecordsEmailSubject =>
+      'Solicitud de eliminación de registros médicos de RemiMinder';
+
+  @override
+  String get deleteRecordsEmailBody =>
+      'Elimine permanentemente todos los registros médicos asociados con mi cuenta de RemiMinder.';
+
+  @override
+  String get deleteRecordsRequestSent =>
+      'Se abrió su aplicación de correo para enviar una solicitud de eliminación de registros a privacy@remiminder.ai.';
+
+  @override
+  String get caregiverSyncRetry =>
+      'El registro del cuidador se está sincronizando. Inténtelo de nuevo en un momento.';
 }

@@ -787,5 +787,28 @@
       }
     }
   },
-  "authenticationErrorLoginAgain": "Authentication error. Please log in again."
+  "authenticationErrorLoginAgain": "Authentication error. Please log in again.",
+  "aiSummaryDisclaimer": "AI-generated summary. Not a substitute for professional medical advice.",
+  "recordingMicrophoneConsent": "I consent to this conversation being recorded and transcribed.",
+  "recordingAiConsent": "I understand this recording will be processed by AI (Google Speech-to-Text and Gemini) to generate a summary.",
+  "cameraScanAiConsent": "I consent to this document being scanned and processed by AI to extract relevant health information.",
+  "authLegalPrefix": "By continuing, you agree to our ",
+  "authLegalAnd": " and ",
+  "couldNotOpenTerms": "Could not open Terms of Service. Try again.",
+  "couldNotOpenPrivacyPolicy": "Could not open Privacy Policy. Try again.",
+  "accountDeletionFailed": "Could not delete account: {error}",
+  "@accountDeletionFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "dataExportEmailSubject": "RemiMinder data export request",
+  "dataExportEmailBody": "Please export all personal and health data associated with my RemiMinder account.",
+  "dataExportRequestSent": "Your email app was opened to send a data export request to privacy@remiminder.ai.",
+  "deleteRecordsEmailSubject": "RemiMinder medical records deletion request",
+  "deleteRecordsEmailBody": "Please permanently delete all medical records associated with my RemiMinder account.",
+  "deleteRecordsRequestSent": "Your email app was opened to send a medical records deletion request to privacy@remiminder.ai.",
+  "caregiverSyncRetry": "Caregiver record is syncing. Try again in a moment."
 }

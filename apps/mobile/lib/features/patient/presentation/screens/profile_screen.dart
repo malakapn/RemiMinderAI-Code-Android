@@ -1,11 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/services/auth_service.dart';
-import '../../../../core/services/user_api_service.dart';
+import '../../../../core/services/account_data_actions.dart';
 import '../../../../core/config/app_build_info.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/widgets/remi_shell_ui.dart';
@@ -370,47 +367,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _confirmDeleteAccount(AppLocalizations l10n) async {
-    final confirmed = await showDialog<bool>(
+    await AccountDataActions.confirmAndDeleteAccount(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.deleteAccountTitle),
-        content: Text(l10n.deleteAccountMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l10n.delete),
-          ),
-        ],
-      ),
+      ref: ref,
     );
-
-    if (confirmed != true || !mounted) return;
-
-    try {
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser == null) throw Exception('Authentication required');
-      final token = await firebaseUser.getIdToken(true);
-      if (token == null) {
-        throw Exception('Authentication required');
-      }
-
-      await UserApiService().deleteAccount(token);
-      await ref.read(authNotifierProvider.notifier).signOut();
-
-      if (!mounted) return;
-      context.go('/welcome');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not delete account: $e')),
-      );
-    }
   }
 
   Widget _buildBottomButtons(ThemeData theme, AppLocalizations l10n) {

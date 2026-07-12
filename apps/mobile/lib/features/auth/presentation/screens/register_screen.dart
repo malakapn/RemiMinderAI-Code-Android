@@ -2,8 +2,11 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/config/legal_urls.dart';
 import '../../../../core/models/user.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../services/pending_invite_token.dart';
 import '../providers/auth_provider.dart';
 
@@ -398,68 +401,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
 
   void _showTermsOfService() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Terms of Service'),
-          content: const SingleChildScrollView(
-            child: Text(
-              'Terms of Service for RemiMinder\n\n'
-              '1. Acceptance of Terms\n'
-              'By using RemiMinder, you agree to these terms.\n\n'
-              '2. Use of Service\n'
-              'RemiMinder is designed to help manage healthcare and medication reminders.\n\n'
-              '3. Privacy\n'
-              'Your privacy is important to us. All health data is handled securely.\n\n'
-              '4. Account Responsibility\n'
-              'You are responsible for maintaining the confidentiality of your account.\n\n'
-              '5. Limitation of Liability\n'
-              'RemiMinder is not a substitute for professional medical advice.\n\n'
-              'For the complete Terms of Service, please visit our website.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
+    _openLegalUrl(LegalUrls.terms);
   }
 
   void _showPrivacyPolicy() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Privacy Policy'),
-          content: const SingleChildScrollView(
-            child: Text(
-              'Privacy Policy for RemiMinder\n\n'
-              '1. Information We Collect\n'
-              'We collect information you provide and usage data to improve our service.\n\n'
-              '2. How We Use Information\n'
-              'Information is used to provide healthcare management services and improve user experience.\n\n'
-              '3. Information Sharing\n'
-              'We do not sell your personal information. Data is only shared with healthcare providers you authorize.\n\n'
-              '4. Data Security\n'
-              'We implement industry-standard security measures to protect your health data.\n\n'
-              '5. Your Rights\n'
-              'You have the right to access, correct, or delete your personal information.\n\n'
-              'For the complete Privacy Policy, please visit our website.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
+    _openLegalUrl(LegalUrls.privacy);
+  }
+
+  Future<void> _openLegalUrl(String url) async {
+    final l10n = AppLocalizations.of(context)!;
+    final launched = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!mounted || launched) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          url.contains('terms')
+              ? l10n.couldNotOpenTerms
+              : l10n.couldNotOpenPrivacyPolicy,
+        ),
+      ),
     );
   }
 

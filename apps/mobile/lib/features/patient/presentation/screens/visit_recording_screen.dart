@@ -14,6 +14,7 @@ import '../../../../core/services/audio_service.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/visit_context.dart';
 import '../../../../core/config/environment.dart';
+import '../../../../core/config/legal_urls.dart';
 import '../../../../core/utils/locale_format.dart';
 
 class VisitRecordingScreen extends StatefulWidget {
@@ -30,8 +31,7 @@ class VisitRecordingScreen extends StatefulWidget {
 
 class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   static const String _consentVersion = 'v1';
-  static final Uri _privacyPolicyUri =
-      Uri.parse('https://remiminderai.com/privacy');
+  static final Uri _privacyPolicyUri = Uri.parse(LegalUrls.privacy);
 
   final AudioService _audioService = AudioService();
   final AuthService _authService = AuthService();
@@ -244,6 +244,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
 
   Widget _buildConsentBlock(bool compactLayout) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return SizedBox(
       width: compactLayout ? 300 : 360,
@@ -288,8 +289,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
               value: _microphoneConsentGiven,
               enabled: !_isStartingRecording,
               compactLayout: compactLayout,
-              label:
-                  'I consent to this conversation being recorded and transcribed.',
+              label: l10n.recordingMicrophoneConsent,
               onChanged: (value) {
                 setState(() {
                   _microphoneConsentGiven = value;
@@ -302,8 +302,7 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
               value: _aiConsentGiven,
               enabled: !_isStartingRecording,
               compactLayout: compactLayout,
-              label:
-                  'I understand this recording will be processed by AI (Google Speech-to-Text and Gemini) to generate a summary.',
+              label: l10n.recordingAiConsent,
               onChanged: (value) {
                 setState(() {
                   _aiConsentGiven = value;

@@ -589,16 +589,16 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String featureComingSoon(String feature) {
-    return '$feature শীঘ্রই আসছে';
+    return '$feature অনুরোধের জন্য privacy@remiminder.ai এ যোগাযোগ করুন।';
   }
 
   @override
   String get emailNotificationPreferenceMessage =>
-      'Email notification preferences are managed by our support team. Contact privacy@remiminder.ai to update them.';
+      'ইমেল বিজ্ঞপ্তি পছন্দ আমাদের সহায়তা দল পরিচালনা করে। আপডেট করতে privacy@remiminder.ai এ যোগাযোগ করুন।';
 
   @override
   String get pushNotificationsDisabled =>
-      'Push notifications are disabled. Enable them in your device settings to receive alerts.';
+      'পুশ বিজ্ঞপ্তি বন্ধ আছে। সতর্কতা পেতে ডিভাইস সেটিংসে সক্ষম করুন।';
 
   @override
   String get caregiverSharingEnabled => 'যত্নকারী শেয়ারিং চালু';
@@ -1389,7 +1389,7 @@ class AppLocalizationsBn extends AppLocalizations {
 
   @override
   String get stopRecordingMessage =>
-      'Are you sure you want to stop recording? This action cannot be undone.';
+      'আপনি কি নিশ্চিত রেকর্ডিং বন্ধ করতে চান? এটি পূর্বাবস্থায় ফেরানো যাবে না।';
 
   @override
   String get continueRecording => 'রেকর্ডিং চালিয়ে যান';
@@ -1454,4 +1454,66 @@ class AppLocalizationsBn extends AppLocalizations {
   @override
   String get authenticationErrorLoginAgain =>
       'প্রমাণীকরণ ত্রুটি। আবার লগ ইন করুন।';
+
+  @override
+  String get aiSummaryDisclaimer =>
+      'AI-উৎপাদিত সারাংশ। পেশাদার চিকিৎসা পরামর্শের বিকল্প নয়।';
+
+  @override
+  String get recordingMicrophoneConsent =>
+      'আমি এই কথোপকথন রেকর্ড ও ট্রান্সক্রাইব করতে সম্মত।';
+
+  @override
+  String get recordingAiConsent =>
+      'আমি বুঝি এই রেকর্ডিং AI (Google Speech-to-Text ও Gemini) দ্বারা সারাংশ তৈরির জন্য প্রক্রিয়া হবে।';
+
+  @override
+  String get cameraScanAiConsent =>
+      'আমি এই নথি স্ক্যান ও প্রাসঙ্গিক স্বাস্থ্য তথ্য বের করতে AI প্রক্রিয়াকরণে সম্মত।';
+
+  @override
+  String get authLegalPrefix => 'চালিয়ে গেলে, আপনি আমাদের ';
+
+  @override
+  String get authLegalAnd => ' এবং ';
+
+  @override
+  String get couldNotOpenTerms =>
+      'সেবার শর্তাবলী খোলা যায়নি। আবার চেষ্টা করুন।';
+
+  @override
+  String get couldNotOpenPrivacyPolicy =>
+      'গোপনীয়তা নীতি খোলা যায়নি। আবার চেষ্টা করুন।';
+
+  @override
+  String accountDeletionFailed(String error) {
+    return 'অ্যাকাউন্ট মুছতে পারিনি: $error';
+  }
+
+  @override
+  String get dataExportEmailSubject => 'RemiMinder ডেটা রপ্তানি অনুরোধ';
+
+  @override
+  String get dataExportEmailBody =>
+      'আমার RemiMinder অ্যাকাউন্টের সাথে যুক্ত সব ব্যক্তিগত ও স্বাস্থ্য ডেটা রপ্তানি করুন।';
+
+  @override
+  String get dataExportRequestSent =>
+      'ডেটা রপ্তানি অনুরোধ পাঠাতে privacy@remiminder.ai এ আপনার ইমেল অ্যাপ খোলা হয়েছে।';
+
+  @override
+  String get deleteRecordsEmailSubject =>
+      'RemiMinder চিকিৎসা রেকর্ড মুছে ফেলার অনুরোধ';
+
+  @override
+  String get deleteRecordsEmailBody =>
+      'আমার RemiMinder অ্যাকাউন্টের সাথে যুক্ত সব চিকিৎসা রেকর্ড স্থায়ীভাবে মুছে ফেলুন।';
+
+  @override
+  String get deleteRecordsRequestSent =>
+      'রেকর্ড মুছে ফেলার অনুরোধ পাঠাতে privacy@remiminder.ai এ আপনার ইমেল অ্যাপ খোলা হয়েছে।';
+
+  @override
+  String get caregiverSyncRetry =>
+      'কেয়ারগিভার রেকর্ড সিঙ্ক হচ্ছে। একটু পরে আবার চেষ্টা করুন।';
 }

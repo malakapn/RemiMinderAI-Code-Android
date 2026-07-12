@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/config/legal_urls.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
@@ -39,8 +40,7 @@ ScanMode _parseScanMode(String? modeString) {
 class _CameraScreenState extends State<CameraScreen>
     with TickerProviderStateMixin {
   static const String _consentVersion = 'v1';
-  static final Uri _privacyPolicyUri =
-      Uri.parse('https://remiminderai.com/privacy');
+  static final Uri _privacyPolicyUri = Uri.parse(LegalUrls.privacy);
 
   late AnimationController _processingController;
 
@@ -997,6 +997,7 @@ class _ScanConsentCheckboxTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Material(
       color: Colors.transparent,
@@ -1028,7 +1029,7 @@ class _ScanConsentCheckboxTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'I consent to this document being scanned and processed by AI to extract relevant health information.',
+                        l10n.cameraScanAiConsent,
                         style: TextStyle(
                           color: theme.colorScheme.primary,
                           fontSize: 14,

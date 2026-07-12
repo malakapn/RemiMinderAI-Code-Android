@@ -601,16 +601,16 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String featureComingSoon(String feature) {
-    return '$feature விரைவில் வரும்';
+    return '$feature கோரிக்கைகளுக்கு privacy@remiminder.ai ஐ தொடர்பு கொள்ளுங்கள்.';
   }
 
   @override
   String get emailNotificationPreferenceMessage =>
-      'Email notification preferences are managed by our support team. Contact privacy@remiminder.ai to update them.';
+      'மின்னஞ்சல் அறிவிப்பு விருப்பங்களை எங்கள் ஆதரவு குழு நிர்வகிக்கிறது. புதுப்பிக்க privacy@remiminder.ai ஐ தொடர்பு கொள்ளுங்கள்.';
 
   @override
   String get pushNotificationsDisabled =>
-      'Push notifications are disabled. Enable them in your device settings to receive alerts.';
+      'புஷ் அறிவிப்புகள் முடக்கப்பட்டுள்ளன. எச்சரிக்கைகளைப் பெற சாதன அமைப்புகளில் இயக்கவும்.';
 
   @override
   String get caregiverSharingEnabled => 'பராமரிப்பாளர் பகிர்வு இயக்கப்பட்டது';
@@ -1409,7 +1409,7 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get stopRecordingMessage =>
-      'Are you sure you want to stop recording? This action cannot be undone.';
+      'பதிவை நிறுத்த விரும்புகிறீர்களா? இந்த செயலை மீளமுடியாது.';
 
   @override
   String get continueRecording => 'பதிவைத் தொடரவும்';
@@ -1474,4 +1474,66 @@ class AppLocalizationsTa extends AppLocalizations {
   @override
   String get authenticationErrorLoginAgain =>
       'அங்கீகார பிழை. மீண்டும் உள்நுழையவும்.';
+
+  @override
+  String get aiSummaryDisclaimer =>
+      'AI உருவாக்கிய சுருக்கம். தொழில்முறை மருத்துவ ஆலோசனைக்கு மாற்றாக இல்லை.';
+
+  @override
+  String get recordingMicrophoneConsent =>
+      'இந்த உரையாடல் பதிவு செய்யப்பட்டு எழுத்துவடிவாக்கப்பட நான் ஒப்புக்கொள்கிறேன்.';
+
+  @override
+  String get recordingAiConsent =>
+      'இந்த பதிவு AI (Google Speech-to-Text மற்றும் Gemini) மூலம் சுருக்கம் உருவாக்க செயலாக்கப்படும் என்பதை நான் புரிந்துகொள்கிறேன்.';
+
+  @override
+  String get cameraScanAiConsent =>
+      'இந்த ஆவணம் ஸ்கேன் செய்யப்பட்டு தொடர்புடைய சுகாதார தகவல்களைப் பிரித்தெடுக்க AI செயலாக்கப்பட நான் ஒப்புக்கொள்கிறேன்.';
+
+  @override
+  String get authLegalPrefix => 'தொடர்வதன் மூலம், எங்கள் ';
+
+  @override
+  String get authLegalAnd => ' மற்றும் ';
+
+  @override
+  String get couldNotOpenTerms =>
+      'சேவை விதிமுறைகளைத் திறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String get couldNotOpenPrivacyPolicy =>
+      'தனியுரிமைக் கொள்கையைத் திறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String accountDeletionFailed(String error) {
+    return 'கணக்கை நீக்க முடியவில்லை: $error';
+  }
+
+  @override
+  String get dataExportEmailSubject => 'RemiMinder தரவு ஏற்றுமதி கோரிக்கை';
+
+  @override
+  String get dataExportEmailBody =>
+      'எனது RemiMinder கணக்குடன் தொடர்புடைய அனைத்து தனிப்பட்ட மற்றும் சுகாதார தரவையும் ஏற்றுமதி செய்யவும்.';
+
+  @override
+  String get dataExportRequestSent =>
+      'தரவு ஏற்றுமதி கோரிக்கையை அனுப்ப privacy@remiminder.ai க்கு உங்கள் மின்னஞ்சல் பயன்பாடு திறக்கப்பட்டது.';
+
+  @override
+  String get deleteRecordsEmailSubject =>
+      'RemiMinder மருத்துவ பதிவுகள் நீக்க கோரிக்கை';
+
+  @override
+  String get deleteRecordsEmailBody =>
+      'எனது RemiMinder கணக்குடன் தொடர்புடைய அனைத்து மருத்துவ பதிவுகளையும் நிரந்தரமாக நீக்கவும்.';
+
+  @override
+  String get deleteRecordsRequestSent =>
+      'பதிவு நீக்க கோரிக்கையை அனுப்ப privacy@remiminder.ai க்கு உங்கள் மின்னஞ்சல் பயன்பாடு திறக்கப்பட்டது.';
+
+  @override
+  String get caregiverSyncRetry =>
+      'பராமரிப்பாளர் பதிவு ஒத்திசைக்கப்படுகிறது. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.';
 }

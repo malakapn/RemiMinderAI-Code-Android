@@ -659,8 +659,9 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   }
 
   Widget _buildAiSummaryDisclaimer() {
+    final l10n = AppLocalizations.of(context)!;
     return Text(
-      'AI-generated summary. Not a substitute for professional medical advice.',
+      l10n.aiSummaryDisclaimer,
       style: TextStyle(
         fontSize: 12,
         fontStyle: FontStyle.italic,
