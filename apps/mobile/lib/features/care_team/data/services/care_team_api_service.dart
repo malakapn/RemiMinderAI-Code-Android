@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../../core/config/environment.dart';
 import '../../../../services/invitation_service.dart';
+import '../care_team_permission.dart';
 import '../models/care_team_invitation.dart';
 import '../models/care_team_member.dart';
 
@@ -60,10 +61,10 @@ class CareTeamApiService {
 
   String _permissionToString(dynamic permission, dynamic permissions) {
     if (permission is String && permission.isNotEmpty) {
-      return permission;
+      return CareTeamPermission.normalize(permission);
     }
     if (permissions is List && permissions.isNotEmpty) {
-      return permissions.first.toString();
+      return CareTeamPermission.normalize(permissions.first.toString());
     }
     return 'view';
   }
@@ -281,8 +282,8 @@ class CareTeamApiService {
   }) async {
     final uid = _requireUid();
     final payload = {
-      'permission': permission,
-      'permissions': [permission],
+      'permission': CareTeamPermission.normalize(permission),
+      'permissions': [CareTeamPermission.normalize(permission)],
     };
 
     // Firestore is the primary store for mobile care-team data.
@@ -316,7 +317,7 @@ class CareTeamApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode({'permission': permission}),
+        body: json.encode({'permission': CareTeamPermission.normalize(permission)}),
       );
       if (response.statusCode != 200) {
         // Firestore already updated; backend may not have this member yet.

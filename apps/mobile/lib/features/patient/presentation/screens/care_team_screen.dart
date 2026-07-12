@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../care_team/data/models/care_team_invitation.dart';
 import '../../../care_team/data/models/care_team_member.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
+import '../../../care_team/care_team_permission.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../core/utils/relationship_l10n.dart';
 
@@ -82,16 +83,14 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
       if (!mounted) return;
       CareTeamApiService.setCachedMembers(members);
       CareTeamApiService.setCachedPendingInvites(pending);
-      if (_membersChanged(members) || _pendingChanged(pending)) {
-        setState(() {
-          _members = members;
-          _pendingInvitations = pending;
-          _pendingActionLoading.clear();
-          _pendingActionMessage.clear();
-          _pendingActionIsError.clear();
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _members = members;
+        _pendingInvitations = pending;
+        _pendingActionLoading.clear();
+        _pendingActionMessage.clear();
+        _pendingActionIsError.clear();
+        _isLoading = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -99,30 +98,6 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  bool _membersChanged(List<CareTeamMember> next) {
-    if (_members.length != next.length) {
-      return true;
-    }
-    if (_members.isEmpty && next.isEmpty) {
-      return false;
-    }
-    return _members.isNotEmpty && next.isNotEmpty
-        ? _members.first.id != next.first.id
-        : true;
-  }
-
-  bool _pendingChanged(List<CareTeamInvitation> next) {
-    if (_pendingInvitations.length != next.length) {
-      return true;
-    }
-    if (_pendingInvitations.isEmpty && next.isEmpty) {
-      return false;
-    }
-    return _pendingInvitations.isNotEmpty && next.isNotEmpty
-        ? _pendingInvitations.first.id != next.first.id
-        : true;
   }
 
   Widget _buildWaveHeader(AppLocalizations l10n) {
@@ -560,14 +535,37 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
     String memberId,
     String permission,
   ) async {
+    final normalized = CareTeamPermission.normalize(permission);
+    final previousMembers = _members;
+    setState(() {
+      _members = _members
+          .map(
+            (member) => member.id == memberId
+                ? member.copyWith(permission: normalized)
+                : member,
+          )
+          .toList();
+    });
+
     try {
+      CareTeamMember? matched;
+      for (final member in previousMembers) {
+        if (member.id == memberId) {
+          matched = member;
+          break;
+        }
+      }
       await CareTeamApiService().updatePermission(
         memberId: memberId,
-        permission: permission,
+        permission: normalized,
+        memberEmail: matched?.email,
       );
       await _loadCareTeamData();
       return true;
     } catch (e) {
+      if (mounted) {
+        setState(() => _members = previousMembers);
+      }
       return false;
     }
   }
@@ -847,7 +845,7 @@ class CaregiverTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isFullAccess = permission == 'full';
+    final isFullAccess = CareTeamPermission.isFullAccess(permission);
     final accessLevel =
         isFullAccess ? l10n.fullAccess : l10n.viewOnly;
 

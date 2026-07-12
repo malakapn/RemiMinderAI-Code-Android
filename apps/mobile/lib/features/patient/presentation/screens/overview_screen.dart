@@ -11,6 +11,7 @@ import '../../../../core/config/environment.dart';
 import '../../../../core/utils/locale_format.dart';
 import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../care_team/care_team_permission.dart';
 import '../../data/services/patient_api_service.dart';
 import '../../data/models/summary_item.dart';
 import '../../../care_team/data/models/care_team_member.dart';
@@ -879,7 +880,7 @@ class _OverviewScreenState extends State<OverviewScreen>
   Widget _buildSummaryCard(SummaryItem summary, AppLocalizations l10n) {
     final summaryId = summary.summaryId;
     final isSelected = _selectedSummaryIds.contains(summaryId);
-    final isShared = _activeCaregiver?.permission == 'full';
+    final isShared = CareTeamPermission.isFullAccess(_activeCaregiver?.permission);
     final isShareDisabled =
         _activeCaregiver == null || _isUpdatingShare || _isLoadingCaregiver;
     final doctorText = _formatDoctorName(summary.doctorName, l10n);

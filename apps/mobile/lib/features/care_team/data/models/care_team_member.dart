@@ -44,4 +44,22 @@ class CareTeamMember {
       'status': status,
     };
   }
+
+  CareTeamMember copyWith({
+    String? permission,
+    String? fullName,
+    String? role,
+    String? status,
+  }) {
+    return CareTeamMember(
+      id: id,
+      patientId: patientId,
+      memberUserId: memberUserId,
+      fullName: fullName ?? this.fullName,
+      email: email,
+      role: role ?? this.role,
+      permission: permission ?? this.permission,
+      status: status ?? this.status,
+    );
+  }
 }

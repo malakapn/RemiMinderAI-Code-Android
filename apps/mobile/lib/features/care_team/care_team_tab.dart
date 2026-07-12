@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/invitation_provider.dart';
 import 'data/models/care_team_member.dart';
 import 'data/services/care_team_api_service.dart';
+import 'care_team_permission.dart';
 import '../patient/presentation/screens/care_team_screen.dart';
 import 'widgets/invitations_received_section.dart';
 
@@ -407,14 +408,37 @@ class _CareTeamTabState extends ConsumerState<CareTeamTab> {
     String memberId,
     String permission,
   ) async {
+    final normalized = CareTeamPermission.normalize(permission);
+    final previousMembers = _members;
+    setState(() {
+      _members = _members
+          .map(
+            (member) => member.id == memberId
+                ? member.copyWith(permission: normalized)
+                : member,
+          )
+          .toList();
+    });
+
     try {
+      CareTeamMember? matched;
+      for (final member in previousMembers) {
+        if (member.id == memberId) {
+          matched = member;
+          break;
+        }
+      }
       await CareTeamApiService().updatePermission(
         memberId: memberId,
-        permission: permission,
+        permission: normalized,
+        memberEmail: matched?.email,
       );
       await _loadCareTeamData();
       return true;
     } catch (e) {
+      if (mounted) {
+        setState(() => _members = previousMembers);
+      }
       return false;
     }
   }

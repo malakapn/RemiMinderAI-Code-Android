@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../care_team/care_team_permission.dart';
 import '../../../care_team/data/models/care_team_member.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
 
@@ -66,7 +67,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
       setState(() {
         _activeCaregiver = caregiver;
         _isLoadingCaregiver = false;
-        _setAllToggleStates(caregiver?.permission == 'full');
+        _setAllToggleStates(CareTeamPermission.isFullAccess(caregiver?.permission));
       });
     } catch (e) {
       if (!mounted) return;
@@ -129,9 +130,9 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
       if (!mounted) return;
       setState(() {
         _isUpdatingPermission = false;
-        _allowCaregiverSummaries = previousPermission == 'full';
-        _allowCaregiverMedications = previousPermission == 'full';
-        _allowCaregiverReminders = previousPermission == 'full';
+        _allowCaregiverSummaries = CareTeamPermission.isFullAccess(previousPermission);
+        _allowCaregiverMedications = CareTeamPermission.isFullAccess(previousPermission);
+        _allowCaregiverReminders = CareTeamPermission.isFullAccess(previousPermission);
         _activeCaregiver = CareTeamMember(
           id: caregiver.id,
           patientId: caregiver.patientId,
