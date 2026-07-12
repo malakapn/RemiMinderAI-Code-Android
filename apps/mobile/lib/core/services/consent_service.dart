@@ -8,7 +8,7 @@ class ConsentService {
   /// Legacy single-party audio consent (pre two-party dialog).
   static const String _legacyAudioConsentKey = 'hasAcceptedAudioConsent';
 
-  /// Two-party recording consent (required before first record).
+  /// Two-party recording consent (legacy; inline checkboxes on Record Visit).
   static const String _twoPartyAudioConsentKey =
       'hasAcceptedTwoPartyRecordingConsent';
 
