@@ -657,6 +657,24 @@ class AppLocalizationsFr extends AppLocalizations {
   String get snooze => 'Reporter';
 
   @override
+  String get snooze30Minutes => 'Reporter de 30 minutes';
+
+  @override
+  String get backToAllReminders => 'Retour à tous les rappels';
+
+  @override
+  String get couldNotUpdateReminder => 'Impossible de mettre à jour le rappel';
+
+  @override
+  String get signInRequired => 'Connexion requise';
+
+  @override
+  String get statusLabel => 'Statut';
+
+  @override
+  String get audioVisitTitle => 'Visite audio';
+
+  @override
   String snoozedUntil(String time) {
     return 'Reporté jusqu\'à $time';
   }

@@ -645,6 +645,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get snooze => 'Snooze';
 
   @override
+  String get snooze30Minutes => 'Snooze 30 minutes';
+
+  @override
+  String get backToAllReminders => 'Back to all reminders';
+
+  @override
+  String get couldNotUpdateReminder => 'Could not update reminder';
+
+  @override
+  String get signInRequired => 'Sign in required';
+
+  @override
+  String get statusLabel => 'Status';
+
+  @override
+  String get audioVisitTitle => 'Audio Visit';
+
+  @override
   String snoozedUntil(String time) {
     return 'Snoozed until $time';
   }

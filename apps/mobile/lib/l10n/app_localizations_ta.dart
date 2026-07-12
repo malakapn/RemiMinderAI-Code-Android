@@ -656,6 +656,24 @@ class AppLocalizationsTa extends AppLocalizations {
   String get snooze => 'தள்ளிப்போடு';
 
   @override
+  String get snooze30Minutes => '30 நிமிடம் ஒத்திவை';
+
+  @override
+  String get backToAllReminders => 'அனைத்து நினைவூட்டல்களுக்கும் திரும்பு';
+
+  @override
+  String get couldNotUpdateReminder => 'நினைவூட்டலைப் புதுப்பிக்க முடியவில்லை';
+
+  @override
+  String get signInRequired => 'உள்நுழைவு தேவை';
+
+  @override
+  String get statusLabel => 'நிலை';
+
+  @override
+  String get audioVisitTitle => 'ஆடியோ வருகை';
+
+  @override
   String snoozedUntil(String time) {
     return '$time வரை தள்ளிப்போடு';
   }

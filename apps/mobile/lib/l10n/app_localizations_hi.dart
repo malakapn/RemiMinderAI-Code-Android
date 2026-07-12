@@ -648,6 +648,24 @@ class AppLocalizationsHi extends AppLocalizations {
   String get snooze => 'स्नूज़';
 
   @override
+  String get snooze30Minutes => '30 मिनट के लिए स्नूज़ करें';
+
+  @override
+  String get backToAllReminders => 'सभी रिमाइंडर पर वापस जाएँ';
+
+  @override
+  String get couldNotUpdateReminder => 'रिमाइंडर अपडेट नहीं हो सका';
+
+  @override
+  String get signInRequired => 'साइन इन आवश्यक है';
+
+  @override
+  String get statusLabel => 'स्थिति';
+
+  @override
+  String get audioVisitTitle => 'ऑडियो विज़िट';
+
+  @override
   String snoozedUntil(String time) {
     return '$time तक स्नूज़';
   }

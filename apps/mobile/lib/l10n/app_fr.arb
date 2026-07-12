@@ -188,6 +188,12 @@
   "deleteReminderMessage": "Voulez-vous vraiment supprimer ce rappel ?",
   "markDone": "Marquer fait",
   "snooze": "Reporter",
+  "snooze30Minutes": "Reporter de 30 minutes",
+  "backToAllReminders": "Retour à tous les rappels",
+  "couldNotUpdateReminder": "Impossible de mettre à jour le rappel",
+  "signInRequired": "Connexion requise",
+  "statusLabel": "Statut",
+  "audioVisitTitle": "Visite audio",
   "snoozedUntil": "Reporté jusqu'à {time}",
   "@snoozedUntil": {
     "placeholders": {

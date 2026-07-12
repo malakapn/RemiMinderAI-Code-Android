@@ -653,6 +653,24 @@ class AppLocalizationsPa extends AppLocalizations {
   String get snooze => 'ਸਨੂਜ਼ ਕਰੋ';
 
   @override
+  String get snooze30Minutes => '30 ਮਿੰਟਾਂ ਲਈ ਸਨੂਜ਼ ਕਰੋ';
+
+  @override
+  String get backToAllReminders => 'ਸਾਰੇ ਰੀਮਾਈਂਡਰ \'ਤੇ ਵਾਪਸ ਜਾਓ';
+
+  @override
+  String get couldNotUpdateReminder => 'ਰੀਮਾਈਂਡਰ ਅਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕਿਆ';
+
+  @override
+  String get signInRequired => 'ਸਾਈਨ ਇਨ ਲੋੜੀਂਦਾ ਹੈ';
+
+  @override
+  String get statusLabel => 'ਸਥਿਤੀ';
+
+  @override
+  String get audioVisitTitle => 'ਆਡੀਓ ਮੁਲਾਕਾਤ';
+
+  @override
   String snoozedUntil(String time) {
     return 'ਤੱਕ ਸਨੂਜ਼ ਕੀਤਾ ਗਿਆ$time';
   }

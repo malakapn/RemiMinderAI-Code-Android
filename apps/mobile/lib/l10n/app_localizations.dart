@@ -1308,6 +1308,42 @@ abstract class AppLocalizations {
   /// **'Snooze'**
   String get snooze;
 
+  /// No description provided for @snooze30Minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Snooze 30 minutes'**
+  String get snooze30Minutes;
+
+  /// No description provided for @backToAllReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to all reminders'**
+  String get backToAllReminders;
+
+  /// No description provided for @couldNotUpdateReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update reminder'**
+  String get couldNotUpdateReminder;
+
+  /// No description provided for @signInRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in required'**
+  String get signInRequired;
+
+  /// No description provided for @statusLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get statusLabel;
+
+  /// No description provided for @audioVisitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Visit'**
+  String get audioVisitTitle;
+
   /// No description provided for @snoozedUntil.
   ///
   /// In en, this message translates to:

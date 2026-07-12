@@ -653,6 +653,24 @@ class AppLocalizationsGu extends AppLocalizations {
   String get snooze => 'સ્નૂઝ';
 
   @override
+  String get snooze30Minutes => '30 મિનિટ માટે સ્નૂઝ કરો';
+
+  @override
+  String get backToAllReminders => 'બધા રીમાઇન્ડર્સ પર પાછા જાઓ';
+
+  @override
+  String get couldNotUpdateReminder => 'રીમાઇન્ડર અપડેટ કરી શકાયું નહીં';
+
+  @override
+  String get signInRequired => 'સાઇન ઇન જરૂરી છે';
+
+  @override
+  String get statusLabel => 'સ્થિતિ';
+
+  @override
+  String get audioVisitTitle => 'ઓડિયો મુલાકાત';
+
+  @override
   String snoozedUntil(String time) {
     return 'સુધી સ્નૂઝ કર્યું$time';
   }

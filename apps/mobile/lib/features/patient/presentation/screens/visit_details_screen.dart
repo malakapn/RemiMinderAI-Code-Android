@@ -111,22 +111,106 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
         });
       } else {
         if (kDebugMode) {
-          print("🔍 Unexpected response format: $data");
+          print("🔍 Unexpected structured response, trying plain summary: $data");
         }
-        setState(() {
-          _summaryStatus = 'error';
-          _isLoadingSummary = false;
-        });
+        final loaded = await _tryLoadPlainSummary(apiService);
+        if (!loaded) {
+          setState(() {
+            _summaryStatus = 'error';
+            _isLoadingSummary = false;
+          });
+        }
       }
     } catch (e) {
       if (kDebugMode) {
         print("🔍 Error fetching summary: $e");
       }
+      try {
+        final firebaseUser = FirebaseAuth.instance.currentUser;
+        if (firebaseUser != null) {
+          final authToken = await firebaseUser.getIdToken(true);
+          final apiService = PatientApiService(
+            baseUrl: Environment.apiBaseUrl,
+            authToken: authToken ?? '',
+          );
+          final loaded = await _tryLoadPlainSummary(apiService);
+          if (loaded) return;
+        }
+      } catch (_) {}
+      if (!mounted) return;
       setState(() {
         _summaryStatus = 'error';
         _isLoadingSummary = false;
       });
     }
+  }
+
+  Future<bool> _tryLoadPlainSummary(PatientApiService apiService) async {
+    try {
+      final data = await apiService.getVisitSummary(
+        widget.visitId,
+        patientId: widget.patientId,
+      );
+      if (data['status'] == 'processing') {
+        if (!mounted) return true;
+        setState(() {
+          _summaryStatus = 'processing';
+          _isLoadingSummary = false;
+        });
+        return true;
+      }
+      if (_hasStructuredSummaryPayload(data)) {
+        final parsed = _parseStructuredSummary(data);
+        if (!mounted) return true;
+        setState(() {
+          _summaryText = parsed.summarization;
+          _decisions = parsed.decisions;
+          _medications = parsed.medications;
+          _actions = parsed.actions;
+          _keyDiagnoses = parsed.keyDiagnoses;
+          _summaryStatus = 'ready';
+          _isLoadingSummary = false;
+        });
+        return true;
+      }
+      final plain = data['summary']?.toString().trim() ?? '';
+      if (plain.isNotEmpty) {
+        if (!mounted) return true;
+        setState(() {
+          _summaryText = plain;
+          _decisions = [];
+          _medications = [];
+          _actions = [];
+          _keyDiagnoses = [];
+          _summaryStatus = 'ready';
+          _isLoadingSummary = false;
+        });
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('🔍 Plain summary fallback failed: $e');
+      }
+    }
+    return false;
+  }
+
+  Future<void> _retrySummaryWithProcessing() async {
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) return;
+      final authToken = await firebaseUser.getIdToken(true);
+      final apiService = PatientApiService(
+        baseUrl: Environment.apiBaseUrl,
+        authToken: authToken ?? '',
+      );
+      await apiService.triggerVisitAudioProcessing(widget.visitId);
+    } catch (e) {
+      if (kDebugMode) {
+        print('🔍 triggerVisitAudioProcessing failed: $e');
+      }
+    }
+    await _fetchAISummary();
   }
 
   Future<void> _fetchVisitMetadata() async {
@@ -431,6 +515,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
                 title: l10n.unableToLoadVisitSummary,
                 showRetry: true,
                 retryLabel: l10n.retry,
+                onRetry: _retrySummaryWithProcessing,
               )
             else
               _buildInlineStatusBanner(
@@ -451,6 +536,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     String? subtitle,
     bool showRetry = false,
     String retryLabel = 'Retry',
+    VoidCallback? onRetry,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -490,7 +576,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
           ),
           if (showRetry)
             TextButton(
-              onPressed: _fetchAISummary,
+              onPressed: onRetry ?? _fetchAISummary,
               child: Text(retryLabel),
             ),
         ],
@@ -755,12 +841,13 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   }
 
   Widget _buildVisitHeader() {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_visitTitle != null && _visitTitle!.trim().isNotEmpty)
           Text(
-            _visitTitle!,
+            LocaleFormat.visitTitleLabel(l10n, _visitTitle),
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,

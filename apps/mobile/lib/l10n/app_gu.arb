@@ -264,6 +264,12 @@
   "deleteReminderMessage": "શું તમે ખરેખર આ રીમાઇન્ડર કાઢી નાખવા માંગો છો?",
   "markDone": "માર્ક ડન",
   "snooze": "સ્નૂઝ",
+  "snooze30Minutes": "30 મિનિટ માટે સ્નૂઝ કરો",
+  "backToAllReminders": "બધા રીમાઇન્ડર્સ પર પાછા જાઓ",
+  "couldNotUpdateReminder": "રીમાઇન્ડર અપડેટ કરી શકાયું નહીં",
+  "signInRequired": "સાઇન ઇન જરૂરી છે",
+  "statusLabel": "સ્થિતિ",
+  "audioVisitTitle": "ઓડિયો મુલાકાત",
   "snoozedUntil": "સુધી સ્નૂઝ કર્યું{time}",
   "@snoozedUntil": {
     "placeholders": {

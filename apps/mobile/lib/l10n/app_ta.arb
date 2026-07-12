@@ -188,6 +188,12 @@
   "deleteReminderMessage": "இந்த நினைவூட்டலை நீக்க விரும்புகிறீர்களா?",
   "markDone": "முடிந்தது",
   "snooze": "தள்ளிப்போடு",
+  "snooze30Minutes": "30 நிமிடம் ஒத்திவை",
+  "backToAllReminders": "அனைத்து நினைவூட்டல்களுக்கும் திரும்பு",
+  "couldNotUpdateReminder": "நினைவூட்டலைப் புதுப்பிக்க முடியவில்லை",
+  "signInRequired": "உள்நுழைவு தேவை",
+  "statusLabel": "நிலை",
+  "audioVisitTitle": "ஆடியோ வருகை",
   "snoozedUntil": "{time} வரை தள்ளிப்போடு",
   "@snoozedUntil": {
     "placeholders": {

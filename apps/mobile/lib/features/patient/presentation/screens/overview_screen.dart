@@ -351,12 +351,23 @@ class _OverviewScreenState extends State<OverviewScreen>
                 ],
               ),
             ),
-
-            // Extra space for bottom navigation
-            const SizedBox(height: 120),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _scrollableEmptyState({required Widget child}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(child: child),
+          ),
+        );
+      },
     );
   }
 
@@ -738,9 +749,9 @@ class _OverviewScreenState extends State<OverviewScreen>
     }
 
     if (_summaries.isEmpty && !_isLatestVisitProcessing) {
-      return Center(
+      return _scrollableEmptyState(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.description_outlined,
@@ -762,6 +773,7 @@ class _OverviewScreenState extends State<OverviewScreen>
                 color: Colors.grey[500],
                 fontSize: 12,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1087,31 +1099,28 @@ class _OverviewScreenState extends State<OverviewScreen>
       );
     }
     if (_labResults.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.biotech_outlined, size: 64,
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
-              const SizedBox(height: 16),
-              Text(l10n.noLabResultsYet,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Text(l10n.labResultsScanHint,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => context.go('/patient/visits'),
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: Text(l10n.captureAndScan),
-              ),
-            ],
-          ),
+      return _scrollableEmptyState(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.biotech_outlined, size: 64,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
+            const SizedBox(height: 16),
+            Text(l10n.noLabResultsYet,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(l10n.labResultsScanHint,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/patient/visits'),
+              icon: const Icon(Icons.camera_alt_outlined),
+              label: Text(l10n.captureAndScan),
+            ),
+          ],
         ),
       );
     }
@@ -1147,31 +1156,28 @@ class _OverviewScreenState extends State<OverviewScreen>
       );
     }
     if (_scannedDocs.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.document_scanner_outlined, size: 64,
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
-              const SizedBox(height: 16),
-              Text(l10n.noScannedDocsYet,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Text(l10n.scannedDocsHint,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => context.go('/patient/visits'),
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: Text(l10n.captureAndScan),
-              ),
-            ],
-          ),
+      return _scrollableEmptyState(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.document_scanner_outlined, size: 64,
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.4)),
+            const SizedBox(height: 16),
+            Text(l10n.noScannedDocsYet,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(l10n.scannedDocsHint,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/patient/visits'),
+              icon: const Icon(Icons.camera_alt_outlined),
+              label: Text(l10n.captureAndScan),
+            ),
+          ],
         ),
       );
     }

@@ -281,6 +281,12 @@
   "deleteReminderMessage": "Are you sure you want to delete this reminder?",
   "markDone": "Mark Done",
   "snooze": "Snooze",
+  "snooze30Minutes": "Snooze 30 minutes",
+  "backToAllReminders": "Back to all reminders",
+  "couldNotUpdateReminder": "Could not update reminder",
+  "signInRequired": "Sign in required",
+  "statusLabel": "Status",
+  "audioVisitTitle": "Audio Visit",
   "snoozedUntil": "Snoozed until {time}",
   "@snoozedUntil": {
     "placeholders": {

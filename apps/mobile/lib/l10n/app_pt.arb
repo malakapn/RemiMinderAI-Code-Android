@@ -188,6 +188,12 @@
   "deleteReminderMessage": "Tem certeza de que deseja excluir este lembrete?",
   "markDone": "Marcar feito",
   "snooze": "Adiar",
+  "snooze30Minutes": "Adiar 30 minutos",
+  "backToAllReminders": "Voltar a todos os lembretes",
+  "couldNotUpdateReminder": "Não foi possível atualizar o lembrete",
+  "signInRequired": "Login necessário",
+  "statusLabel": "Status",
+  "audioVisitTitle": "Consulta de áudio",
   "snoozedUntil": "Adiado até {time}",
   "@snoozedUntil": {
     "placeholders": {

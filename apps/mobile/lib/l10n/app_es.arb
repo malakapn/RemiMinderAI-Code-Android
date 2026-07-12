@@ -188,6 +188,12 @@
   "deleteReminderMessage": "¿Seguro que deseas eliminar este recordatorio?",
   "markDone": "Marcar hecho",
   "snooze": "Posponer",
+  "snooze30Minutes": "Posponer 30 minutos",
+  "backToAllReminders": "Volver a todos los recordatorios",
+  "couldNotUpdateReminder": "No se pudo actualizar el recordatorio",
+  "signInRequired": "Inicio de sesión requerido",
+  "statusLabel": "Estado",
+  "audioVisitTitle": "Visita de audio",
   "snoozedUntil": "Pospuesto hasta {time}",
   "@snoozedUntil": {
     "placeholders": {

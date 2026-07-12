@@ -42,7 +42,7 @@ check_marker() {
   fi
 }
 
-check_marker "lib/core/config/app_build_info.dart" "build 64" "Build label v1.3.2 build 64"
+check_marker "lib/core/config/app_build_info.dart" "build 66" "Build label v1.3.2 build 66"
 check_marker "lib/features/shared/presentation/screens/loading_screen.dart" "_bootstrapNavigation" "Loading screen bootstrap navigation"
 check_marker "lib/features/caregiver/presentation/screens/caregiver_home_screen.dart" "_buildHeader" "Caregiver gradient header"
 check_marker "lib/features/caregiver/presentation/screens/alert_list_screen.dart" "RemiShellUi.screenHeader" "Caregiver alerts RemiShellUi"
@@ -70,4 +70,4 @@ echo "  cd $MOBILE_DIR"
 echo "  flutter clean && flutter pub get"
 echo "  flutter run -d RFGYC218FBD"
 echo
-echo "On device: Profile tab should show footer: RemiMinder v1.3.2 (build 64) · loading-nav-fix"
+echo "On device: Profile tab should show footer: RemiMinder v1.3.2 (build 66) · l10n-reminders-summaries"

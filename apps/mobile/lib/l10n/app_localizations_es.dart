@@ -650,6 +650,24 @@ class AppLocalizationsEs extends AppLocalizations {
   String get snooze => 'Posponer';
 
   @override
+  String get snooze30Minutes => 'Posponer 30 minutos';
+
+  @override
+  String get backToAllReminders => 'Volver a todos los recordatorios';
+
+  @override
+  String get couldNotUpdateReminder => 'No se pudo actualizar el recordatorio';
+
+  @override
+  String get signInRequired => 'Inicio de sesión requerido';
+
+  @override
+  String get statusLabel => 'Estado';
+
+  @override
+  String get audioVisitTitle => 'Visita de audio';
+
+  @override
   String snoozedUntil(String time) {
     return 'Pospuesto hasta $time';
   }

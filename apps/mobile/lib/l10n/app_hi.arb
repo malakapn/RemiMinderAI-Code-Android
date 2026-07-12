@@ -188,6 +188,12 @@
   "deleteReminderMessage": "क्या आप इस रिमाइंडर को हटाना चाहते हैं?",
   "markDone": "पूर्ण करें",
   "snooze": "स्नूज़",
+  "snooze30Minutes": "30 मिनट के लिए स्नूज़ करें",
+  "backToAllReminders": "सभी रिमाइंडर पर वापस जाएँ",
+  "couldNotUpdateReminder": "रिमाइंडर अपडेट नहीं हो सका",
+  "signInRequired": "साइन इन आवश्यक है",
+  "statusLabel": "स्थिति",
+  "audioVisitTitle": "ऑडियो विज़िट",
   "snoozedUntil": "{time} तक स्नूज़",
   "@snoozedUntil": {
     "placeholders": {

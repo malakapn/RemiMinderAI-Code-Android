@@ -188,6 +188,12 @@
   "deleteReminderMessage": "Möchten Sie diese Erinnerung wirklich löschen?",
   "markDone": "Erledigt",
   "snooze": "Schlummern",
+  "snooze30Minutes": "30 Minuten verschieben",
+  "backToAllReminders": "Zurück zu allen Erinnerungen",
+  "couldNotUpdateReminder": "Erinnerung konnte nicht aktualisiert werden",
+  "signInRequired": "Anmeldung erforderlich",
+  "statusLabel": "Status",
+  "audioVisitTitle": "Audio-Besuch",
   "snoozedUntil": "Schlummern bis {time}",
   "@snoozedUntil": {
     "placeholders": {

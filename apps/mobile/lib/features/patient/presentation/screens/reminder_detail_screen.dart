@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 
 import '../../../../core/config/environment.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/utils/locale_format.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Medication / reminder detail opened from push notification deep link.
 class ReminderDetailScreen extends StatefulWidget {
@@ -36,7 +38,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     });
     try {
       final token = await _auth.getAccessToken();
-      if (token == null) throw Exception('Sign in required');
+      if (token == null) throw Exception('sign_in_required');
       final res = await http.get(
         Uri.parse(
             '${Environment.apiBaseUrl}/api/reminders/${widget.reminderId}'),
@@ -46,7 +48,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
         },
       );
       if (res.statusCode != 200) {
-        throw Exception('Could not load reminder (${res.statusCode})');
+        throw Exception('load_failed_${res.statusCode}');
       }
       final data = json.decode(res.body) as Map<String, dynamic>;
       if (!mounted) return;
@@ -64,38 +66,64 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   }
 
   Future<void> _postAction(String action) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final token = await _auth.getAccessToken();
       if (token == null) return;
+      final uri = action == 'snooze'
+          ? Uri.parse(
+              '${Environment.apiBaseUrl}/api/reminders/${widget.reminderId}/snooze?snooze_minutes=30')
+          : Uri.parse(
+              '${Environment.apiBaseUrl}/api/reminders/${widget.reminderId}/$action');
       final res = await http.post(
-        Uri.parse(
-            '${Environment.apiBaseUrl}/api/reminders/${widget.reminderId}/$action'),
+        uri,
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
+        body: jsonEncode({}),
       );
       if (res.statusCode != 200) {
-        throw Exception('Action failed');
+        throw Exception('action_failed');
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(action == 'complete' ? 'Marked done' : 'Snoozed')),
+        SnackBar(
+          content: Text(
+            action == 'complete'
+                ? l10n.reminderMarkedCompleted
+                : l10n.reminderSnoozed30,
+          ),
+        ),
       );
       await _load();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not update reminder')),
+        SnackBar(content: Text(l10n.couldNotUpdateReminder)),
       );
     }
   }
 
+  String _scheduledLabel(BuildContext context, Map<String, dynamic> reminder) {
+    final scheduledRaw = reminder['scheduled_time']?.toString();
+    final parsed = DateTime.tryParse(scheduledRaw ?? '')?.toLocal();
+    if (parsed != null) {
+      return LocaleFormat.dateTimeMedium(context, parsed);
+    }
+    final displayTime = reminder['display_time']?.toString().trim() ?? '';
+    if (displayTime.isNotEmpty) {
+      return LocaleFormat.localizeDigitsInText(context, displayTime);
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reminder'),
+        title: Text(l10n.defaultReminderTitle),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/patient/reminders'),
@@ -110,31 +138,48 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(_error!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            )),
+                        Text(
+                          _error!.contains('sign_in_required')
+                              ? l10n.signInRequired
+                              : l10n.failedToLoadRemindersRetry,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
                         const SizedBox(height: 16),
-                        TextButton(onPressed: _load, child: const Text('Retry')),
+                        TextButton(
+                          onPressed: _load,
+                          child: Text(l10n.retry),
+                        ),
                       ],
                     ),
                   ),
                 )
-              : _buildBody(context),
+              : _buildBody(context, l10n),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, AppLocalizations l10n) {
     final r = _reminder!;
-    final title = r['title']?.toString() ?? 'Reminder';
-    final message = r['message']?.toString() ?? '';
-    final type = r['reminder_type']?.toString() ?? '';
-    final status = r['status']?.toString() ?? '';
-    final scheduled = r['scheduled_time']?.toString() ?? '';
-    final displayTime = r['display_time']?.toString();
+    final title = LocaleFormat.reminderTitle(l10n, r['title']?.toString());
+    final message = LocaleFormat.reminderCardDescription(
+      l10n,
+      title: r['title']?.toString(),
+      description: r['message']?.toString(),
+    );
+    final type = LocaleFormat.reminderTypeLabel(
+      l10n,
+      r['reminder_type']?.toString(),
+    );
+    final status = LocaleFormat.reminderStatusLabel(
+      l10n,
+      (r['display_status'] ?? r['status'])?.toString() ?? '',
+    );
+    final scheduledLabel = _scheduledLabel(context, r);
 
-    final canAct = status == 'pending' || status == 'snoozed';
+    final rawStatus = (r['status']?.toString() ?? '').toLowerCase();
+    final canAct = rawStatus == 'pending' || rawStatus == 'snoozed';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -151,7 +196,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
           if (type.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
-              type.replaceAll('_', ' '),
+              type,
               style: Theme.of(context).textTheme.labelLarge,
             ),
           ],
@@ -162,20 +207,17 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
           const SizedBox(height: 24),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.schedule),
-            title: const Text('Scheduled'),
-            subtitle: Text(
-              displayTime != null && displayTime.isNotEmpty
-                  ? '$displayTime\n$scheduled'
-                  : scheduled,
+          if (scheduledLabel.isNotEmpty)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.schedule),
+              title: Text(l10n.statusScheduled),
+              subtitle: Text(scheduledLabel),
             ),
-          ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.flag),
-            title: const Text('Status'),
+            title: Text(l10n.statusLabel),
             subtitle: Text(status),
           ),
           const SizedBox(height: 32),
@@ -184,7 +226,7 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => _postAction('complete'),
-                child: const Text('Mark done'),
+                child: Text(l10n.markDone),
               ),
             ),
             const SizedBox(height: 12),
@@ -192,14 +234,14 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () => _postAction('snooze'),
-                child: const Text('Snooze 30 minutes'),
+                child: Text(l10n.snooze30Minutes),
               ),
             ),
           ],
           const SizedBox(height: 24),
           TextButton(
             onPressed: () => context.go('/patient/reminders'),
-            child: const Text('Back to all reminders'),
+            child: Text(l10n.backToAllReminders),
           ),
         ],
       ),

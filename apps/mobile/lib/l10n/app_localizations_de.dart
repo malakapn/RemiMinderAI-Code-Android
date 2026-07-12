@@ -661,6 +661,25 @@ class AppLocalizationsDe extends AppLocalizations {
   String get snooze => 'Schlummern';
 
   @override
+  String get snooze30Minutes => '30 Minuten verschieben';
+
+  @override
+  String get backToAllReminders => 'Zurück zu allen Erinnerungen';
+
+  @override
+  String get couldNotUpdateReminder =>
+      'Erinnerung konnte nicht aktualisiert werden';
+
+  @override
+  String get signInRequired => 'Anmeldung erforderlich';
+
+  @override
+  String get statusLabel => 'Status';
+
+  @override
+  String get audioVisitTitle => 'Audio-Besuch';
+
+  @override
   String snoozedUntil(String time) {
     return 'Schlummern bis $time';
   }

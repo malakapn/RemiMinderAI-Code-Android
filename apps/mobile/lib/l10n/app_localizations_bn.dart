@@ -643,6 +643,24 @@ class AppLocalizationsBn extends AppLocalizations {
   String get snooze => 'স্নুজ';
 
   @override
+  String get snooze30Minutes => '৩০ মিনিট স্নুজ করুন';
+
+  @override
+  String get backToAllReminders => 'সব অনুস্মারকে ফিরে যান';
+
+  @override
+  String get couldNotUpdateReminder => 'অনুস্মারক আপডেট করা যায়নি';
+
+  @override
+  String get signInRequired => 'সাইন ইন প্রয়োজন';
+
+  @override
+  String get statusLabel => 'অবস্থা';
+
+  @override
+  String get audioVisitTitle => 'অডিও ভিজিট';
+
+  @override
   String snoozedUntil(String time) {
     return '$time পর্যন্ত স্নুজ';
   }

@@ -652,6 +652,24 @@ class AppLocalizationsPt extends AppLocalizations {
   String get snooze => 'Adiar';
 
   @override
+  String get snooze30Minutes => 'Adiar 30 minutos';
+
+  @override
+  String get backToAllReminders => 'Voltar a todos os lembretes';
+
+  @override
+  String get couldNotUpdateReminder => 'Não foi possível atualizar o lembrete';
+
+  @override
+  String get signInRequired => 'Login necessário';
+
+  @override
+  String get statusLabel => 'Status';
+
+  @override
+  String get audioVisitTitle => 'Consulta de áudio';
+
+  @override
   String snoozedUntil(String time) {
     return 'Adiado até $time';
   }

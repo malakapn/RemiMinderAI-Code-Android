@@ -291,6 +291,39 @@ class LocaleFormat {
     return raw;
   }
 
+  /// Localized reminder type from backend values.
+  static String reminderTypeLabel(AppLocalizations l10n, String? type) {
+    switch (type?.toLowerCase().trim()) {
+      case 'medication':
+        return l10n.medication;
+      case 'task':
+        return l10n.task;
+      case 'appointment':
+        return l10n.appointment;
+      default:
+        return type?.trim() ?? '';
+    }
+  }
+
+  /// Localized visit title from known English API placeholders.
+  static String visitTitleLabel(AppLocalizations l10n, String? title) {
+    final raw = title?.trim() ?? '';
+    if (raw.isEmpty) return l10n.doctorVisit;
+
+    final normalized = raw.toLowerCase();
+    if (normalized == 'audio visit' ||
+        normalized == 'audio record conversation') {
+      return l10n.audioVisitTitle;
+    }
+    if (normalized == 'doctor visit') {
+      return l10n.doctorVisit;
+    }
+    if (normalized == 'capture & scan') {
+      return l10n.visitActionCaptureTitle;
+    }
+    return raw;
+  }
+
   /// Localized reminder description; strips English API "Reminder:" prefix.
   static String reminderCardDescription(
     AppLocalizations l10n, {

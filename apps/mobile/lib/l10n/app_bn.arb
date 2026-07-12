@@ -188,6 +188,12 @@
   "deleteReminderMessage": "আপনি কি এই রিমাইন্ডার মুছতে চান?",
   "markDone": "সম্পন্ন",
   "snooze": "স্নুজ",
+  "snooze30Minutes": "৩০ মিনিট স্নুজ করুন",
+  "backToAllReminders": "সব অনুস্মারকে ফিরে যান",
+  "couldNotUpdateReminder": "অনুস্মারক আপডেট করা যায়নি",
+  "signInRequired": "সাইন ইন প্রয়োজন",
+  "statusLabel": "অবস্থা",
+  "audioVisitTitle": "অডিও ভিজিট",
   "snoozedUntil": "{time} পর্যন্ত স্নুজ",
   "@snoozedUntil": {
     "placeholders": {

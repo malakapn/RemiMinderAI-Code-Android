@@ -264,6 +264,12 @@
   "deleteReminderMessage": "ਕੀ ਤੁਸੀਂ ਯਕੀਨੀ ਤੌਰ 'ਤੇ ਇਸ ਰੀਮਾਈਂਡਰ ਨੂੰ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ?",
   "markDone": "ਹੋ ਗਿਆ ਮਾਰਕ ਕਰੋ",
   "snooze": "ਸਨੂਜ਼ ਕਰੋ",
+  "snooze30Minutes": "30 ਮਿੰਟਾਂ ਲਈ ਸਨੂਜ਼ ਕਰੋ",
+  "backToAllReminders": "ਸਾਰੇ ਰੀਮਾਈਂਡਰ 'ਤੇ ਵਾਪਸ ਜਾਓ",
+  "couldNotUpdateReminder": "ਰੀਮਾਈਂਡਰ ਅਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕਿਆ",
+  "signInRequired": "ਸਾਈਨ ਇਨ ਲੋੜੀਂਦਾ ਹੈ",
+  "statusLabel": "ਸਥਿਤੀ",
+  "audioVisitTitle": "ਆਡੀਓ ਮੁਲਾਕਾਤ",
   "snoozedUntil": "ਤੱਕ ਸਨੂਜ਼ ਕੀਤਾ ਗਿਆ{time}",
   "@snoozedUntil": {
     "placeholders": {
