@@ -305,6 +305,9 @@ class PatientApiService {
       }
       return [];
     }
+    if (response.statusCode == 404) {
+      return [];
+    }
     throw Exception('Failed to fetch scanned docs: ${response.statusCode}');
   }
 
@@ -321,6 +324,9 @@ class PatientApiService {
             .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
       }
+      return [];
+    }
+    if (response.statusCode == 404) {
       return [];
     }
     throw Exception('Failed to fetch lab results: ${response.statusCode}');

@@ -710,6 +710,77 @@ async def get_user_summaries(
         raise
 
 
+async def get_audio_visits_without_summary(
+    user_id: str,
+    firebase_uid: Optional[str] = None,
+) -> list[dict]:
+    """
+    Visits with uploaded audio but no summaries_log row yet (processing/failed).
+    Shown in Overview so users can open visit details and retry.
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text("""
+                    SELECT
+                        v.id AS visit_id,
+                        v.created_at AS visit_date,
+                        v.doctor AS doctor_name,
+                        v.specialty AS specialty,
+                        v.title AS title
+                    FROM visits v
+                    JOIN visit_transcripts vt ON vt.visit_id = v.id
+                    WHERE (v.user_id::text = :user_id OR v.user_id::text = :firebase_uid)
+                      AND vt.audio_url IS NOT NULL
+                      AND NOT EXISTS (
+                        SELECT 1 FROM summaries_log s
+                        WHERE s.visit_id = v.id
+                          AND (
+                            s.user_id::text = :user_id
+                            OR s.user_id::text = :firebase_uid
+                          )
+                      )
+                    ORDER BY v.created_at DESC
+                """),
+                {
+                    "user_id": user_id,
+                    "firebase_uid": firebase_uid or user_id,
+                },
+            ).fetchall()
+
+        pending = []
+        for row in rows:
+            m = row._mapping if hasattr(row, "_mapping") else None
+            visit_id = str(m["visit_id"] if m else row[0])
+            visit_date = m["visit_date"] if m else row[1]
+            doctor_name = m["doctor_name"] if m else row[2]
+            specialty = m["specialty"] if m else row[3]
+            title = m["title"] if m else row[4]
+            pending.append(
+                {
+                    "summary_id": f"pending-{visit_id}",
+                    "visit_id": visit_id,
+                    "doctor_name": doctor_name or "Audio Visit",
+                    "specialty": specialty or "",
+                    "title": title or "Audio Visit",
+                    "visit_date": visit_date.isoformat() if visit_date else None,
+                    "summary_created_at": visit_date.isoformat() if visit_date else None,
+                    "summary_preview": "Summary not ready yet",
+                    "model_name": "pending",
+                    "is_pending": True,
+                }
+            )
+        return pending
+    except Exception as e:
+        logger.error(
+            "Error fetching pending audio visits for user_id=%s: %s",
+            user_id,
+            e,
+        )
+        raise
+
+
 async def get_user_language_preferences(firebase_uid: str) -> dict:
     """
     Get user's language preferences.

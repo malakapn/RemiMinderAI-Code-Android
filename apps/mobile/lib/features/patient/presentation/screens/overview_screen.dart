@@ -131,7 +131,10 @@ class _OverviewScreenState extends State<OverviewScreen>
       final cachedStatus = PatientApiService.getCachedLatestVisitStatus();
       if (cachedSummaries != null && mounted) {
         setState(() {
-          _summaries = cachedSummaries;
+          _summaries = _withPendingVisitSummary(
+            cachedSummaries,
+            cachedStatus ?? const {},
+          );
           _isLoadingSummaries = false;
           _summariesError = null;
           _isLatestVisitProcessing = cachedStatus?['processing'] == true;
@@ -160,7 +163,8 @@ class _OverviewScreenState extends State<OverviewScreen>
       );
 
       final status = await apiService.getLatestVisitStatus();
-      final summaries = await apiService.getSummaries();
+      var summaries = await apiService.getSummaries();
+      summaries = _withPendingVisitSummary(summaries, status);
       PatientApiService.setCachedLatestVisitStatus(status);
       PatientApiService.setCachedSummaries(summaries);
       final newSummaryIds = summaries
@@ -270,6 +274,44 @@ class _OverviewScreenState extends State<OverviewScreen>
       }
     }
     return false;
+  }
+
+  List<SummaryItem> _withPendingVisitSummary(
+    List<SummaryItem> summaries,
+    Map<String, dynamic> status,
+  ) {
+    final visitId = status['visit_id']?.toString();
+    if (visitId == null || visitId.isEmpty) {
+      return summaries;
+    }
+
+    final hasVisit = summaries.any((summary) => summary.visitId == visitId);
+    if (hasVisit) {
+      return summaries;
+    }
+
+    final processing = status['processing'] == true;
+    final failed = status['failed'] == true;
+    if (!processing && !failed) {
+      return summaries;
+    }
+
+    return [
+      SummaryItem(
+        summaryId: 'pending-$visitId',
+        visitId: visitId,
+        doctorName: 'Audio Visit',
+        specialty: '',
+        title: 'Audio Visit',
+        visitDate: DateTime.now().toIso8601String(),
+        summaryCreatedAt: DateTime.now().toIso8601String(),
+        summaryPreview: processing
+            ? 'Summary is being prepared...'
+            : 'Summary could not be generated',
+        modelName: 'pending',
+      ),
+      ...summaries,
+    ];
   }
 
   Future<void> _loadCaregiver() async {
@@ -636,6 +678,9 @@ class _OverviewScreenState extends State<OverviewScreen>
       );
 
       for (final summaryId in summariesToDelete) {
+        if (summaryId.startsWith('pending-')) {
+          continue;
+        }
         try {
           await apiService.deleteSummary(summaryId);
           deletedCount++;
@@ -811,8 +856,15 @@ class _OverviewScreenState extends State<OverviewScreen>
         authToken: authToken,
       );
 
-      final apiDocs = await apiService.getScannedDocs();
-      final apiLabs = await apiService.getLabResults();
+      List<Map<String, dynamic>> apiDocs = [];
+      List<Map<String, dynamic>> apiLabs = [];
+      try {
+        apiDocs = await apiService.getScannedDocs();
+        apiLabs = await apiService.getLabResults();
+      } catch (_) {
+        apiDocs = [];
+        apiLabs = [];
+      }
 
       final normalizedApiDocs = apiDocs.map(_normalizeApiScannedDoc).toList();
       final normalizedApiLabs = apiLabs.map(_normalizeApiLabResult).toList();

@@ -335,6 +335,32 @@ async def get_latest_visit_status(user_id: str = Depends(get_user_id)):
 
         engine = get_cloud_sql_engine()
         with engine.connect() as conn:
+            failed_row = conn.execute(
+                text("""
+                    SELECT payload->>'visit_id' AS visit_id, last_error
+                    FROM jobs
+                    WHERE job_type = 'STT_JOB'
+                      AND status = 'failed'
+                      AND payload->>'firebase_uid' = :firebase_uid
+                      AND updated_at > NOW() - INTERVAL '24 hours'
+                    ORDER BY updated_at DESC
+                    LIMIT 1
+                """),
+                {"firebase_uid": user_id},
+            ).fetchone()
+
+            if failed_row:
+                visit_id = failed_row[0]
+                error = failed_row[1]
+                response = {
+                    "processing": False,
+                    "failed": True,
+                    "visit_id": visit_id,
+                    "error": error,
+                }
+                set(cache_key, response, 5)
+                return response
+
             row = conn.execute(
                 text("""
                     SELECT payload->>'visit_id' AS visit_id
@@ -545,7 +571,11 @@ async def get_user_summaries_endpoint(
         logger.info(f"Getting summaries list for firebase_uid={user_id}")
 
         # Step 1: Resolve Firebase UID to Cloud SQL user UUID
-        from services.db_service import get_user_uuid, get_user_summaries
+        from services.db_service import (
+            get_user_uuid,
+            get_user_summaries,
+            get_audio_visits_without_summary,
+        )
         from services.cache_service import get, set
         user_uuid = await get_user_uuid(user_id)
         await assert_patient_access(user_uuid, user_uuid, "view")
@@ -558,8 +588,21 @@ async def get_user_summaries_endpoint(
         if cached is not None:
             return cached
         summaries = await get_user_summaries(user_uuid, firebase_uid=user_id)
+        pending = await get_audio_visits_without_summary(
+            user_uuid,
+            firebase_uid=user_id,
+        )
+        existing_visit_ids = {item["visit_id"] for item in summaries}
+        for item in pending:
+            if item["visit_id"] not in existing_visit_ids:
+                summaries.append(item)
 
-        logger.info(f"Returning {len(summaries)} summaries for user_uuid={user_uuid}")
+        logger.info(
+            "Returning %s summaries (%s pending audio) for user_uuid=%s",
+            len(summaries),
+            len(pending),
+            user_uuid,
+        )
         set(cache_key, summaries, 120)
         return summaries
 
