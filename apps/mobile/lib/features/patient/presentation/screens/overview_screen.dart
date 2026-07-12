@@ -59,11 +59,23 @@ class _OverviewScreenState extends State<OverviewScreen>
   // Selection state
   bool _isSelectionMode = false;
   final Set<String> _selectedSummaryIds = {};
+  final Set<String> _selectedScanKeys = {};
+
+  int get _activeOverviewTab => _tabController.index;
+
+  bool get _isSummariesTab => _activeOverviewTab == 0;
+  bool get _isLabResultsTab => _activeOverviewTab == 1;
+  bool get _isScannedDocsTab => _activeOverviewTab == 2;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging && _isSelectionMode) {
+        _exitSelectionMode();
+      }
+    });
     _searchController.addListener(_onSearchChanged);
     _loadSeenSummaryIds().then((_) => _fetchSummaries());
     _loadCaregiver();
@@ -300,7 +312,7 @@ class _OverviewScreenState extends State<OverviewScreen>
                   color: Colors.white,
                 ),
                 onPressed: _isSelectionMode
-                    ? _deleteSelectedSummaries
+                    ? _deleteSelectedItems
                     : _enterSelectionMode,
               ),
             ),
@@ -376,6 +388,7 @@ class _OverviewScreenState extends State<OverviewScreen>
     setState(() {
       _isSelectionMode = true;
       _selectedSummaryIds.clear();
+      _selectedScanKeys.clear();
     });
   }
 
@@ -383,7 +396,172 @@ class _OverviewScreenState extends State<OverviewScreen>
     setState(() {
       _isSelectionMode = false;
       _selectedSummaryIds.clear();
+      _selectedScanKeys.clear();
     });
+  }
+
+  void _deleteSelectedItems() {
+    if (_isSummariesTab) {
+      _deleteSelectedSummaries();
+      return;
+    }
+    _deleteSelectedScannedDocs();
+  }
+
+  String _scanSelectionKey(Map<String, dynamic> doc) {
+    return doc['selection_key'] as String? ??
+        'api:${doc['visit_id'] ?? doc['id']}';
+  }
+
+  void _toggleScanSelection(Map<String, dynamic> doc) {
+    final key = _scanSelectionKey(doc);
+    setState(() {
+      if (_selectedScanKeys.contains(key)) {
+        _selectedScanKeys.remove(key);
+      } else {
+        _selectedScanKeys.add(key);
+      }
+    });
+  }
+
+  void _deleteSelectedScannedDocs() {
+    final l10n = AppLocalizations.of(context)!;
+    if (_selectedScanKeys.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isLabResultsTab
+                ? 'Select at least one lab result to delete'
+                : 'Select at least one scanned document to delete',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final count = _selectedScanKeys.length;
+    final isSingular = count == 1;
+    final itemLabel = _isLabResultsTab ? 'lab result' : 'scanned document';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          isSingular ? 'Delete $itemLabel?' : 'Delete ${itemLabel}s?',
+        ),
+        content: Text(
+          isSingular
+              ? 'Are you sure you want to delete this $itemLabel? This cannot be undone.'
+              : 'Are you sure you want to delete $count ${itemLabel}s? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _confirmDeleteScannedDocs();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteScannedDocs() async {
+    final l10n = AppLocalizations.of(context)!;
+    final keysToDelete = _selectedScanKeys.toSet();
+    var deletedCount = 0;
+    String? lastError;
+
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.authenticationErrorLoginAgain)),
+        );
+        return;
+      }
+
+      final authToken = await firebaseUser.getIdToken(true);
+      if (authToken == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.authenticationErrorLoginAgain)),
+        );
+        return;
+      }
+
+      final apiService = PatientApiService(
+        baseUrl: Environment.apiBaseUrl,
+        authToken: authToken,
+      );
+      final uid = firebaseUser.uid;
+
+      for (final key in keysToDelete) {
+        try {
+          if (key.startsWith('fs:')) {
+            final docId = key.substring(3);
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .collection('scanned_docs')
+                .doc(docId)
+                .delete();
+          } else if (key.startsWith('api:')) {
+            final visitId = key.substring(4);
+            await apiService.deleteScannedDoc(visitId);
+          }
+          deletedCount++;
+          if (!mounted) return;
+          setState(() {
+            _scannedDocs.removeWhere((doc) => _scanSelectionKey(doc) == key);
+            _labResults.removeWhere((doc) => _scanSelectionKey(doc) == key);
+            _selectedScanKeys.remove(key);
+          });
+        } catch (e) {
+          lastError = e.toString();
+        }
+      }
+
+      if (!mounted) return;
+
+      if (deletedCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              deletedCount == 1
+                  ? 'Successfully deleted 1 item'
+                  : 'Successfully deleted $deletedCount items',
+            ),
+          ),
+        );
+      }
+
+      if (deletedCount < keysToDelete.length) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(lastError ?? l10n.failedToDeleteSummaries),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.failedToDeleteSummaries)),
+      );
+    } finally {
+      if (!mounted) return;
+      _exitSelectionMode();
+      if (deletedCount > 0) {
+        await _fetchScannedDocs();
+      }
+    }
   }
 
   void _deleteSelectedSummaries() {
@@ -623,30 +801,44 @@ class _OverviewScreenState extends State<OverviewScreen>
         _scannedDocsError = null;
       });
 
-      final user = await AuthService().getCurrentUser();
-      final uid = user?.authUid ?? user?.id;
-      if (uid == null) throw Exception('Not authenticated');
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) throw Exception('Not authenticated');
+      final authToken = await firebaseUser.getIdToken(true);
+      if (authToken == null) throw Exception('Not authenticated');
+
+      final apiService = PatientApiService(
+        baseUrl: Environment.apiBaseUrl,
+        authToken: authToken,
+      );
+
+      final apiDocs = await apiService.getScannedDocs();
+      final apiLabs = await apiService.getLabResults();
+
+      final normalizedApiDocs = apiDocs.map(_normalizeApiScannedDoc).toList();
+      final normalizedApiLabs = apiLabs.map(_normalizeApiLabResult).toList();
+      final apiVisitIds = normalizedApiDocs
+          .map((doc) => doc['visit_id']?.toString())
+          .whereType<String>()
+          .toSet();
 
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
-          .doc(uid)
+          .doc(firebaseUser.uid)
           .collection('scanned_docs')
           .orderBy('timestamp', descending: true)
           .get();
 
-      final docs = snapshot.docs
-          .map((d) => {'id': d.id, ...d.data()})
+      final legacyDocs = snapshot.docs
+          .map(_normalizeFirestoreScannedDoc)
+          .where(
+            (doc) => !apiVisitIds.contains(doc['visit_id']?.toString()),
+          )
           .toList();
 
-      final labs = docs.where((d) {
-        final text = (d['parsed_text'] ?? '').toString().toLowerCase();
-        return text.contains('lab') ||
-            text.contains('result') ||
-            text.contains('test') ||
-            text.contains('blood') ||
-            text.contains('cholesterol') ||
-            text.contains('glucose');
-      }).toList();
+      final docs = [...normalizedApiDocs, ...legacyDocs];
+      final labs = normalizedApiLabs.isNotEmpty
+          ? normalizedApiLabs
+          : docs.where(_looksLikeLabResult).toList();
 
       if (!mounted) return;
       setState(() {
@@ -665,25 +857,92 @@ class _OverviewScreenState extends State<OverviewScreen>
     }
   }
 
+  Map<String, dynamic> _normalizeApiScannedDoc(Map<String, dynamic> doc) {
+    final visitId = doc['visit_id']?.toString() ?? '';
+    final preview =
+        (doc['ocr_preview'] ?? doc['result_preview'] ?? '').toString();
+    return {
+      'source': 'api',
+      'visit_id': visitId,
+      'selection_key': 'api:$visitId',
+      'visit_title': doc['visit_title']?.toString(),
+      'visit_date': doc['visit_date']?.toString(),
+      'parsed_text': preview,
+      'ocr_status': doc['ocr_status']?.toString(),
+      'image_url': doc['image_url']?.toString(),
+    };
+  }
+
+  Map<String, dynamic> _normalizeApiLabResult(Map<String, dynamic> doc) {
+    final normalized = _normalizeApiScannedDoc(doc);
+    normalized['parsed_text'] =
+        (doc['result_preview'] ?? doc['ocr_preview'] ?? '').toString();
+    return normalized;
+  }
+
+  Map<String, dynamic> _normalizeFirestoreScannedDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    final data = snapshot.data();
+    return {
+      'source': 'firestore',
+      'id': snapshot.id,
+      'selection_key': 'fs:${snapshot.id}',
+      'parsed_text': (data['parsed_text'] ?? '').toString(),
+      'timestamp': data['timestamp'],
+      'visit_id': data['visit_id']?.toString(),
+    };
+  }
+
+  bool _looksLikeLabResult(Map<String, dynamic> doc) {
+    final text = (doc['parsed_text'] ?? '').toString().toLowerCase();
+    return text.contains('lab') ||
+        text.contains('result') ||
+        text.contains('test') ||
+        text.contains('blood') ||
+        text.contains('cholesterol') ||
+        text.contains('glucose') ||
+        text.contains('cbc') ||
+        text.contains('hemoglobin');
+  }
+
   Widget _buildScannedDocCard(Map<String, dynamic> doc) {
     final l10n = AppLocalizations.of(context)!;
+    final selectionKey = _scanSelectionKey(doc);
+    final isSelected = _selectedScanKeys.contains(selectionKey);
     final timestamp = doc['timestamp'];
+    final visitDate = doc['visit_date']?.toString();
     String dateStr = '';
     if (timestamp is Timestamp) {
-      final dt = timestamp.toDate();
-      dateStr = _formatSmartTime(dt, l10n);
+      dateStr = _formatSmartTime(timestamp.toDate(), l10n);
+    } else if (visitDate != null && visitDate.isNotEmpty) {
+      try {
+        dateStr = LocaleFormat.dateMedium(
+          context,
+          DateTime.parse(visitDate),
+        );
+      } catch (_) {
+        dateStr = visitDate;
+      }
     }
+    final title = (doc['visit_title'] as String?)?.trim();
     final parsedText = (doc['parsed_text'] ?? '').toString();
     final preview = parsedText.length > 120
         ? '${parsedText.substring(0, 120)}...'
         : parsedText;
+    final showSelection = _isSelectionMode && !_isSummariesTab;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: showSelection && isSelected
+          ? Theme.of(context).colorScheme.primary.withOpacity(0.05)
+          : null,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _showScannedDocDetail(context, dateStr, parsedText),
+        onTap: showSelection
+            ? () => _toggleScanSelection(doc)
+            : () => _showScannedDocDetail(context, dateStr, parsedText),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -697,14 +956,24 @@ class _OverviewScreenState extends State<OverviewScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      dateStr.isNotEmpty
-                          ? l10n.scannedOn(dateStr)
-                          : l10n.scannedDocument,
+                      title?.isNotEmpty == true
+                          ? title!
+                          : dateStr.isNotEmpty
+                              ? l10n.scannedOn(dateStr)
+                              : l10n.scannedDocument,
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 15),
                     ),
                   ),
-                  Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                  if (showSelection)
+                    Checkbox(
+                      value: isSelected,
+                      onChanged: (_) => _toggleScanSelection(doc),
+                      activeColor: Theme.of(context).colorScheme.primary,
+                    )
+                  else
+                    Icon(Icons.chevron_right,
+                        size: 18, color: Colors.grey[400]),
                 ],
               ),
               if (preview.isNotEmpty) ...[

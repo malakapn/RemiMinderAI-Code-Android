@@ -608,6 +608,47 @@ async def delete_user_summary_endpoint(
         raise HTTPException(status_code=500, detail=f"Failed to delete summary: {str(e)}")
 
 
+@router.delete("/scanned-docs/{visit_id}")
+async def delete_scanned_doc_endpoint(
+    visit_id: str,
+    user_id: str = Depends(get_user_id),
+):
+    """Delete a scanned document (image report) for the current user."""
+    try:
+        from services.db_service import get_user_uuid, delete_scanned_document
+        from services.cache_service import invalidate
+
+        user_uuid = await get_user_uuid(user_id)
+        await assert_patient_access(user_uuid, user_uuid, "full")
+
+        deleted = await delete_scanned_document(
+            visit_id,
+            user_uuid,
+            firebase_uid=user_id,
+        )
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail="Scanned document not found or access denied",
+            )
+
+        invalidate(f"summaries_list:{user_uuid}")
+        return {"status": "ok", "visit_id": visit_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to delete scanned doc visit_id=%s user=%s: %s",
+            visit_id,
+            user_id,
+            e,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete scanned document: {str(e)}",
+        )
+
+
 @router.get("/scanned-docs")
 async def get_user_scanned_docs(user_id: str = Depends(get_user_id)):
     """
@@ -635,11 +676,11 @@ async def get_user_scanned_docs(user_id: str = Depends(get_user_id)):
                         vt.image_metadata
                     FROM visit_transcripts vt
                     JOIN visits v ON v.id = vt.visit_id
-                    WHERE vt.user_id::text = :user_id
+                    WHERE (vt.user_id::text = :user_uuid OR vt.user_id::text = :firebase_uid)
                       AND vt.image_url IS NOT NULL
                     ORDER BY v.created_at DESC
                 """),
-                {"user_id": user_uuid},
+                {"user_uuid": user_uuid, "firebase_uid": user_id},
             ).fetchall()
 
         docs = []
@@ -852,7 +893,7 @@ async def get_user_lab_results(user_id: str = Depends(get_user_id)):
                         vt.ocr_text
                     FROM visit_transcripts vt
                     JOIN visits v ON v.id = vt.visit_id
-                    WHERE vt.user_id::text = :user_id
+                    WHERE (vt.user_id::text = :user_uuid OR vt.user_id::text = :firebase_uid)
                       AND vt.image_url IS NOT NULL
                       AND (
                         COALESCE(vt.ocr_text, '') ILIKE '%lab%'
@@ -864,7 +905,7 @@ async def get_user_lab_results(user_id: str = Depends(get_user_id)):
                       )
                     ORDER BY v.created_at DESC
                 """),
-                {"user_id": user_uuid},
+                {"user_uuid": user_uuid, "firebase_uid": user_id},
             ).fetchall()
 
         results = []

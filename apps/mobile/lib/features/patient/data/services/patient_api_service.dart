@@ -290,6 +290,58 @@ class PatientApiService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getScannedDocs() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/scanned-docs'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data is List) {
+        return data
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+      }
+      return [];
+    }
+    throw Exception('Failed to fetch scanned docs: ${response.statusCode}');
+  }
+
+  Future<List<Map<String, dynamic>>> getLabResults() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/lab-results'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data is List) {
+        return data
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+      }
+      return [];
+    }
+    throw Exception('Failed to fetch lab results: ${response.statusCode}');
+  }
+
+  Future<void> deleteScannedDoc(String visitId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/scanned-docs/$visitId'),
+      headers: _headers,
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete scanned document: ${response.statusCode}');
+    }
+
+    final responseData = json.decode(response.body);
+    if (responseData['status'] != 'ok') {
+      throw Exception('Unexpected response from delete scanned document API');
+    }
+  }
+
   // TODO: Re-enable when patient domain models are implemented
   /*
   // Caregivers

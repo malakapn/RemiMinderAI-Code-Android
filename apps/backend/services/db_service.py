@@ -520,6 +520,56 @@ async def delete_user_summary(
         raise
 
 
+async def delete_scanned_document(
+    visit_id: str,
+    user_id: str,
+    firebase_uid: Optional[str] = None,
+) -> bool:
+    """
+    Remove a scanned document (image + OCR) for a visit owned by the user.
+    Clears image fields on visit_transcripts so list endpoints no longer return it.
+    """
+    try:
+        engine = get_cloud_sql_engine()
+        with engine.begin() as conn:
+            result = conn.execute(
+                text("""
+                    UPDATE visit_transcripts
+                    SET image_url = NULL,
+                        image_metadata = NULL,
+                        ocr_text = NULL,
+                        ocr_status = NULL
+                    WHERE visit_id = :visit_id
+                      AND image_url IS NOT NULL
+                      AND (
+                        user_id::text = :user_id
+                        OR (:firebase_uid IS NOT NULL AND user_id::text = :firebase_uid)
+                      )
+                """),
+                {
+                    "visit_id": visit_id,
+                    "user_id": user_id,
+                    "firebase_uid": firebase_uid,
+                },
+            )
+            deleted = int(result.rowcount or 0) > 0
+            logger.info(
+                "Cleared scanned document visit_id=%s user_id=%s rows=%s",
+                visit_id,
+                user_id,
+                result.rowcount,
+            )
+            return deleted
+    except Exception as e:
+        logger.error(
+            "Error deleting scanned document visit_id=%s user_id=%s: %s",
+            visit_id,
+            user_id,
+            e,
+        )
+        raise
+
+
 async def get_latest_ai_summary_for_visit(visit_id: str, user_id: str) -> Optional[str]:
     """
     Get the latest AI-generated summary for a visit from summaries_log table.
