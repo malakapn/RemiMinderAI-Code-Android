@@ -1386,6 +1386,18 @@ abstract class AppLocalizations {
   /// **'New Reminder'**
   String get newReminder;
 
+  /// No description provided for @defaultReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder'**
+  String get defaultReminderTitle;
+
+  /// No description provided for @reminderDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder: {title}'**
+  String reminderDescription(String title);
+
   /// No description provided for @editReminder.
   ///
   /// In en, this message translates to:

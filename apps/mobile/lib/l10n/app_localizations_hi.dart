@@ -689,6 +689,14 @@ class AppLocalizationsHi extends AppLocalizations {
   String get newReminder => 'नया रिमाइंडर';
 
   @override
+  String get defaultReminderTitle => 'रिमाइंडर';
+
+  @override
+  String reminderDescription(String title) {
+    return 'रिमाइंडर: $title';
+  }
+
+  @override
   String get editReminder => 'रिमाइंडर संपादित करें';
 
   @override

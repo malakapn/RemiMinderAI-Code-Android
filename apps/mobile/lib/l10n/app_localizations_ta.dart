@@ -697,6 +697,14 @@ class AppLocalizationsTa extends AppLocalizations {
   String get newReminder => 'புதிய நினைவூட்டல்';
 
   @override
+  String get defaultReminderTitle => 'Reminder';
+
+  @override
+  String reminderDescription(String title) {
+    return 'Reminder: $title';
+  }
+
+  @override
   String get editReminder => 'நினைவூட்டலைத் திருத்து';
 
   @override

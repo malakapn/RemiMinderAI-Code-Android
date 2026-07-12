@@ -53,7 +53,6 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
     super.initState();
     // Establish this visit as the current visit context
     VisitContext().setCurrentVisit(widget.visitId);
-    _updateFormattedTime(); // Initialize timer display
   }
 
   @override

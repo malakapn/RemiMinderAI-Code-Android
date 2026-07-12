@@ -684,6 +684,14 @@ class AppLocalizationsBn extends AppLocalizations {
   String get newReminder => 'নতুন রিমাইন্ডার';
 
   @override
+  String get defaultReminderTitle => 'Reminder';
+
+  @override
+  String reminderDescription(String title) {
+    return 'Reminder: $title';
+  }
+
+  @override
   String get editReminder => 'রিমাইন্ডার সম্পাদনা';
 
   @override

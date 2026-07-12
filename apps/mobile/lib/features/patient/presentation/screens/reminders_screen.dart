@@ -316,7 +316,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                             ),
                           ),
                           Text(
-                            reminder['description'],
+                            _reminderCardDescription(l10n, reminder),
                             style: TextStyle(
                               fontSize: 14,
                               color: Theme.of(context).colorScheme.secondary,
@@ -609,6 +609,30 @@ class _RemindersScreenState extends State<RemindersScreen>
     }
   }
 
+  String _reminderCardDescription(
+    AppLocalizations l10n,
+    Map<String, dynamic> reminder,
+  ) {
+    final title = reminder['title']?.toString().trim() ?? '';
+    final raw = reminder['description']?.toString().trim() ?? '';
+    final displayTitle =
+        title.isEmpty ? l10n.defaultReminderTitle : title;
+
+    if (raw.isEmpty) {
+      return l10n.reminderDescription(displayTitle);
+    }
+
+    final englishPrefix = RegExp(r'^reminder:\s*', caseSensitive: false);
+    if (englishPrefix.hasMatch(raw)) {
+      final body = raw.replaceFirst(englishPrefix, '').trim();
+      return l10n.reminderDescription(
+        body.isEmpty ? displayTitle : body,
+      );
+    }
+
+    return raw;
+  }
+
   String _formatTime(DateTime dateTime) {
     final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
@@ -643,7 +667,7 @@ class _RemindersScreenState extends State<RemindersScreen>
     if (hours > 0) {
       return LocaleFormat.localizeDigitsInText(
         context,
-        l10n.timeInHours(hours, timeStr),
+        l10n.timeInHoursShort(hours),
       );
     }
     if (minutes > 0) {

@@ -144,14 +144,31 @@ class _RemiMinderAppState extends ConsumerState<RemiMinderApp> {
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(localeProvider);
 
-    // Logout only — LoadingScreen handles the initial unauthenticated route.
+    // Logout — send user to welcome when session ends on a protected screen.
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-      if (previous?.status == AuthStatus.authenticated &&
-          next.status == AuthStatus.unauthenticated) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref.read(appRouterProvider).go('/welcome');
-        });
+      if (next.status != AuthStatus.unauthenticated) return;
+      if (previous?.status != AuthStatus.authenticated &&
+          previous?.status != AuthStatus.loading) {
+        return;
       }
+
+      final router = ref.read(appRouterProvider);
+      final location = router.routerDelegate.currentConfiguration.uri.path;
+      const publicRoutes = {
+        '/welcome',
+        '/login',
+        '/register',
+        '/role-selection',
+        '/forgot-password',
+        '/loading',
+      };
+      if (publicRoutes.contains(location)) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (ref.read(authNotifierProvider).status == AuthStatus.unauthenticated) {
+          router.go('/welcome');
+        }
+      });
     });
 
     return MaterialApp.router(

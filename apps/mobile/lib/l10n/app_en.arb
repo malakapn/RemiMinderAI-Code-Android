@@ -301,6 +301,15 @@
   "tryAdjustSearch": "Try adjusting your search terms",
   "createReminder": "Create Reminder",
   "newReminder": "New Reminder",
+  "defaultReminderTitle": "Reminder",
+  "reminderDescription": "Reminder: {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "Edit Reminder",
   "reminderTitleLabel": "Title",
   "dosageOptional": "Dosage (optional)",

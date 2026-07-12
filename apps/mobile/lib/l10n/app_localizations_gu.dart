@@ -696,6 +696,14 @@ class AppLocalizationsGu extends AppLocalizations {
   String get newReminder => 'નવું રીમાઇન્ડર';
 
   @override
+  String get defaultReminderTitle => 'Reminder';
+
+  @override
+  String reminderDescription(String title) {
+    return 'Reminder: $title';
+  }
+
+  @override
   String get editReminder => 'રીમાઇન્ડર સંપાદિત કરો';
 
   @override

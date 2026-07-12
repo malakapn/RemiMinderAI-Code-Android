@@ -264,9 +264,8 @@ class AuthNotifier extends Notifier<AuthState> {
   /// Sign out current user
   Future<void> signOut() async {
     if (kDebugMode) {
-      print('🔐 AuthNotifier: signOut() called - setting loading state');
+      print('🔐 AuthNotifier: signOut() called');
     }
-    state = AuthState.loading();
 
     try {
       if (kDebugMode) {

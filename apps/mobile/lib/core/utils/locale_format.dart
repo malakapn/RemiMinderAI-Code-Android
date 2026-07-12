@@ -34,7 +34,15 @@ class LocaleFormat {
   }
 
   static String time(BuildContext context, DateTime date) {
-    return DateFormat.jm(locale(context)).format(date.toLocal());
+    final loc = locale(context);
+    final local = date.toLocal();
+    if (loc.startsWith('en')) {
+      return DateFormat.jm(loc).format(local);
+    }
+    return localizeDigitsInText(
+      context,
+      DateFormat.Hm(loc).format(local),
+    );
   }
 
   static String dateTimeMedium(BuildContext context, DateTime date) {

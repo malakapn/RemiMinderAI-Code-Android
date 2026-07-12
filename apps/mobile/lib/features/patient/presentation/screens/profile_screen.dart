@@ -435,6 +435,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           '👆 ProfileScreen: Calling authNotifierProvider.notifier.signOut()');
                     }
                     await ref.read(authNotifierProvider.notifier).signOut();
+                    if (!mounted) return;
+                    context.go('/welcome');
                     if (kDebugMode) {
                       print(
                           '👆 ProfileScreen: signOut() completed successfully');

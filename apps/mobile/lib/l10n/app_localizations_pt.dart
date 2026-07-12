@@ -693,6 +693,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get newReminder => 'Novo lembrete';
 
   @override
+  String get defaultReminderTitle => 'Reminder';
+
+  @override
+  String reminderDescription(String title) {
+    return 'Reminder: $title';
+  }
+
+  @override
   String get editReminder => 'Editar lembrete';
 
   @override

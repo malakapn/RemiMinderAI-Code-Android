@@ -208,6 +208,15 @@
   "tryAdjustSearch": "खोज बदलकर देखें",
   "createReminder": "रिमाइंडर बनाएँ",
   "newReminder": "नया रिमाइंडर",
+  "defaultReminderTitle": "रिमाइंडर",
+  "reminderDescription": "रिमाइंडर: {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "रिमाइंडर संपादित करें",
   "reminderTitleLabel": "शीर्षक",
   "dosageOptional": "खुराक (वैकल्पिक)",
