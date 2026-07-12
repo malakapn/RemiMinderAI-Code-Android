@@ -697,11 +697,11 @@ class AppLocalizationsTa extends AppLocalizations {
   String get newReminder => 'புதிய நினைவூட்டல்';
 
   @override
-  String get defaultReminderTitle => 'Reminder';
+  String get defaultReminderTitle => 'நினைவூட்டல்';
 
   @override
   String reminderDescription(String title) {
-    return 'Reminder: $title';
+    return 'நினைவூட்டல்: $title';
   }
 
   @override

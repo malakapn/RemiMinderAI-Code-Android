@@ -284,6 +284,15 @@
   "tryAdjustSearch": "તમારા શોધ શબ્દોને સમાયોજિત કરવાનો પ્રયાસ કરો",
   "createReminder": "રીમાઇન્ડર બનાવો",
   "newReminder": "નવું રીમાઇન્ડર",
+  "defaultReminderTitle": "રીમાઇન્ડર",
+  "reminderDescription": "રીમાઇન્ડર: {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "રીમાઇન્ડર સંપાદિત કરો",
   "reminderTitleLabel": "શીર્ષક",
   "dosageOptional": "ડોઝ (વૈકલ્પિક)",

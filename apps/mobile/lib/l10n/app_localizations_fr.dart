@@ -698,11 +698,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get newReminder => 'Nouveau rappel';
 
   @override
-  String get defaultReminderTitle => 'Reminder';
+  String get defaultReminderTitle => 'Rappel';
 
   @override
   String reminderDescription(String title) {
-    return 'Reminder: $title';
+    return 'Rappel : $title';
   }
 
   @override

@@ -208,6 +208,15 @@
   "tryAdjustSearch": "Essayez d'autres termes",
   "createReminder": "Créer un rappel",
   "newReminder": "Nouveau rappel",
+  "defaultReminderTitle": "Rappel",
+  "reminderDescription": "Rappel : {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "Modifier le rappel",
   "reminderTitleLabel": "Titre",
   "dosageOptional": "Dosage (optionnel)",

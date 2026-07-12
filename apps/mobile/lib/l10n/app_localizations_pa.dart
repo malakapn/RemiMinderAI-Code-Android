@@ -696,11 +696,11 @@ class AppLocalizationsPa extends AppLocalizations {
   String get newReminder => 'ਨਵਾਂ ਰੀਮਾਈਂਡਰ';
 
   @override
-  String get defaultReminderTitle => 'Reminder';
+  String get defaultReminderTitle => 'ਰੀਮਾਈਂਡਰ';
 
   @override
   String reminderDescription(String title) {
-    return 'Reminder: $title';
+    return 'ਰੀਮਾਈਂਡਰ: $title';
   }
 
   @override

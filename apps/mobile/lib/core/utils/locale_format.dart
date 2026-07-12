@@ -39,9 +39,15 @@ class LocaleFormat {
     if (loc.startsWith('en')) {
       return DateFormat.jm(loc).format(local);
     }
-    return localizeDigitsInText(
+    final formatted = DateFormat('HH:mm', loc).format(local);
+    return localizeDigitsInText(context, formatted);
+  }
+
+  static String timeOfDay(BuildContext context, TimeOfDay time) {
+    final now = DateTime.now();
+    return time(
       context,
-      DateFormat.Hm(loc).format(local),
+      DateTime(now.year, now.month, now.day, time.hour, time.minute),
     );
   }
 
@@ -269,6 +275,61 @@ class LocaleFormat {
     final formattedTime = time(context, scheduled);
     if (!includeDate) return formattedTime;
     return '${dateMd(context, scheduled)} · $formattedTime';
+  }
+
+  static bool _isEnglishReminderPlaceholder(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.isEmpty || normalized == 'reminder';
+  }
+
+  /// Localized reminder title; replaces API English placeholder "Reminder".
+  static String reminderTitle(AppLocalizations l10n, String? title) {
+    final raw = title?.trim() ?? '';
+    if (_isEnglishReminderPlaceholder(raw)) {
+      return l10n.defaultReminderTitle;
+    }
+    return raw;
+  }
+
+  /// Localized reminder description; strips English API "Reminder:" prefix.
+  static String reminderCardDescription(
+    AppLocalizations l10n, {
+    String? title,
+    String? description,
+  }) {
+    final displayTitle = reminderTitle(l10n, title);
+    final raw = description?.trim() ?? '';
+
+    if (raw.isEmpty) {
+      return l10n.reminderDescription(displayTitle);
+    }
+
+    final englishPrefix = RegExp(r'^reminder:\s*', caseSensitive: false);
+    if (englishPrefix.hasMatch(raw)) {
+      final body = raw.replaceFirst(englishPrefix, '').trim();
+      return l10n.reminderDescription(
+        _isEnglishReminderPlaceholder(body) ? displayTitle : body,
+      );
+    }
+
+    if (_isEnglishReminderPlaceholder(raw)) {
+      return l10n.reminderDescription(displayTitle);
+    }
+
+    return raw;
+  }
+
+  /// Clock label for reminder cards: today shows time only, else date + time.
+  static String reminderScheduleLabel(BuildContext context, DateTime dateTime) {
+    final now = DateTime.now();
+    final local = dateTime.toLocal();
+    final isToday = now.year == local.year &&
+        now.month == local.month &&
+        now.day == local.day;
+    if (isToday) {
+      return time(context, local);
+    }
+    return dateTimeMedium(context, local);
   }
 
   /// Visit / last-sync style date: today, yesterday, N days ago, or short date.

@@ -672,8 +672,12 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
     final message = reminder['message'] as String?;
     final scheduledTime = reminder['scheduled_time'] as String?;
     final label = title?.trim().isNotEmpty == true
-        ? title!
-        : (message ?? 'Reminder');
+        ? LocaleFormat.reminderTitle(l10n, title)
+        : LocaleFormat.reminderCardDescription(
+            l10n,
+            title: title,
+            description: message,
+          );
     final isDone = _isReminderDone(reminder);
     final accent = _reminderAccentColor(reminder);
     final scheduledLocal = _parseScheduledTimeLocal(scheduledTime);

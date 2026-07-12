@@ -208,6 +208,15 @@
   "tryAdjustSearch": "Prueba otros términos de búsqueda",
   "createReminder": "Crear recordatorio",
   "newReminder": "Nuevo recordatorio",
+  "defaultReminderTitle": "Recordatorio",
+  "reminderDescription": "Recordatorio: {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "Editar recordatorio",
   "reminderTitleLabel": "Título",
   "dosageOptional": "Dosis (opcional)",

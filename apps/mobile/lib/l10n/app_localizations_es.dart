@@ -691,11 +691,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get newReminder => 'Nuevo recordatorio';
 
   @override
-  String get defaultReminderTitle => 'Reminder';
+  String get defaultReminderTitle => 'Recordatorio';
 
   @override
   String reminderDescription(String title) {
-    return 'Reminder: $title';
+    return 'Recordatorio: $title';
   }
 
   @override

@@ -208,6 +208,15 @@
   "tryAdjustSearch": "Tente outros termos de busca",
   "createReminder": "Criar lembrete",
   "newReminder": "Novo lembrete",
+  "defaultReminderTitle": "Lembrete",
+  "reminderDescription": "Lembrete: {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "Editar lembrete",
   "reminderTitleLabel": "Título",
   "dosageOptional": "Dosagem (opcional)",

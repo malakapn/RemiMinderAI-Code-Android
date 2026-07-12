@@ -208,6 +208,15 @@
   "tryAdjustSearch": "অন্য শব্দে খুঁজুন",
   "createReminder": "রিমাইন্ডার তৈরি",
   "newReminder": "নতুন রিমাইন্ডার",
+  "defaultReminderTitle": "রিমাইন্ডার",
+  "reminderDescription": "রিমাইন্ডার: {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "রিমাইন্ডার সম্পাদনা",
   "reminderTitleLabel": "শিরোনাম",
   "dosageOptional": "ডোজ (ঐচ্ছিক)",

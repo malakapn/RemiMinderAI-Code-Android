@@ -208,6 +208,15 @@
   "tryAdjustSearch": "வேறு தேடல் சொற்களை முயற்சிக்கவும்",
   "createReminder": "நினைவூட்டல் உருவாக்கு",
   "newReminder": "புதிய நினைவூட்டல்",
+  "defaultReminderTitle": "நினைவூட்டல்",
+  "reminderDescription": "நினைவூட்டல்: {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "நினைவூட்டலைத் திருத்து",
   "reminderTitleLabel": "தலைப்பு",
   "dosageOptional": "அளவு (விரும்பினால்)",

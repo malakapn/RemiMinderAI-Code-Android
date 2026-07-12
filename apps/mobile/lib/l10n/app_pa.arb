@@ -284,6 +284,15 @@
   "tryAdjustSearch": "ਆਪਣੇ ਖੋਜ ਸ਼ਬਦਾਂ ਨੂੰ ਵਿਵਸਥਿਤ ਕਰਨ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
   "createReminder": "ਰੀਮਾਈਂਡਰ ਬਣਾਓ",
   "newReminder": "ਨਵਾਂ ਰੀਮਾਈਂਡਰ",
+  "defaultReminderTitle": "ਰੀਮਾਈਂਡਰ",
+  "reminderDescription": "ਰੀਮਾਈਂਡਰ: {title}",
+  "@reminderDescription": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "editReminder": "ਰੀਮਾਈਂਡਰ ਦਾ ਸੰਪਾਦਨ ਕਰੋ",
   "reminderTitleLabel": "ਸਿਰਲੇਖ",
   "dosageOptional": "ਖੁਰਾਕ (ਵਿਕਲਪਿਕ)",

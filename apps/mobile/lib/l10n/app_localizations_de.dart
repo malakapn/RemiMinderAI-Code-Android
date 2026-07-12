@@ -702,11 +702,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get newReminder => 'Neue Erinnerung';
 
   @override
-  String get defaultReminderTitle => 'Reminder';
+  String get defaultReminderTitle => 'Erinnerung';
 
   @override
   String reminderDescription(String title) {
-    return 'Reminder: $title';
+    return 'Erinnerung: $title';
   }
 
   @override

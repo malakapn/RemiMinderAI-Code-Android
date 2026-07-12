@@ -305,7 +305,10 @@ class _RemindersScreenState extends State<RemindersScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            reminder['title'],
+                            LocaleFormat.reminderTitle(
+                              l10n,
+                              reminder['title']?.toString(),
+                            ),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -316,7 +319,11 @@ class _RemindersScreenState extends State<RemindersScreen>
                             ),
                           ),
                           Text(
-                            _reminderCardDescription(l10n, reminder),
+                            LocaleFormat.reminderCardDescription(
+                              l10n,
+                              title: reminder['title']?.toString(),
+                              description: reminder['description']?.toString(),
+                            ),
                             style: TextStyle(
                               fontSize: 14,
                               color: Theme.of(context).colorScheme.secondary,
@@ -375,7 +382,10 @@ class _RemindersScreenState extends State<RemindersScreen>
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _formatTime(scheduledTime),
+                      LocaleFormat.reminderScheduleLabel(
+                        context,
+                        scheduledTime,
+                      ),
                       style: TextStyle(
                         fontSize: 14,
                         color: Theme.of(context).colorScheme.secondary,
@@ -609,29 +619,6 @@ class _RemindersScreenState extends State<RemindersScreen>
     }
   }
 
-  String _reminderCardDescription(
-    AppLocalizations l10n,
-    Map<String, dynamic> reminder,
-  ) {
-    final title = reminder['title']?.toString().trim() ?? '';
-    final raw = reminder['description']?.toString().trim() ?? '';
-    final displayTitle =
-        title.isEmpty ? l10n.defaultReminderTitle : title;
-
-    if (raw.isEmpty) {
-      return l10n.reminderDescription(displayTitle);
-    }
-
-    final englishPrefix = RegExp(r'^reminder:\s*', caseSensitive: false);
-    if (englishPrefix.hasMatch(raw)) {
-      final body = raw.replaceFirst(englishPrefix, '').trim();
-      return l10n.reminderDescription(
-        body.isEmpty ? displayTitle : body,
-      );
-    }
-
-    return raw;
-  }
 
   String _formatTime(DateTime dateTime) {
     final l10n = AppLocalizations.of(context)!;
@@ -820,7 +807,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                     Expanded(
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.access_time),
-                        label: Text(selectedTime.format(context)),
+                        label: Text(LocaleFormat.timeOfDay(context, selectedTime)),
                         onPressed: () async {
                           final t = await _showCustomTimePicker(
                             ctx,
@@ -1037,7 +1024,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                     Expanded(
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.access_time),
-                        label: Text(selectedTime.format(context)),
+                        label: Text(LocaleFormat.timeOfDay(context, selectedTime)),
                         onPressed: () async {
                           final t = await _showCustomTimePicker(
                             ctx,
@@ -1528,7 +1515,7 @@ class _RemindersScreenState extends State<RemindersScreen>
       final mapped = merged.whereType<Map<String, dynamic>>().map((r) {
         return {
           'id': r['id']?.toString() ?? '',
-          'title': r['title']?.toString() ?? 'Reminder',
+          'title': r['title']?.toString() ?? '',
           'description': r['message']?.toString() ?? '',
           'scheduledTime':
               (DateTime.tryParse(r['scheduled_time']?.toString() ?? '') ??
