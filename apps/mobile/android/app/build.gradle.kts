@@ -17,7 +17,7 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace = "com.remiminder.app"
+    namespace = "com.remiminder.app.dev"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -43,13 +43,13 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.remiminder.app"
+        applicationId = "com.remiminder.app.dev"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.remiminder.app"
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.remiminder.app.dev"
     }
 
     buildTypes {

@@ -1,6 +1,6 @@
 # Android release signing (Google Play)
 
-Production package ID: **`com.remiminder.app`**
+Play / Android package ID: **`com.remiminder.app.dev`**
 
 ## 1. Create a release keystore (once)
 
@@ -34,7 +34,7 @@ storeFile=/absolute/path/to/remiminder-release.keystore
 
 ## 3. Firebase / Google Sign-In
 
-1. In [Firebase Console](https://console.firebase.google.com), add an Android app with package name **`com.remiminder.app`**.
+1. In [Firebase Console](https://console.firebase.google.com), use Android app package name **`com.remiminder.app.dev`** (or register it if missing).
 2. Download `google-services.json` to `apps/mobile/android/app/google-services.json` (gitignored).
 3. Add the release SHA-1 and SHA-256 fingerprints from your release keystore to Firebase (Project settings → Your apps → Android).
 4. Ensure Google Sign-In OAuth client IDs include the production package name.

@@ -19,7 +19,7 @@
         <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="reminders"/>
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@mipmap/launcher_icon"/>
         <activity
-            android:name="com.remiminder.app.MainActivity"
+            android:name="com.remiminder.app.dev.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
@@ -34,13 +34,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Stripe Checkout return URLs: com.remiminder.app://billing/... -->
+            <!-- Stripe Checkout return URLs: com.remiminder.app.dev://billing/... -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
-                    android:scheme="com.remiminder.app"
+                    android:scheme="com.remiminder.app.dev"
                     android:host="billing"/>
             </intent-filter>
             <!-- Care-team invite deep links: remiminder://accept-invitation?token=... -->
@@ -52,12 +52,12 @@
                     android:scheme="remiminder"
                     android:host="accept-invitation"/>
             </intent-filter>
-            <!-- Auth deep links: com.remiminder.app://login|register?... -->
+            <!-- Auth deep links: com.remiminder.app.dev://login|register?... -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="com.remiminder.app"/>
+                <data android:scheme="com.remiminder.app.dev"/>
             </intent-filter>
         </activity>
         <meta-data

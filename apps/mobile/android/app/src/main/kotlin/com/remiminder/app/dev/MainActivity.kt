@@ -1,4 +1,4 @@
-package com.remiminder.app
+package com.remiminder.app.dev
 
 import io.flutter.embedding.android.FlutterActivity
 
