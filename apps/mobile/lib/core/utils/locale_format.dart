@@ -43,11 +43,11 @@ class LocaleFormat {
     return localizeDigitsInText(context, formatted);
   }
 
-  static String timeOfDay(BuildContext context, TimeOfDay time) {
+  static String timeOfDay(BuildContext context, TimeOfDay value) {
     final now = DateTime.now();
-    return time(
+    return LocaleFormat.time(
       context,
-      DateTime(now.year, now.month, now.day, time.hour, time.minute),
+      DateTime(now.year, now.month, now.day, value.hour, value.minute),
     );
   }
 
