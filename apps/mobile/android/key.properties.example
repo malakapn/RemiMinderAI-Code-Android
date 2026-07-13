@@ -1,4 +1,4 @@
-storePassword=
-keyPassword=
-keyAlias=remiminder
-storeFile=/absolute/path/to/remiminder-release.keystore
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=upload-keystore.jks
