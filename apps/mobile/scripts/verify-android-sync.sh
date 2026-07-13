@@ -70,4 +70,4 @@ echo "  cd $MOBILE_DIR"
 echo "  flutter clean && flutter pub get"
 echo "  flutter run -d RFGYC218FBD"
 echo
-echo "On device: Profile tab should show footer: RemiMinder v1.3.2 (build 66) · l10n-reminders-summaries"
+echo "On device: Profile tab should show footer: RemiMinder v1.4.0 (build 80)"
