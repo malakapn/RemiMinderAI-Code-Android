@@ -231,6 +231,34 @@ class AppLocalizationsPt extends AppLocalizations {
       'Isso excluirá permanentemente sua conta e todos os seus dados. Esta ação não pode ser desfeita. Tem certeza?';
 
   @override
+  String get deleteAccountConfirmationCheckbox =>
+      'I understand this is permanent and cannot be reversed';
+
+  @override
+  String get deleteMyAccountConfirm => 'Delete My Account';
+
+  @override
+  String get deletingYourAccount => 'Deleting your account...';
+
+  @override
+  String get accountDeletedTitle => 'Account Deleted';
+
+  @override
+  String get accountDeletedSuccess =>
+      'Your account has been deleted successfully';
+
+  @override
+  String get accountDeletionFailedTitle => 'Account Deletion Failed';
+
+  @override
+  String accountDeletionContactSupport(String email) {
+    return 'If this keeps happening, contact $email';
+  }
+
+  @override
+  String get contactSupport => 'Contact Support';
+
+  @override
   String get delete => 'Excluir';
 
   @override

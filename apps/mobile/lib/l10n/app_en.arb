@@ -98,8 +98,23 @@
   "upgrade": "Upgrade",
   "signOut": "Sign Out",
   "deleteAccount": "Delete Account",
-  "deleteAccountTitle": "Delete Account",
-  "deleteAccountMessage": "This will permanently delete your account and all your data. This cannot be undone. Are you sure?",
+  "deleteAccountTitle": "Delete Account Permanently?",
+  "deleteAccountMessage": "This will permanently delete your account and all your data, including recordings, scanned documents, summaries, and reminders. This cannot be undone.",
+  "deleteAccountConfirmationCheckbox": "I understand this is permanent and cannot be reversed",
+  "deleteMyAccountConfirm": "Delete My Account",
+  "deletingYourAccount": "Deleting your account...",
+  "accountDeletedTitle": "Account Deleted",
+  "accountDeletedSuccess": "Your account has been deleted successfully",
+  "accountDeletionFailedTitle": "Account Deletion Failed",
+  "accountDeletionContactSupport": "If this keeps happening, contact {email}",
+  "@accountDeletionContactSupport": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "contactSupport": "Contact Support",
   "delete": "Delete",
   "searchSummariesHint": "Search summaries...",
   "tabSummaries": "SUMMARIES",

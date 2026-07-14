@@ -71,8 +71,11 @@ Use this checklist when submitting **RemiMinder** (`com.remiminderai.app`). Alig
 ## Account deletion
 
 - Path: **Profile → Delete Account** or **Privacy Settings → Delete my account**
-- Backend: `DELETE /api/users/me` (permanent deletion)
+- Confirmation requires checkbox: “I understand this is permanent and cannot be reversed”
+- Backend: `DELETE /api/users/me` permanently removes Cloud SQL rows, GCS media, Firestore user data, and Firebase Auth
+- Individual summaries / scanned documents can be deleted from Overview without deleting the account
 - Export / partial record deletion: email `privacy@remiminder.ai` (mailto from Privacy Settings)
+- Deletion support contact: `team@remiminderai.com`
 
 ## Payments
 

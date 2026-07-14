@@ -33,6 +33,10 @@ class PatientApiService {
     _summariesCache = null;
   }
 
+  static void invalidateLatestVisitStatusCache() {
+    _latestStatusCache = null;
+  }
+
   static void setCachedLatestVisitStatus(Map<String, dynamic> status) {
     _latestStatusCache = CacheEntry(status, DateTime.now());
   }

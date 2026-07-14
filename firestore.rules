@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Primary user profile + nested patient data used by the mobile apps.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      match /reminders/{reminderId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      match /visits/{visitId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      match /scanned_docs/{docId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      match /connectedPatients/{patientId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      match /careTeam/{memberId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+    }
+
+    // Consent session logs (recording / scan).
+    match /consents/{userId} {
+      allow read, write, delete: if isOwner(userId);
+
+      match /recording_sessions/{sessionId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      match /scan_sessions/{sessionId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+    }
+
+    // Optional patient profile mirror (FCM sync / caregiver views).
+    match /patients/{patientId} {
+      allow read, write, delete: if isOwner(patientId);
+    }
+
+    // Care-team invitations: creator or invitee email match.
+    match /invitations/{invitationId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isSignedIn() && (
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.patientId == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid ||
+        (resource.data.email is string &&
+          resource.data.email == request.auth.token.email)
+      );
+    }
+
+    // Legacy / alternate top-level collections (Google Play Data Safety checklist).
+    // These use a userId field for ownership when present in this schema.
+    match /recordings/{recordingId} {
+      allow read, write, delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /documents/{documentId} {
+      allow read, write, delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /summaries/{summaryId} {
+      allow read, write, delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}

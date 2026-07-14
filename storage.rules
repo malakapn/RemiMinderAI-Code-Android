@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // User-scoped paths: each account may only touch their own prefix.
+    match /users/{userId}/{allPaths=**} {
+      allow read, write, delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Visit media is uploaded/deleted by the backend service account (bypasses these
+    // rules). Client SDKs are denied direct write/delete of audio/images prefixes.
+    match /audio/{fileName} {
+      allow read: if isSignedIn();
+      allow write, delete: if false;
+    }
+
+    match /images/{visitId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write, delete: if false;
+    }
+  }
+}

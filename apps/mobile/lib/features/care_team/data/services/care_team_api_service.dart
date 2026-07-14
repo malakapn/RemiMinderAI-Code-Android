@@ -36,6 +36,11 @@ class CareTeamApiService {
     _pendingInvitesCache = CacheEntry(invites, DateTime.now());
   }
 
+  static void invalidateCaches() {
+    _membersCache = null;
+    _pendingInvitesCache = null;
+  }
+
   String _requireUid() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {

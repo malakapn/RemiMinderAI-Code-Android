@@ -230,6 +230,34 @@ class AppLocalizationsBn extends AppLocalizations {
       'এটি আপনার অ্যাকাউন্ট ও সব ডেটা স্থায়ীভাবে মুছে দেবে। এটি পূর্বাবস্থায় ফেরানো যাবে না। আপনি কি নিশ্চিত?';
 
   @override
+  String get deleteAccountConfirmationCheckbox =>
+      'I understand this is permanent and cannot be reversed';
+
+  @override
+  String get deleteMyAccountConfirm => 'Delete My Account';
+
+  @override
+  String get deletingYourAccount => 'Deleting your account...';
+
+  @override
+  String get accountDeletedTitle => 'Account Deleted';
+
+  @override
+  String get accountDeletedSuccess =>
+      'Your account has been deleted successfully';
+
+  @override
+  String get accountDeletionFailedTitle => 'Account Deletion Failed';
+
+  @override
+  String accountDeletionContactSupport(String email) {
+    return 'If this keeps happening, contact $email';
+  }
+
+  @override
+  String get contactSupport => 'Contact Support';
+
+  @override
   String get delete => 'মুছুন';
 
   @override

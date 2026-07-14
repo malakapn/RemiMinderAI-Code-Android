@@ -527,11 +527,33 @@ async def delete_scanned_document(
 ) -> bool:
     """
     Remove a scanned document (image + OCR) for a visit owned by the user.
-    Clears image fields on visit_transcripts so list endpoints no longer return it.
+    Clears image fields on visit_transcripts and deletes the GCS image object.
     """
     try:
+        from services.account_purge_service import delete_gcs_urls, delete_visit_media_prefixes
+
         engine = get_cloud_sql_engine()
+        image_urls: list[str] = []
         with engine.begin() as conn:
+            rows = conn.execute(
+                text("""
+                    SELECT image_url
+                    FROM visit_transcripts
+                    WHERE visit_id = :visit_id
+                      AND image_url IS NOT NULL
+                      AND (
+                        user_id::text = :user_id
+                        OR (:firebase_uid IS NOT NULL AND user_id::text = :firebase_uid)
+                      )
+                """),
+                {
+                    "visit_id": visit_id,
+                    "user_id": user_id,
+                    "firebase_uid": firebase_uid,
+                },
+            ).fetchall()
+            image_urls = [str(r[0]) for r in rows if r and r[0]]
+
             result = conn.execute(
                 text("""
                     UPDATE visit_transcripts
@@ -559,7 +581,13 @@ async def delete_scanned_document(
                 user_id,
                 result.rowcount,
             )
-            return deleted
+
+        if deleted:
+            delete_gcs_urls(image_urls)
+            # Also clear images/{visit_id}/ prefix used by upload_image.
+            delete_visit_media_prefixes([visit_id])
+
+        return deleted
     except Exception as e:
         logger.error(
             "Error deleting scanned document visit_id=%s user_id=%s: %s",
@@ -1374,14 +1402,28 @@ async def decline_care_team_invitation_by_invitee(
 
 async def delete_user_account(firebase_uid: str) -> Optional[str]:
     """
-    Permanently remove the user and dependent rows (FK-safe order).
+    Permanently remove the user and all related app data for Play Data Safety:
+    Cloud SQL rows, GCS media, Firestore docs, and Firebase Auth.
+
     Returns internal user id (text) if a user row was deleted, else None.
     """
     if not firebase_uid or not str(firebase_uid).strip():
         return None
     uid = str(firebase_uid).strip()
     try:
+        from services.account_purge_service import (
+            delete_gcs_urls,
+            delete_visit_media_prefixes,
+        )
+        from services.firebase_account_purge import (
+            delete_firebase_auth_user,
+            delete_firestore_user_data,
+        )
+
         engine = get_cloud_sql_engine()
+        media_urls: list[str] = []
+        visit_ids: list[str] = []
+
         with engine.begin() as conn:
             row = conn.execute(
                 text(
@@ -1392,6 +1434,51 @@ async def delete_user_account(firebase_uid: str) -> Optional[str]:
             if not row:
                 return None
             user_id = row[0]
+
+            # Collect media URLs / visit IDs before cascading deletes.
+            visit_rows = conn.execute(
+                text(
+                    """
+                    SELECT id::text FROM visits
+                    WHERE user_id::text = :uid_txt
+                    """
+                ),
+                {"uid_txt": user_id},
+            ).fetchall()
+            visit_ids = [r[0] for r in visit_rows if r and r[0]]
+
+            transcript_rows = conn.execute(
+                text(
+                    """
+                    SELECT audio_url, image_url
+                    FROM visit_transcripts
+                    WHERE user_id::text = :uid_txt
+                       OR user_id::text = :fb
+                       OR visit_id IN (
+                            SELECT id FROM visits WHERE user_id::text = :uid_txt
+                       )
+                    """
+                ),
+                {"uid_txt": user_id, "fb": uid},
+            ).fetchall()
+            for tr in transcript_rows:
+                if tr[0]:
+                    media_urls.append(str(tr[0]))
+                if tr[1]:
+                    media_urls.append(str(tr[1]))
+
+            recording_rows = conn.execute(
+                text(
+                    """
+                    SELECT object_key FROM visit_recordings
+                    WHERE user_id::text = :uid_txt
+                    """
+                ),
+                {"uid_txt": user_id},
+            ).fetchall()
+            for rr in recording_rows:
+                if rr and rr[0]:
+                    media_urls.append(str(rr[0]))
 
             conn.execute(
                 text("""
@@ -1440,13 +1527,117 @@ async def delete_user_account(firebase_uid: str) -> Optional[str]:
                 {"uid_txt": user_id},
             )
 
+            # Explicit PHI / product data wipe (covers rows without CASCADE / orphans).
+            conn.execute(
+                text("""
+                    DELETE FROM feedback_log
+                    WHERE summary_id IN (
+                        SELECT id FROM summaries_log
+                        WHERE user_id::text = :uid_txt OR user_id::text = :fb
+                    )
+                """),
+                {"uid_txt": user_id, "fb": uid},
+            )
+            conn.execute(
+                text(
+                    "DELETE FROM summaries_log WHERE user_id::text = :uid_txt OR user_id::text = :fb"
+                ),
+                {"uid_txt": user_id, "fb": uid},
+            )
+            conn.execute(
+                text(
+                    """
+                    DELETE FROM reminder_logs
+                    WHERE user_id::text = :uid_txt
+                       OR reminder_id IN (
+                            SELECT id FROM reminders WHERE user_id::text = :uid_txt
+                       )
+                    """
+                ),
+                {"uid_txt": user_id},
+            )
+            conn.execute(
+                text("DELETE FROM caregiver_alerts WHERE user_id::text = :uid_txt"),
+                {"uid_txt": user_id},
+            )
+            conn.execute(
+                text("DELETE FROM reminders WHERE user_id::text = :uid_txt"),
+                {"uid_txt": user_id},
+            )
+            conn.execute(
+                text(
+                    """
+                    DELETE FROM visit_summaries
+                    WHERE user_id::text = :uid_txt
+                       OR visit_id IN (
+                            SELECT id FROM visits WHERE user_id::text = :uid_txt
+                       )
+                    """
+                ),
+                {"uid_txt": user_id},
+            )
+            conn.execute(
+                text(
+                    """
+                    DELETE FROM visit_transcripts
+                    WHERE user_id::text = :uid_txt
+                       OR user_id::text = :fb
+                       OR visit_id IN (
+                            SELECT id FROM visits WHERE user_id::text = :uid_txt
+                       )
+                    """
+                ),
+                {"uid_txt": user_id, "fb": uid},
+            )
+            conn.execute(
+                text("DELETE FROM visit_recordings WHERE user_id::text = :uid_txt"),
+                {"uid_txt": user_id},
+            )
+            conn.execute(
+                text("DELETE FROM visits WHERE user_id::text = :uid_txt"),
+                {"uid_txt": user_id},
+            )
+            conn.execute(
+                text(
+                    """
+                    UPDATE invitations SET patient_id = NULL
+                    WHERE patient_id::text = :uid_txt
+                    """
+                ),
+                {"uid_txt": user_id},
+            )
+
             result = conn.execute(
                 text("DELETE FROM users WHERE id::text = :uid_txt"),
                 {"uid_txt": user_id},
             )
-            if result.rowcount > 0:
-                return user_id
-            return None
+            if result.rowcount <= 0:
+                return None
+
+        # Outside SQL transaction: best-effort external purges.
+        try:
+            deleted_urls = delete_gcs_urls(media_urls)
+            deleted_prefixes = delete_visit_media_prefixes(visit_ids)
+            logger.info(
+                "Account purge GCS uid=%s urls=%s prefixes=%s",
+                uid,
+                deleted_urls,
+                deleted_prefixes,
+            )
+        except Exception as e:
+            logger.warning("Account purge GCS failed uid=%s: %s", uid, e)
+
+        try:
+            delete_firestore_user_data(uid)
+        except Exception as e:
+            logger.warning("Account purge Firestore failed uid=%s: %s", uid, e)
+
+        try:
+            delete_firebase_auth_user(uid)
+        except Exception as e:
+            logger.warning("Account purge Auth failed uid=%s: %s", uid, e)
+
+        return user_id
     except Exception as e:
         logger.error("Error deleting user account firebase_uid=%s: %s", uid, e)
         raise

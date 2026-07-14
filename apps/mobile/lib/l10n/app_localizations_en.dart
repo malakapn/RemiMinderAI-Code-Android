@@ -223,11 +223,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteAccount => 'Delete Account';
 
   @override
-  String get deleteAccountTitle => 'Delete Account';
+  String get deleteAccountTitle => 'Delete Account Permanently?';
 
   @override
   String get deleteAccountMessage =>
-      'This will permanently delete your account and all your data. This cannot be undone. Are you sure?';
+      'This will permanently delete your account and all your data, including recordings, scanned documents, summaries, and reminders. This cannot be undone.';
+
+  @override
+  String get deleteAccountConfirmationCheckbox =>
+      'I understand this is permanent and cannot be reversed';
+
+  @override
+  String get deleteMyAccountConfirm => 'Delete My Account';
+
+  @override
+  String get deletingYourAccount => 'Deleting your account...';
+
+  @override
+  String get accountDeletedTitle => 'Account Deleted';
+
+  @override
+  String get accountDeletedSuccess =>
+      'Your account has been deleted successfully';
+
+  @override
+  String get accountDeletionFailedTitle => 'Account Deletion Failed';
+
+  @override
+  String accountDeletionContactSupport(String email) {
+    return 'If this keeps happening, contact $email';
+  }
+
+  @override
+  String get contactSupport => 'Contact Support';
 
   @override
   String get delete => 'Delete';

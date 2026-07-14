@@ -231,6 +231,34 @@ class AppLocalizationsHi extends AppLocalizations {
       'यह आपका खाता और सभी डेटा स्थायी रूप से हटा देगा। यह पूर्ववत नहीं हो सकता। क्या आप सुनिश्चित हैं?';
 
   @override
+  String get deleteAccountConfirmationCheckbox =>
+      'I understand this is permanent and cannot be reversed';
+
+  @override
+  String get deleteMyAccountConfirm => 'Delete My Account';
+
+  @override
+  String get deletingYourAccount => 'Deleting your account...';
+
+  @override
+  String get accountDeletedTitle => 'Account Deleted';
+
+  @override
+  String get accountDeletedSuccess =>
+      'Your account has been deleted successfully';
+
+  @override
+  String get accountDeletionFailedTitle => 'Account Deletion Failed';
+
+  @override
+  String accountDeletionContactSupport(String email) {
+    return 'If this keeps happening, contact $email';
+  }
+
+  @override
+  String get contactSupport => 'Contact Support';
+
+  @override
   String get delete => 'हटाएँ';
 
   @override

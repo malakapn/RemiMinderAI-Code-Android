@@ -230,6 +230,34 @@ class AppLocalizationsGu extends AppLocalizations {
       'આ તમારા એકાઉન્ટ અને તમારો બધો ડેટા કાયમ માટે કાઢી નાખશે. આ પૂર્વવત્ કરી શકાતું નથી. શું તમને ખાતરી છે?';
 
   @override
+  String get deleteAccountConfirmationCheckbox =>
+      'I understand this is permanent and cannot be reversed';
+
+  @override
+  String get deleteMyAccountConfirm => 'Delete My Account';
+
+  @override
+  String get deletingYourAccount => 'Deleting your account...';
+
+  @override
+  String get accountDeletedTitle => 'Account Deleted';
+
+  @override
+  String get accountDeletedSuccess =>
+      'Your account has been deleted successfully';
+
+  @override
+  String get accountDeletionFailedTitle => 'Account Deletion Failed';
+
+  @override
+  String accountDeletionContactSupport(String email) {
+    return 'If this keeps happening, contact $email';
+  }
+
+  @override
+  String get contactSupport => 'Contact Support';
+
+  @override
   String get delete => 'કાઢી નાખો';
 
   @override

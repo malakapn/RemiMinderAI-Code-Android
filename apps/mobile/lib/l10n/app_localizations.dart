@@ -525,14 +525,62 @@ abstract class AppLocalizations {
   /// No description provided for @deleteAccountTitle.
   ///
   /// In en, this message translates to:
-  /// **'Delete Account'**
+  /// **'Delete Account Permanently?'**
   String get deleteAccountTitle;
 
   /// No description provided for @deleteAccountMessage.
   ///
   /// In en, this message translates to:
-  /// **'This will permanently delete your account and all your data. This cannot be undone. Are you sure?'**
+  /// **'This will permanently delete your account and all your data, including recordings, scanned documents, summaries, and reminders. This cannot be undone.'**
   String get deleteAccountMessage;
+
+  /// No description provided for @deleteAccountConfirmationCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand this is permanent and cannot be reversed'**
+  String get deleteAccountConfirmationCheckbox;
+
+  /// No description provided for @deleteMyAccountConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete My Account'**
+  String get deleteMyAccountConfirm;
+
+  /// No description provided for @deletingYourAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account...'**
+  String get deletingYourAccount;
+
+  /// No description provided for @accountDeletedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Deleted'**
+  String get accountDeletedTitle;
+
+  /// No description provided for @accountDeletedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been deleted successfully'**
+  String get accountDeletedSuccess;
+
+  /// No description provided for @accountDeletionFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Deletion Failed'**
+  String get accountDeletionFailedTitle;
+
+  /// No description provided for @accountDeletionContactSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'If this keeps happening, contact {email}'**
+  String accountDeletionContactSupport(String email);
+
+  /// No description provided for @contactSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Support'**
+  String get contactSupport;
 
   /// No description provided for @delete.
   ///
