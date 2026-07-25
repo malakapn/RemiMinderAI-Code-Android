@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../../../../core/config/environment.dart';
@@ -94,7 +95,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
           ),
         ),
       );
-      if (premium) Navigator.of(context).pop();
+      if (premium) _closeUpgrade();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -147,6 +148,14 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
     return plan == _BillingPlan.monthly ? '/ month' : '/ year';
   }
 
+  void _closeUpgrade() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go('/patient/home');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -170,7 +179,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: _closeUpgrade,
                   ),
                   const Expanded(
                     child: Text(
@@ -325,7 +334,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                       child: const Text('Restore purchases'),
                     ),
                     TextButton(
-                      onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                      onPressed: _loading ? null : _closeUpgrade,
                       child: Text(
                         "No thanks, I'll stay on the free plan",
                         style: TextStyle(

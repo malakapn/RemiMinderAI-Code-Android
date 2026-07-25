@@ -167,10 +167,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const LanguageSettingsScreen(),
           ),
           GoRoute(
-            path: '/patient/upgrade',
-            builder: (context, state) => const UpgradeScreen(),
-          ),
-          GoRoute(
             path: '/patient/vox',
             builder: (context, state) => const VoxScreen(),
           ),
@@ -212,6 +208,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // Patient routes that don't use the navigation shell (modals, full-screen)
+      GoRoute(
+        path: '/patient/upgrade',
+        builder: (context, state) => const UpgradeScreen(),
+      ),
       GoRoute(
         path: '/patient/record-visit/:visitId',
         builder: (context, state) {
