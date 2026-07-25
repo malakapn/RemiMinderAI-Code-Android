@@ -240,6 +240,28 @@ async def increment_remivox_interaction(firebase_uid: str) -> None:
     invalidate(f"user_profile:{firebase_uid}")
 
 
+async def enforce_remivox_access(firebase_uid: str) -> dict:
+    status = await get_subscription_status(firebase_uid)
+    plan = status["plan"]
+    allowed = plan == PLAN_PREMIUM or (
+        plan == PLAN_TRIAL
+        and status["trial_active"]
+        and int(status["remivox_interaction_count"] or 0) < TRIAL_REMIVOX_LIMIT
+    )
+    if allowed:
+        return status
+    raise HTTPException(
+        status_code=402,
+        detail={
+            "code": "premium_required",
+            "feature": "remivox",
+            "plan": plan,
+            "limit": TRIAL_REMIVOX_LIMIT if plan == PLAN_TRIAL else 0,
+            "message": "Upgrade to RemiMinderAI Premium to use Vox.",
+        },
+    )
+
+
 async def enforce_caregiver_invite_limit(patient_id: str) -> None:
     engine = get_cloud_sql_engine()
     with engine.begin() as conn:

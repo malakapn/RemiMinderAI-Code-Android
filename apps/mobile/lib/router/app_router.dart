@@ -26,6 +26,7 @@ import '../features/patient/presentation/screens/care_team_screen.dart';
 import '../features/patient/presentation/screens/profile_screen.dart';
 import '../features/patient/presentation/screens/language_settings_screen.dart';
 import '../features/patient/presentation/screens/upgrade_screen.dart';
+import '../features/patient/presentation/screens/vox_screen.dart';
 import '../features/patient/presentation/screens/send_invitations_screen.dart';
 
 import '../features/shared/presentation/screens/loading_screen.dart';
@@ -168,6 +169,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/patient/upgrade',
             builder: (context, state) => const UpgradeScreen(),
+          ),
+          GoRoute(
+            path: '/patient/vox',
+            builder: (context, state) => const VoxScreen(),
           ),
           GoRoute(
             path: '/profile',

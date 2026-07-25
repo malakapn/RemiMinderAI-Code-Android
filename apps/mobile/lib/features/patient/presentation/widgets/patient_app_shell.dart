@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/models/monetization_status.dart';
 import '../../../../core/services/analytics_service.dart';
-import '../../../../core/services/subscription_api_service.dart';
 import '../../../../core/widgets/upgrade_prompt_sheet.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'rounded_navigation_bar.dart';
@@ -92,17 +92,8 @@ class _VoxFloatingButton extends ConsumerWidget {
             }
             return;
           }
-          await AnalyticsService.instance.voxInteraction(
-            (profile?.remivoxInteractionCount ?? 0) + 1,
-          );
-          await SubscriptionApiService().trackEvent(
-            'vox_interaction',
-            parameters: {'screen': 'patient_shell'},
-          );
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Vox is coming soon.')),
-          );
+          context.push('/patient/vox');
         },
         child: Container(
           width: 72,

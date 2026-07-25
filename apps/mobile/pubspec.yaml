@@ -67,6 +67,7 @@ dependencies:
   speech_to_text: ^7.3.0
   image_picker: ^1.1.1
   path_provider: ^2.1.2
+  audioplayers: ^6.5.1
   sign_in_with_apple: ^8.0.0
 
 dev_dependencies:

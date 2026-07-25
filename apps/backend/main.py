@@ -66,7 +66,7 @@ sys.path.append('..')
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from route import care_team, caregiver_notes, internal_cron, patient_tasks, reminders, subscription, visit_summary, users
+from route import care_team, caregiver_notes, internal_cron, patient_tasks, reminders, remivox, subscription, visit_summary, users
 # DISABLED: Other routes temporarily disabled to focus on audio + STT features
 # from route import invitations, patient_register, caregiver_patient, caregivers
 # DISABLED: Reminders temporarily disabled due to Supabase dependency cleanup
@@ -135,6 +135,7 @@ logger.info("Reminders routes registered")
 app.include_router(caregiver_notes.router)    # Caregiver notes
 app.include_router(internal_cron.router)      # Scheduled internal jobs (cron secret)
 app.include_router(subscription.router)        # Subscription / trial / RevenueCat sync
+app.include_router(remivox.router)             # Vox voice companion
 
 @app.get("/")
 def root() -> dict:
