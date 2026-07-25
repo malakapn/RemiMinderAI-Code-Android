@@ -254,6 +254,38 @@ class BackendApiService {
     return json.decode(response.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> askVox(String prompt) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) {
+      throw Exception('Authentication required. Please log in again.');
+    }
+
+    final response = await http.post(
+      Uri.parse('${Environment.apiBaseUrl}/api/remivox/ask'),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'prompt': prompt}),
+    );
+
+    if (response.statusCode != 200) {
+      String message = 'Vox is not available right now. Please try again.';
+      try {
+        final decoded = json.decode(response.body);
+        final detail = decoded is Map ? decoded['detail'] : null;
+        if (detail is Map && detail['message'] is String) {
+          message = detail['message'] as String;
+        } else if (detail is String && detail.isNotEmpty) {
+          message = detail;
+        }
+      } catch (_) {}
+      throw Exception(message);
+    }
+
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
   /// Register or refresh this device's FCM token for server push notifications.
   Future<void> registerFcmToken({
     required String fcmToken,

@@ -1,5 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../../../core/services/backend_api_service.dart';
+import '../../../../core/widgets/upgrade_prompt_sheet.dart';
 import 'rounded_navigation_bar.dart';
 
 /// App shell that wraps all patient screens with a floating bottom navigation bar
@@ -66,9 +72,104 @@ class _VoxFloatingButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: 'Vox',
-      child: GestureDetector(
-        onTap: () => context.push('/patient/vox'),
-        child: Container(
+      child: const _VoxButtonBody(),
+    );
+  }
+}
+
+class _VoxButtonBody extends StatefulWidget {
+  const _VoxButtonBody();
+
+  @override
+  State<_VoxButtonBody> createState() => _VoxButtonBodyState();
+}
+
+class _VoxButtonBodyState extends State<_VoxButtonBody> {
+  final AudioPlayer _player = AudioPlayer();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleTap() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final prompt = await _listenForPrompt();
+      final data = prompt == null || prompt.trim().isEmpty
+          ? await BackendApiService().getVoxTodayBriefing()
+          : await BackendApiService().askVox(prompt.trim());
+      final text = data['text']?.toString() ?? 'Vox has nothing to read right now.';
+      final audio = data['audio_base64'] as String?;
+      if (audio != null && audio.isNotEmpty) {
+        final bytes = base64Decode(audio);
+        await _playAudio(bytes);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(text)),
+        );
+      }
+    } catch (e) {
+      final message = e.toString();
+      if (!mounted) return;
+      if (message.toLowerCase().contains('premium')) {
+        await showUpgradePromptSheet(
+          context,
+          reason: UpgradePromptReason.voxLocked,
+          screen: 'patient_shell',
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<String?> _listenForPrompt() async {
+    try {
+      final available = await _speech.initialize();
+      if (!available) return null;
+      var heard = '';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vox is listening...')),
+        );
+      }
+      await _speech.listen(
+        listenFor: const Duration(seconds: 5),
+        pauseFor: const Duration(seconds: 2),
+        onResult: (result) {
+          heard = result.recognizedWords;
+        },
+      );
+      await Future<void>.delayed(const Duration(seconds: 5));
+      await _speech.stop();
+      return heard;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _playAudio(Uint8List bytes) async {
+    await _player.stop();
+    await _player.play(BytesSource(bytes));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _handleTap,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
           width: 72,
           height: 72,
           decoration: BoxDecoration(
@@ -122,7 +223,26 @@ class _VoxFloatingButton extends StatelessWidget {
               ),
             ],
           ),
-        ),
+          if (_busy)
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

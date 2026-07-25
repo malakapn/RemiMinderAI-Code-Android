@@ -28,6 +28,10 @@ class RemiVoxBriefingResponse(BaseModel):
     audio_unavailable: bool = False
 
 
+class RemiVoxAskRequest(BaseModel):
+    prompt: Optional[str] = None
+
+
 def _items(bucket: Any) -> list[dict]:
     if not isinstance(bucket, list):
         return []
@@ -79,6 +83,79 @@ def _build_briefing(reminders: dict, summaries: list[dict]) -> str:
     return " ".join(parts)
 
 
+def _latest_summary_text(summaries: list[dict]) -> tuple[str, str]:
+    if not summaries:
+        return "your latest doctor visit", ""
+    latest = summaries[0]
+    title = str(latest.get("title") or "your latest doctor visit").strip()
+    summary = str(latest.get("summary") or latest.get("summary_text") or "").strip()
+    return title, summary
+
+
+def _filter_items(items: list[dict], *needles: str) -> list[dict]:
+    out: list[dict] = []
+    for item in items:
+      haystack = " ".join(
+          str(item.get(key, "")) for key in ("title", "message", "reminder_type", "type")
+      ).lower()
+      if any(needle in haystack for needle in needles):
+          out.append(item)
+    return out
+
+
+def _build_prompt_answer(prompt: str, reminders: dict, summaries: list[dict]) -> str:
+    query = (prompt or "").strip().lower()
+    today = _items(reminders.get("today"))
+    upcoming = _items(reminders.get("upcoming"))
+    past = _items(reminders.get("past"))
+    missed = [
+        item for item in past
+        if str(item.get("status", "")).strip().lower() == "missed"
+        or str(item.get("display_status", "")).strip().lower() == "missed"
+    ]
+    title, summary = _latest_summary_text(summaries)
+
+    if any(word in query for word in ("last doctor", "last visit", "summary", "doctor visit", "notes")):
+        if summary:
+            return (
+                f"Your latest visit summary from {title} says: {summary[:500]} "
+                "Please follow your doctor's instructions."
+            )
+        return "I do not see a completed doctor visit summary yet."
+
+    if any(word in query for word in ("appointment", "appt", "next visit", "schedule")):
+        appts = _filter_items(today + upcoming, "appointment", "appt", "visit")
+        if appts:
+            names = ", ".join(_reminder_title(item) for item in appts[:3])
+            return f"Here is what I found for appointments or visits: {names}."
+        if upcoming:
+            names = ", ".join(_reminder_title(item) for item in upcoming[:3])
+            return f"I do not see a specific appointment label, but your next upcoming reminders are: {names}."
+        return "I do not see an upcoming appointment in your reminders right now."
+
+    if any(word in query for word in ("med", "medicine", "medication", "pill", "take")):
+        meds = _filter_items(today + upcoming, "med", "medicine", "medication", "pill")
+        if meds:
+            names = ", ".join(_reminder_title(item) for item in meds[:3])
+            return f"Here are the medication reminders I found: {names}. Please take medicines only as prescribed."
+        return "I do not see medication reminders due right now."
+
+    if any(word in query for word in ("missed", "late", "forgot")):
+        if missed:
+            names = ", ".join(_reminder_title(item) for item in missed[:3])
+            return f"You have missed reminders to review: {names}."
+        return "I do not see any missed reminders right now."
+
+    if "task" in query or "to do" in query or "todo" in query:
+        tasks = _filter_items(today + upcoming, "task", "to do", "todo")
+        if tasks:
+            names = ", ".join(_reminder_title(item) for item in tasks[:3])
+            return f"Here are your tasks: {names}."
+        return "I do not see any tasks due right now."
+
+    return _build_briefing(reminders, summaries)
+
+
 def _synthesize_smallestai(text: str) -> tuple[Optional[str], Optional[str]]:
     api_key = os.getenv("SMALLESTAI_API_KEY", "").strip()
     if not api_key:
@@ -118,6 +195,18 @@ def _synthesize_smallestai(text: str) -> tuple[Optional[str], Optional[str]]:
 
 @router.post("/today", response_model=RemiVoxBriefingResponse)
 async def remivox_today(current_user: dict = Depends(get_current_user)):
+    return await _remivox_response(current_user=current_user, prompt=None)
+
+
+@router.post("/ask", response_model=RemiVoxBriefingResponse)
+async def remivox_ask(
+    request: RemiVoxAskRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    return await _remivox_response(current_user=current_user, prompt=request.prompt)
+
+
+async def _remivox_response(current_user: dict, prompt: Optional[str]):
     firebase_uid = current_user.get("sub")
     if not firebase_uid:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -126,7 +215,7 @@ async def remivox_today(current_user: dict = Depends(get_current_user)):
     user_uuid = await get_user_uuid(firebase_uid)
     reminders = await list_patient_reminders(user_uuid)
     summaries = await get_user_summaries(user_uuid, firebase_uid=firebase_uid)
-    text = _build_briefing(reminders, summaries)
+    text = _build_prompt_answer(prompt or "", reminders, summaries) if prompt else _build_briefing(reminders, summaries)
 
     audio_base64, content_type = _synthesize_smallestai(text)
     if status["plan"] != PLAN_PREMIUM:
