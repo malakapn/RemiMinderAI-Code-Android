@@ -4,6 +4,8 @@ import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/data/models/auth_state.dart';
+import '../../../../core/config/environment.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../data/services/patient_api_service.dart';
 
@@ -20,6 +22,7 @@ class AccountDetailsScreen extends ConsumerStatefulWidget {
 
 class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
   bool _isUpdatingPhone = false;
+  int? _summaryCount;
 
   @override
   void initState() {
@@ -37,7 +40,24 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
           );
         } catch (_) {}
       }
+      await _loadSummaryCount();
     });
+  }
+
+  Future<void> _loadSummaryCount() async {
+    try {
+      final token = await AuthService().getAccessToken();
+      if (token == null) return;
+      final summaries = await PatientApiService(
+        baseUrl: Environment.apiBaseUrl,
+        authToken: token,
+      ).getSummaries();
+      PatientApiService.setCachedSummaries(summaries);
+      if (!mounted) return;
+      setState(() => _summaryCount = summaries.length);
+    } catch (_) {
+      // Usage falls back to profile/cached values when summaries cannot load.
+    }
   }
 
   @override
@@ -239,7 +259,10 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
     AuthProfile? profile,
   ) {
     final cached = PatientApiService.getCachedSummaries();
-    final used = profile?.summaryCount ?? cached?.length ?? 0;
+    final profileCount = profile?.summaryCount ?? 0;
+    final cachedCount = cached?.length ?? 0;
+    final used = _summaryCount ??
+        (profileCount > cachedCount ? profileCount : cachedCount);
     final summaryLabel = used == 1 ? 'summary' : 'summaries';
     final usageLabel = '$used $summaryLabel generated';
 
