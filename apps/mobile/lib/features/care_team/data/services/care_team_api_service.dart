@@ -106,7 +106,9 @@ class CareTeamApiService {
       'role': (data['relationship'] ?? data['role'] ?? '') as String,
       'permission': _permissionToString(data['permission'], data['permissions']),
       'status': (data['status'] ?? 'pending') as String,
-      'token': data['inviteId'] as String? ?? docId,
+      'token': (data['token'] as String?) ??
+          (data['inviteId'] as String?) ??
+          docId,
       'created_at': _timestampToIsoString(data['createdAt']),
     };
     return CareTeamInvitation.fromJson(json);
@@ -173,10 +175,48 @@ class CareTeamApiService {
     required String permission,
   }) async {
     final uid = _requireUid();
-    final inviteRef = _db.collection('invitations').doc();
-    final inviteId = inviteRef.id;
     final emailNorm = _normalizeEmail(email);
     final patient = FirebaseAuth.instance.currentUser;
+    final token = await patient?.getIdToken();
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+
+    final response = await http.post(
+      Uri.parse('${Environment.apiBaseUrl}/api/care-team/invite'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'email': emailNorm,
+        'role': role,
+        'permission': permission,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      String message = 'Unable to send invitation. Please try again.';
+      try {
+        final decoded = json.decode(response.body);
+        final detail = decoded is Map ? decoded['detail'] : null;
+        if (detail is Map && detail['message'] is String) {
+          message = detail['message'] as String;
+        } else if (detail is String && detail.isNotEmpty) {
+          message = detail;
+        }
+      } catch (_) {}
+      throw Exception(message);
+    }
+
+    final decoded = json.decode(response.body) as Map<String, dynamic>;
+    final inviteId = decoded['invitation_id']?.toString();
+    final inviteToken = decoded['token']?.toString() ?? inviteId;
+    if (inviteId == null || inviteId.isEmpty) {
+      throw Exception('Invitation created without an id.');
+    }
+
+    final inviteRef = _db.collection('invitations').doc(inviteId);
     final patientName =
         patient?.displayName ?? patient?.email ?? 'Patient';
     final patientEmail = patient?.email;
@@ -191,6 +231,7 @@ class CareTeamApiService {
       if (patientEmail != null) 'patientEmail': patientEmail,
       'caregiverEmail': emailNorm,
       'inviteeId': null, // TODO: populate inviteeId when caregiver accepts so watchReceivedInvitations stream works.
+      'token': inviteToken,
       'relationship': role,
       'permission': permission,
       'permissions': [permission],
@@ -209,6 +250,7 @@ class CareTeamApiService {
       'name': emailNorm,
       'email': emailNorm,
       'caregiverEmail': emailNorm,
+      'token': inviteToken,
       'relationship': role,
       'permission': permission,
       'permissions': [permission],

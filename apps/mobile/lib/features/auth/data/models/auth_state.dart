@@ -7,14 +7,26 @@ class AuthProfile {
   final String email;
   final String? phone;
   final String role; // "patient" | "caregiver"
-  final String plan; // "free" | "premium"
+  final String plan; // "TRIAL" | "FREE" | "PREMIUM" | "EXPIRED"
+  final DateTime? trialStartDate;
+  final DateTime? trialEndDate;
+  final int trialDaysRemaining;
+  final int summaryCount;
+  final int remivoxInteractionCount;
+  final String? subscriptionSource;
 
   const AuthProfile({
     this.fullName,
     required this.email,
     this.phone,
     required this.role,
-    this.plan = "free", // Default to free plan
+    this.plan = "FREE",
+    this.trialStartDate,
+    this.trialEndDate,
+    this.trialDaysRemaining = 0,
+    this.summaryCount = 0,
+    this.remivoxInteractionCount = 0,
+    this.subscriptionSource,
   });
 
   factory AuthProfile.fromUserProfile(UserProfile profile) {
@@ -23,7 +35,13 @@ class AuthProfile {
       email: profile.email,
       phone: profile.phone,
       role: profile.role,
-      plan: "free", // Hardcode free plan for now
+      plan: profile.plan,
+      trialStartDate: profile.trialStartDate,
+      trialEndDate: profile.trialEndDate,
+      trialDaysRemaining: profile.trialDaysRemaining,
+      summaryCount: profile.summaryCount,
+      remivoxInteractionCount: profile.remivoxInteractionCount,
+      subscriptionSource: profile.subscriptionSource,
     );
   }
 
@@ -33,6 +51,12 @@ class AuthProfile {
     String? phone,
     String? role,
     String? plan,
+    DateTime? trialStartDate,
+    DateTime? trialEndDate,
+    int? trialDaysRemaining,
+    int? summaryCount,
+    int? remivoxInteractionCount,
+    String? subscriptionSource,
   }) {
     return AuthProfile(
       fullName: fullName ?? this.fullName,
@@ -40,8 +64,21 @@ class AuthProfile {
       phone: phone ?? this.phone,
       role: role ?? this.role,
       plan: plan ?? this.plan,
+      trialStartDate: trialStartDate ?? this.trialStartDate,
+      trialEndDate: trialEndDate ?? this.trialEndDate,
+      trialDaysRemaining: trialDaysRemaining ?? this.trialDaysRemaining,
+      summaryCount: summaryCount ?? this.summaryCount,
+      remivoxInteractionCount:
+          remivoxInteractionCount ?? this.remivoxInteractionCount,
+      subscriptionSource: subscriptionSource ?? this.subscriptionSource,
     );
   }
+
+  String get normalizedPlan => plan.trim().toUpperCase();
+  bool get isTrial => normalizedPlan == 'TRIAL';
+  bool get isFree => normalizedPlan == 'FREE';
+  bool get isPremium => normalizedPlan == 'PREMIUM';
+  bool get isExpired => normalizedPlan == 'EXPIRED';
 }
 
 /// Authentication status enum

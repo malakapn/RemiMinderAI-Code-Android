@@ -5,8 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/account_data_actions.dart';
 import '../../../../core/config/app_build_info.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/revenuecat_service.dart';
+import '../../../../core/services/subscription_api_service.dart';
 import '../../../../core/widgets/remi_shell_ui.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../auth/data/models/auth_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'account_details_screen.dart';
 import 'account_security_screen.dart';
@@ -362,8 +365,124 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
         ),
+
+        const SizedBox(height: 12),
+
+        _buildPremiumTile(theme),
       ],
     );
+  }
+
+  Widget _buildPremiumTile(ThemeData theme) {
+    final profile = ref.watch(authNotifierProvider).profile;
+    final isPremium = profile?.isPremium ?? false;
+    final title = isPremium ? 'Premium active' : 'RemiMinderAI Premium';
+    final subtitle = isPremium
+        ? 'Vox, unlimited summaries, and caregiver support are unlocked.'
+        : 'Unlock Vox, unlimited summaries, and up to 5 caregivers.';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFC9A84C).withOpacity(0.14),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFC9A84C).withOpacity(0.55)),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: isPremium ? null : () => context.push('/patient/upgrade'),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFC9A84C),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.workspace_premium,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF2D2D2D),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isPremium)
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: theme.colorScheme.primary.withOpacity(0.6),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _restorePurchases,
+              icon: const Icon(Icons.restore),
+              label: const Text('Restore purchases'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _restorePurchases() async {
+    try {
+      final info = await RevenueCatService.instance.restorePurchases();
+      final premium = RevenueCatService.instance.hasPremium(info);
+      final productId = RevenueCatService.instance.activeProductId(info);
+      await SubscriptionApiService().syncRevenueCatStatus(
+        premium: premium,
+        appUserId: info?.originalAppUserId,
+        productId: productId,
+      );
+      final profile = await BackendApiService().getMyProfile();
+      final current = ref.read(authNotifierProvider);
+      final role = current.user?.role.name ?? current.profile?.role ?? profile.role;
+      ref.read(authNotifierProvider.notifier).updateProfile(
+            AuthProfile.fromUserProfile(profile).copyWith(role: role),
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            premium
+                ? 'Purchases restored. Premium is active.'
+                : 'No active Premium subscription was found.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restore purchases failed: $e')),
+      );
+    }
   }
 
   Future<void> _confirmDeleteAccount(AppLocalizations l10n) async {

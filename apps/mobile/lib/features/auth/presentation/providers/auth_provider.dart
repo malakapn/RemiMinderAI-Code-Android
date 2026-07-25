@@ -10,6 +10,9 @@ import '../../data/repositories/auth_repository.dart';
 import '../../../../core/models/user.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
+import '../../../../core/services/analytics_service.dart';
+import '../../../../core/services/revenuecat_service.dart';
+import '../../../../core/services/subscription_api_service.dart';
 import '../../../../core/services/token_manager.dart';
 import '../../../../core/services/secure_storage.dart';
 import '../../../../core/services/notification_service.dart';
@@ -39,6 +42,11 @@ final _backendApiServiceProvider = Provider<BackendApiService>((ref) {
   return BackendApiService(authService: authService);
 });
 
+final _subscriptionApiServiceProvider = Provider<SubscriptionApiService>((ref) {
+  final authService = ref.watch(_authServiceProvider);
+  return SubscriptionApiService(authService: authService);
+});
+
 // Repository provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final authService = ref.watch(_authServiceProvider);
@@ -55,12 +63,14 @@ class AuthNotifier extends Notifier<AuthState> {
   AuthState build() {
     _authRepository = ref.watch(authRepositoryProvider);
     _backendApiService = ref.watch(_backendApiServiceProvider);
+    _subscriptionApiService = ref.watch(_subscriptionApiServiceProvider);
     _checkAuthStatus();
     return AuthState.initial();
   }
 
   late final AuthRepository _authRepository;
   late final BackendApiService _backendApiService;
+  late final SubscriptionApiService _subscriptionApiService;
   final NotificationService _notificationService = NotificationService();
   bool _tokenRefreshListenerAttached = false;
 
@@ -80,6 +90,7 @@ class AuthNotifier extends Notifier<AuthState> {
         // Set authenticated with saved role - don't load profile here
         // Profile is loaded during sign-in flow
         state = AuthState.authenticated(user);
+        await _syncSubscriptionStatus(user);
         await _syncFcmTokenAndAttachRefreshListener();
         await _syncReminderNotifications(user);
       } else {
@@ -126,6 +137,8 @@ class AuthNotifier extends Notifier<AuthState> {
 
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
+        await _syncSubscriptionStatus(user);
+        await AnalyticsService.instance.trialStarted();
         await _syncFcmTokenAndAttachRefreshListener();
         await _syncReminderNotifications(user);
       } catch (_) {
@@ -161,6 +174,7 @@ class AuthNotifier extends Notifier<AuthState> {
             : profile.role;
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
+        await _syncSubscriptionStatus(user);
       } catch (e, st) {
         debugPrint('🔴 signIn: backend profile load failed (non-fatal): $e');
         state = AuthState.authenticated(user);
@@ -195,6 +209,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
       state = AuthState.authenticated(user,
           profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
+      await _syncSubscriptionStatus(user);
       await _syncFcmTokenAndAttachRefreshListener();
       await _syncReminderNotifications(user);
     } catch (e, st) {
@@ -246,6 +261,7 @@ class AuthNotifier extends Notifier<AuthState> {
             : profile.role;
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
+        await _syncSubscriptionStatus(user);
       } catch (backendError) {
         debugPrint('Apple SignIn: backend non-fatal: \$backendError');
         state = AuthState.authenticated(user);
@@ -272,6 +288,7 @@ class AuthNotifier extends Notifier<AuthState> {
         print('🔐 AuthNotifier: calling _authRepository.signOut()');
       }
       await _authRepository.signOut();
+      await RevenueCatService.instance.logOut();
       if (kDebugMode) {
         print(
             '🔐 AuthNotifier: Firebase signOut completed, setting unauthenticated');
@@ -401,6 +418,42 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     });
   }
+
+  Future<void> _syncSubscriptionStatus(User user) async {
+    try {
+      final firebaseUid = user.authUid ?? user.id;
+      if (firebaseUid.isEmpty) return;
+
+      final customerInfo = await RevenueCatService.instance.logIn(firebaseUid);
+      final premium = RevenueCatService.instance.hasPremium(customerInfo);
+      final productId = RevenueCatService.instance.activeProductId(customerInfo);
+      final status = await _subscriptionApiService.syncRevenueCatStatus(
+        premium: premium,
+        appUserId: firebaseUid,
+        productId: productId,
+        source: Platform.isIOS ? 'app_store' : 'play_store',
+      );
+
+      final profile = state.profile;
+      final currentUser = state.user;
+      if (profile == null || currentUser == null) return;
+
+      state = AuthState.authenticated(
+        currentUser,
+        profile: profile.copyWith(
+          plan: status.plan.apiValue,
+          trialStartDate: status.trialStartDate,
+          trialEndDate: status.trialEndDate,
+          trialDaysRemaining: status.trialDaysRemaining,
+          summaryCount: status.summaryCount,
+          remivoxInteractionCount: status.remivoxInteractionCount,
+          subscriptionSource: status.subscriptionSource,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Subscription sync failed (non-fatal): $e');
+    }
+  }
 }
 
 // =============================================================================
@@ -453,6 +506,14 @@ final isPatientProvider = Provider<bool>((ref) {
 final isCaregiverProvider = Provider<bool>((ref) {
   final user = ref.watch(currentUserProvider);
   return user?.isCaregiver ?? false;
+});
+
+final isPremiumProvider = Provider<bool>((ref) {
+  return ref.watch(authNotifierProvider).profile?.isPremium ?? false;
+});
+
+final userPlanProvider = Provider<String>((ref) {
+  return ref.watch(authNotifierProvider).profile?.normalizedPlan ?? 'FREE';
 });
 
 // =============================================================================

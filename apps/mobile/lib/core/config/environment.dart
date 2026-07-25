@@ -77,6 +77,15 @@ class Environment {
   static const String defaultFirebaseWebClientId =
       '575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com';
 
+  static const String revenueCatGoogleApiKey =
+      'goog_LVocUzGmkyXFyUUUUoRndvEWKli';
+  static const String revenueCatAppleApiKey = '';
+  static const String revenueCatAndroidPackageName = 'com.remiminderai.app';
+  static const String revenueCatCustomUrlScheme = 'rc-e42394e597';
+  static const String revenueCatPremiumEntitlement = 'premium';
+  static const String revenueCatMonthlyProductId = 'remi_premium_monthly';
+  static const String revenueCatAnnualProductId = 'remi_premium_annual';
+
   static String get _billingUrlScheme {
     if (_isLoaded && dotenv.env['BILLING_URL_SCHEME'] != null) {
       final s = dotenv.env['BILLING_URL_SCHEME']!.trim();

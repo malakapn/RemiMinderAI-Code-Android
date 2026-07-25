@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/models/monetization_status.dart';
+import '../../../../core/services/analytics_service.dart';
+import '../../../../core/widgets/upgrade_prompt_sheet.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../care_team/data/models/care_team_invitation.dart';
 import '../../../care_team/data/models/care_team_member.dart';
 import '../../../care_team/data/services/care_team_api_service.dart';
@@ -34,14 +39,14 @@ class _CareTeamHeaderClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
-class CareTeamScreen extends StatefulWidget {
+class CareTeamScreen extends ConsumerStatefulWidget {
   const CareTeamScreen({super.key});
 
   @override
-  State<CareTeamScreen> createState() => _CareTeamScreenState();
+  ConsumerState<CareTeamScreen> createState() => _CareTeamScreenState();
 }
 
-class _CareTeamScreenState extends State<CareTeamScreen> {
+class _CareTeamScreenState extends ConsumerState<CareTeamScreen> {
   bool _isLoading = true;
   String? _error;
   List<CareTeamMember> _members = [];
@@ -132,7 +137,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
 
   Widget _buildHeaderAddButton() {
     return GestureDetector(
-      onTap: () => _showInviteDialog(context),
+      onTap: () => _handleInviteTap(context),
       child: Container(
         width: 32,
         height: 32,
@@ -284,7 +289,7 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
                   InviteCaregiverTile(
                     l10n: l10n,
                     onInvite: () {
-                      _showInviteDialog(context);
+                      _handleInviteTap(context);
                     },
                   ),
                 ],
@@ -294,6 +299,39 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleInviteTap(BuildContext context) async {
+    final profile = ref.read(authNotifierProvider).profile;
+    final plan = profile?.normalizedPlan ?? 'FREE';
+    final isPremium = profile?.isPremium ?? false;
+    final acceptedAndPending = _members.length + _pendingInvitations.length;
+    final limit = isPremium
+        ? MonetizationLimits.premiumCaregiverLimit
+        : (profile?.isTrial == true
+            ? MonetizationLimits.trialCaregiverLimit
+            : MonetizationLimits.freeCaregiverLimit);
+
+    if (acceptedAndPending >= limit) {
+      await AnalyticsService.instance.featureGated('caregiver_invite', plan);
+      if (!mounted) return;
+      if (isPremium) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Premium supports up to 5 caregivers.'),
+          ),
+        );
+        return;
+      }
+      await showUpgradePromptSheet(
+        context,
+        reason: UpgradePromptReason.caregiverLimit,
+        screen: 'care_team',
+      );
+      return;
+    }
+
+    _showInviteDialog(context);
   }
 
   void _showInviteDialog(BuildContext context) {

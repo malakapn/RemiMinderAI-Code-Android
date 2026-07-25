@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
-import '../../../../core/services/backend_api_service.dart';
+import '../../../../core/config/environment.dart';
+import '../../../../core/services/analytics_service.dart';
+import '../../../../core/services/revenuecat_service.dart';
+import '../../../../core/services/subscription_api_service.dart';
 
 enum _BillingPlan { monthly, yearly }
 
-/// Premium upgrade: monthly / yearly Stripe subscription via Checkout.
+/// Premium upgrade: monthly / annual RevenueCat subscription.
 class UpgradeScreen extends StatefulWidget {
   const UpgradeScreen({super.key});
 
@@ -16,39 +19,132 @@ class UpgradeScreen extends StatefulWidget {
 class _UpgradeScreenState extends State<UpgradeScreen> {
   _BillingPlan _selectedPlan = _BillingPlan.monthly;
   bool _loading = false;
+  bool _loadingOfferings = true;
+  Package? _monthlyPackage;
+  Package? _annualPackage;
+  String? _error;
 
-  Future<void> _openCheckout() async {
-    if (_loading) return;
-    setState(() => _loading = true);
+  @override
+  void initState() {
+    super.initState();
+    _loadOfferings();
+  }
 
+  Future<void> _loadOfferings() async {
     try {
-      final uri = Uri.parse('https://remiminderai.com/pricing');
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!mounted) return;
-      if (!launched) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open the pricing page. Try again.'),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Opening pricing page in your browser...'),
-          ),
-        );
+      final offerings = await RevenueCatService.instance.getOfferings();
+      final packages = offerings?.current?.availablePackages ?? const <Package>[];
+      Package? findPackage(String productId) {
+        for (final package in packages) {
+          if (package.storeProduct.identifier == productId) return package;
+        }
+        return null;
       }
+
+      if (!mounted) return;
+      setState(() {
+        _monthlyPackage = findPackage(Environment.revenueCatMonthlyProductId);
+        _annualPackage = findPackage(Environment.revenueCatAnnualProductId);
+        _loadingOfferings = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not load Premium options. Please try again.';
+        _loadingOfferings = false;
+      });
+    }
+  }
+
+  Future<void> _purchaseSelectedPlan() async {
+    if (_loading) return;
+    final package = _selectedPlan == _BillingPlan.monthly
+        ? _monthlyPackage
+        : _annualPackage;
+    if (package == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Premium options are still loading.')),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      await AnalyticsService.instance.subscriptionPlanSelected(
+        _selectedPlan == _BillingPlan.monthly ? 'monthly' : 'annual',
+      );
+      final info = await RevenueCatService.instance.purchasePackage(package);
+      final premium = RevenueCatService.instance.hasPremium(info);
+      final productId = RevenueCatService.instance.activeProductId(info);
+      await SubscriptionApiService().syncRevenueCatStatus(
+        premium: premium,
+        appUserId: info?.originalAppUserId,
+        productId: productId,
+      );
+      if (premium) {
+        await AnalyticsService.instance.subscriptionStarted(productId: productId);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            premium
+                ? 'Premium is active. Vox and Premium features are unlocked.'
+                : 'Purchase completed, but Premium is not active yet. Please try restore purchases.',
+          ),
+        ),
+      );
+      if (premium) Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text('Purchase could not be completed: $e')),
       );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _restorePurchases() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final info = await RevenueCatService.instance.restorePurchases();
+      final premium = RevenueCatService.instance.hasPremium(info);
+      final productId = RevenueCatService.instance.activeProductId(info);
+      await SubscriptionApiService().syncRevenueCatStatus(
+        premium: premium,
+        appUserId: info?.originalAppUserId,
+        productId: productId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            premium
+                ? 'Purchases restored. Premium is active.'
+                : 'No active Premium subscription was found.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restore failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _priceFor(_BillingPlan plan) {
+    final package = plan == _BillingPlan.monthly ? _monthlyPackage : _annualPackage;
+    if (package != null) return package.storeProduct.priceString;
+    return plan == _BillingPlan.monthly ? '\$4.99' : '\$39.99';
+  }
+
+  String _periodFor(_BillingPlan plan) {
+    return plan == _BillingPlan.monthly ? '/ month' : '/ year';
   }
 
   @override
@@ -65,10 +161,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF1A3A5C),
-                    Color(0xFF0F2640),
-                  ],
+                  colors: [Color(0xFF1A3A5C), Color(0xFF0F2640)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
@@ -76,18 +169,15 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                    ),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const Expanded(
                     child: Text(
-                      'Upgrade Benefits',
+                      'RemiMinderAI Premium',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 24,
+                        fontSize: 22,
                         fontWeight: FontWeight.w700,
                       ),
                       textAlign: TextAlign.center,
@@ -103,105 +193,139 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFC9A84C), width: 4),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFC9A84C).withOpacity(0.28),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Vox',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 25,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     Text(
-                      'Unlock Premium Care',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      'Your AI healthcare companion',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
                         color: theme.colorScheme.primary,
                       ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Get more peace of mind.',
+                      'Vox reads medication reminders aloud, explains doctor visit summaries in plain language, and helps caregivers stay connected.',
                       style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        color: const Color(0xFF2D2D2D),
+                        height: 1.35,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.06),
+                        color: const Color(0xFFE6F0FA),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Column(
                         children: [
-                          _buildBenefitItem('Unlimited Caregivers', theme),
-                          const SizedBox(height: 16),
-                          _buildBenefitItem('Advanced Health Trends', theme),
-                          const SizedBox(height: 16),
-                          _buildBenefitItem('Priority Support', theme),
+                          _buildBenefitItem('Unlimited doctor visit summaries', theme),
+                          const SizedBox(height: 14),
+                          _buildBenefitItem('Vox voice companion', theme),
+                          const SizedBox(height: 14),
+                          _buildBenefitItem('Invite up to 5 caregivers', theme),
+                          const SizedBox(height: 14),
+                          _buildBenefitItem('Future premium AI features', theme),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
+                    if (_loadingOfferings)
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      )
+                    else if (_error != null)
+                      Text(
+                        _error!,
+                        style: TextStyle(color: theme.colorScheme.error),
+                        textAlign: TextAlign.center,
+                      ),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: _planCard(
                             theme: theme,
-                            title: 'Monthly Plan',
-                            price: '\$9.99',
-                            period: '/ month',
+                            title: 'Monthly',
+                            price: _priceFor(_BillingPlan.monthly),
+                            period: _periodFor(_BillingPlan.monthly),
                             selected: _selectedPlan == _BillingPlan.monthly,
-                            onTap: () =>
-                                setState(() => _selectedPlan = _BillingPlan.monthly),
+                            onTap: () => setState(() => _selectedPlan = _BillingPlan.monthly),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: _planCard(
                             theme: theme,
-                            title: 'Annual Plan',
-                            price: '\$99.99',
-                            period: '/ year',
+                            title: 'Annual',
+                            price: _priceFor(_BillingPlan.yearly),
+                            period: _periodFor(_BillingPlan.yearly),
                             selected: _selectedPlan == _BillingPlan.yearly,
                             highlight: true,
-                            onTap: () =>
-                                setState(() => _selectedPlan = _BillingPlan.yearly),
+                            badge: 'Save 33%',
+                            onTap: () => setState(() => _selectedPlan = _BillingPlan.yearly),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _loading ? null : _openCheckout,
+                        onPressed: _loading ? null : _purchaseSelectedPlan,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme.colorScheme.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                         child: _loading
                             ? const SizedBox(
                                 height: 22,
                                 width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
                             : const Text(
-                                'Continue to payment',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                'Continue with Premium',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                               ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () => Navigator.of(context).pop(),
+                      onPressed: _loading ? null : _restorePurchases,
+                      child: const Text('Restore purchases'),
+                    ),
+                    TextButton(
+                      onPressed: _loading ? null : () => Navigator.of(context).pop(),
                       child: Text(
                         "No thanks, I'll stay on the free plan",
                         style: TextStyle(
@@ -228,27 +352,23 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
     required bool selected,
     required VoidCallback onTap,
     bool highlight = false,
+    String? badge,
   }) {
     final borderColor = selected
-        ? theme.colorScheme.primary
+        ? const Color(0xFFC9A84C)
         : theme.colorScheme.primary.withOpacity(highlight ? 0.3 : 0.2);
     final borderWidth = selected ? 2.5 : 2.0;
-    final bg = highlight
-        ? theme.colorScheme.primary.withOpacity(0.06)
-        : Colors.white;
+    final bg = highlight ? const Color(0xFFC9A84C).withOpacity(0.12) : Colors.white;
 
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: borderColor,
-            width: borderWidth,
-          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: borderColor, width: borderWidth),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(highlight ? 0.08 : 0.05),
@@ -259,14 +379,19 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
         ),
         child: Column(
           children: [
-            if (selected)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+            if (badge != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC9A84C),
+                  borderRadius: BorderRadius.circular(999),
+                ),
                 child: Text(
-                  'Selected',
+                  badge,
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
                     color: theme.colorScheme.primary,
                   ),
                 ),
@@ -274,7 +399,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
             Text(
               title,
               style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: theme.colorScheme.primary,
               ),
               textAlign: TextAlign.center,
@@ -283,7 +408,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
             Text(
               price,
               style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 color: theme.colorScheme.primary,
               ),
             ),
@@ -293,11 +418,14 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
-              'Cancel anytime',
+              selected ? 'Selected' : 'Cancel anytime',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withOpacity(0.7),
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
               textAlign: TextAlign.center,
             ),
@@ -313,22 +441,19 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
         Container(
           width: 24,
           height: 24,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.15),
+          decoration: const BoxDecoration(
+            color: Color(0xFFC9A84C),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            Icons.check,
-            color: theme.colorScheme.primary,
-            size: 16,
-          ),
+          child: Icon(Icons.check, color: theme.colorScheme.primary, size: 16),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             benefit,
             style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF2D2D2D),
             ),
           ),
         ),

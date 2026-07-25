@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../auth/data/models/auth_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/config/theme.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/widgets/upgrade_prompt_sheet.dart';
 import '../../../../core/utils/locale_format.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../data/models/patient_task.dart';
@@ -39,6 +42,7 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
   bool _isLoadingUpNext = true;
   List<Map<String, dynamic>> _scheduleReminders = [];
   bool _remindersError = false;
+  bool _trialExpiredPromptInFlight = false;
 
   @override
   void initState() {
@@ -307,10 +311,11 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(authNotifierProvider, (previous, next) {
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next.isAuthenticated && previous?.isAuthenticated != true) {
         _refreshHomeData();
       }
+      _maybeShowTrialExpiredPrompt(next);
     });
 
     final authState = ref.watch(authNotifierProvider);
@@ -361,6 +366,32 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _maybeShowTrialExpiredPrompt(AuthState authState) async {
+    final profile = authState.profile;
+    final userId = authState.user?.id;
+    if (_trialExpiredPromptInFlight ||
+        profile == null ||
+        userId == null ||
+        !profile.isExpired) {
+      return;
+    }
+    _trialExpiredPromptInFlight = true;
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'trial_expired_prompt_shown_$userId';
+    if (prefs.getBool(key) == true || !mounted) {
+      _trialExpiredPromptInFlight = false;
+      return;
+    }
+    await prefs.setBool(key, true);
+    if (!mounted) return;
+    await showUpgradePromptSheet(
+      context,
+      reason: UpgradePromptReason.trialExpired,
+      screen: 'patient_home',
+    );
+    _trialExpiredPromptInFlight = false;
   }
 
   Widget _buildHeader({

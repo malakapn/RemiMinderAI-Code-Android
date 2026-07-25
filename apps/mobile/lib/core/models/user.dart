@@ -132,21 +132,48 @@ class UserProfile {
   final String email;
   final String? phone;
   final String role; // "patient" | "caregiver"
+  final String plan;
+  final DateTime? trialStartDate;
+  final DateTime? trialEndDate;
+  final int trialDaysRemaining;
+  final int summaryCount;
+  final int remivoxInteractionCount;
+  final String? subscriptionSource;
 
   const UserProfile({
     this.fullName,
     required this.email,
     this.phone,
     required this.role,
+    this.plan = 'FREE',
+    this.trialStartDate,
+    this.trialEndDate,
+    this.trialDaysRemaining = 0,
+    this.summaryCount = 0,
+    this.remivoxInteractionCount = 0,
+    this.subscriptionSource,
   });
 
   /// Create UserProfile from JSON (API response)
   factory UserProfile.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic value) {
+      if (value == null) return null;
+      return DateTime.tryParse(value.toString());
+    }
+
     return UserProfile(
       fullName: json['full_name'] as String?,
       email: json['email'] as String,
       phone: json['phone'] as String?,
       role: json['role'] as String,
+      plan: json['plan']?.toString() ?? 'FREE',
+      trialStartDate: parseDate(json['trial_start_date']),
+      trialEndDate: parseDate(json['trial_end_date']),
+      trialDaysRemaining: (json['trial_days_remaining'] as num?)?.toInt() ?? 0,
+      summaryCount: (json['summary_count'] as num?)?.toInt() ?? 0,
+      remivoxInteractionCount:
+          (json['remivox_interaction_count'] as num?)?.toInt() ?? 0,
+      subscriptionSource: json['subscription_source'] as String?,
     );
   }
 

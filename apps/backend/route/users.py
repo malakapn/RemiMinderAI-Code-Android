@@ -19,6 +19,7 @@ from services.db_service import (
     get_caregiver_alert_email_enabled,
     set_caregiver_alert_email_enabled,
 )
+from services.subscription_service import get_subscription_status
 from sqlalchemy import text
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
@@ -67,6 +68,13 @@ class UserMeResponse(BaseModel):
     email: str
     phone: Optional[str] = None
     role: str  # "patient" | "caregiver"
+    plan: str = "FREE"
+    trial_start_date: Optional[str] = None
+    trial_end_date: Optional[str] = None
+    trial_days_remaining: int = 0
+    summary_count: int = 0
+    remivox_interaction_count: int = 0
+    subscription_source: Optional[str] = None
 
 
 @router.get("/profile")
@@ -262,16 +270,29 @@ async def get_current_user_profile(current_user: dict = Depends(get_current_user
         if cached is not None:
             db_role = cached.get("db_role")
             api_role = "patient" if db_role == "user" else db_role
+            subscription = await get_subscription_status(firebase_uid)
             return UserMeResponse(
                 full_name=cached.get("full_name"),
                 email=cached["email"],
                 phone=cached.get("phone"),
                 role=api_role,
+                plan=subscription["plan"],
+                trial_start_date=subscription["trial_start_date"],
+                trial_end_date=subscription["trial_end_date"],
+                trial_days_remaining=subscription["trial_days_remaining"],
+                summary_count=subscription["summary_count"],
+                remivox_interaction_count=subscription["remivox_interaction_count"],
+                subscription_source=subscription["subscription_source"],
             )
         engine = get_cloud_sql_engine()
         with engine.connect() as conn:
             result = conn.execute(
-                text("SELECT id, full_name, email, phone, role FROM users WHERE firebase_uid = :firebase_uid LIMIT 1"),
+                text("""
+                    SELECT id, full_name, email, phone, role
+                    FROM users
+                    WHERE firebase_uid = :firebase_uid
+                    LIMIT 1
+                """),
                 {"firebase_uid": firebase_uid}
             )
             row = result.fetchone()
@@ -292,11 +313,19 @@ async def get_current_user_profile(current_user: dict = Depends(get_current_user
                 "db_role": db_role,
             }
             set(cache_key, user_data, 600)
+            subscription = await get_subscription_status(firebase_uid)
             return UserMeResponse(
                 full_name=full_name,
                 email=email,
                 phone=phone,
                 role=api_role,
+                plan=subscription["plan"],
+                trial_start_date=subscription["trial_start_date"],
+                trial_end_date=subscription["trial_end_date"],
+                trial_days_remaining=subscription["trial_days_remaining"],
+                summary_count=subscription["summary_count"],
+                remivox_interaction_count=subscription["remivox_interaction_count"],
+                subscription_source=subscription["subscription_source"],
             )
 
     except HTTPException:

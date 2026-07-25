@@ -15,6 +15,9 @@ import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/visit_context.dart';
 import '../../../../core/config/environment.dart';
 import '../../../../core/config/legal_urls.dart';
+import '../../../../core/services/analytics_service.dart';
+import '../../../../core/services/subscription_api_service.dart';
+import '../../../../core/widgets/upgrade_prompt_sheet.dart';
 import '../../../../core/utils/locale_format.dart';
 
 class VisitRecordingScreen extends StatefulWidget {
@@ -716,6 +719,23 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
         SnackBar(content: Text(AppLocalizations.of(context)!.noRecordingAvailable)),
       );
       return;
+    }
+
+    try {
+      final status = await SubscriptionApiService().getStatus();
+      if (!status.canGenerateSummary) {
+        await AnalyticsService.instance
+            .featureGated('summary_generation', status.plan.apiValue);
+        if (!mounted) return;
+        await showUpgradePromptSheet(
+          context,
+          reason: UpgradePromptReason.summaryLimit,
+          screen: 'visit_recording',
+        );
+        return;
+      }
+    } catch (_) {
+      // Backend enforces limits; keep recording save available if status preflight fails.
     }
 
     setState(() {

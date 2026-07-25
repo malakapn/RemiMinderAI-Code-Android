@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/models/monetization_status.dart';
+import '../../../../core/services/analytics_service.dart';
+import '../../../../core/services/subscription_api_service.dart';
+import '../../../../core/widgets/upgrade_prompt_sheet.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'rounded_navigation_bar.dart';
 
 /// App shell that wraps all patient screens with a floating bottom navigation bar
@@ -57,16 +63,43 @@ class _PatientAppShellState extends State<PatientAppShell> {
   }
 }
 
-class _VoxFloatingButton extends StatelessWidget {
+class _VoxFloatingButton extends ConsumerWidget {
   const _VoxFloatingButton();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(authNotifierProvider).profile;
+    final plan = profile?.normalizedPlan ?? 'FREE';
+    final isPremium = profile?.isPremium ?? false;
+    final isTrial = profile?.isTrial ?? false;
+    final trialVoxAvailable = isTrial &&
+        (profile?.remivoxInteractionCount ?? 0) <
+            MonetizationLimits.trialVoxInteractionLimit;
+
     return Semantics(
       button: true,
       label: 'Vox',
       child: GestureDetector(
-        onTap: () {
+        onTap: () async {
+          if (!isPremium && !trialVoxAvailable) {
+            await AnalyticsService.instance.featureGated('vox', plan);
+            if (context.mounted) {
+              await showUpgradePromptSheet(
+                context,
+                reason: UpgradePromptReason.voxLocked,
+                screen: 'patient_shell',
+              );
+            }
+            return;
+          }
+          await AnalyticsService.instance.voxInteraction(
+            (profile?.remivoxInteractionCount ?? 0) + 1,
+          );
+          await SubscriptionApiService().trackEvent(
+            'vox_interaction',
+            parameters: {'screen': 'patient_shell'},
+          );
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Vox is coming soon.')),
           );

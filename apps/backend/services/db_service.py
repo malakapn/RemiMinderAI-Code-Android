@@ -341,8 +341,16 @@ async def ensure_user_exists(
 
         conn.execute(
             text("""
-                INSERT INTO users (firebase_uid, email, full_name, role, is_active)
-                VALUES (:firebase_uid, :email, :full_name, :role, true)
+                INSERT INTO users (
+                    firebase_uid, email, full_name, role, is_active,
+                    plan, trial_start_date, trial_end_date,
+                    summary_count, remivox_interaction_count
+                )
+                VALUES (
+                    :firebase_uid, :email, :full_name, :role, true,
+                    'TRIAL', now(), now() + interval '14 days',
+                    0, 0
+                )
             """),
             {
                 "firebase_uid": firebase_uid,

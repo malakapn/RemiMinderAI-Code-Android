@@ -17,6 +17,7 @@ from services.ai.vertex_gemini_service import generate_visit_summary
 from services.ai.summary_normalizer_v2 import normalize_v2_summary
 from services.cache_service import get, set
 from services.db_service import get_transcript_text, insert_ai_summary_log, update_visit_with_structured_data, get_user_language_preferences
+from services.subscription_service import enforce_summary_limit, increment_summary_count
 from services.tasks_service import generate_reminders_from_actions, generate_tasks_from_summary
 from services.alert_service import (
     notify_caregiver_new_visit_symptoms,
@@ -65,6 +66,9 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
     """
     try:
         logger.info(f"Starting AI summary pipeline for visit {visit_id}, transcript {transcript_id}")
+
+        # Enforce monetization limits before incurring AI generation cost.
+        await enforce_summary_limit(user_id)
 
         # Step A: Fetch user's language preferences
         logger.info(f"🔍 [LANGUAGE] Fetching language preferences for user {user_id}")
@@ -115,6 +119,7 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
             summary_text,
             structured_result,
         )
+        await increment_summary_count(user_id)
         logger.info(f"Structured summary saved successfully for visit {visit_id}")
 
         doctor_name = structured_result.get("doctor_name")

@@ -388,7 +388,17 @@ def _get_or_create_firebase_user(engine, firebase_uid: str, email: str) -> str:
     try:
         with engine.connect() as conn:
             result = conn.execute(
-                text("INSERT INTO users (firebase_uid, email, role) VALUES (:firebase_uid, :email, :role) RETURNING id"),
+                text("""
+                    INSERT INTO users (
+                        firebase_uid, email, role, plan, trial_start_date,
+                        trial_end_date, summary_count, remivox_interaction_count
+                    )
+                    VALUES (
+                        :firebase_uid, :email, :role, 'TRIAL', now(),
+                        now() + interval '14 days', 0, 0
+                    )
+                    RETURNING id
+                """),
                 {"firebase_uid": firebase_uid, "email": email, "role": "user"}
             )
             new_user_row = result.fetchone()

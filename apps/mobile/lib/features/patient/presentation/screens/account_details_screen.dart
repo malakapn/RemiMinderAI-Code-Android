@@ -97,7 +97,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
                     const SizedBox(height: 16),
                     _buildPhoneDetailItem(theme, authState.profile?.phone, l10n),
                     const SizedBox(height: 16),
-                    _buildUsageDetailItem(theme, l10n),
+                    _buildUsageDetailItem(theme, l10n, authState.profile),
                   ],
                 ),
               ),
@@ -233,9 +233,18 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
     );
   }
 
-  Widget _buildUsageDetailItem(ThemeData theme, AppLocalizations l10n) {
+  Widget _buildUsageDetailItem(
+    ThemeData theme,
+    AppLocalizations l10n,
+    AuthProfile? profile,
+  ) {
     final cached = PatientApiService.getCachedSummaries();
-    final used = cached?.length ?? 0;
+    final used = profile?.summaryCount ?? cached?.length ?? 0;
+    final usageLabel = profile?.isPremium == true
+        ? 'Unlimited summaries'
+        : profile?.isTrial == true
+            ? '$used / 3 trial summaries'
+            : l10n.freePlanUsage(used, kFreeSummaryLimit);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -272,7 +281,7 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  l10n.freePlanUsage(used, kFreeSummaryLimit),
+                  usageLabel,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),

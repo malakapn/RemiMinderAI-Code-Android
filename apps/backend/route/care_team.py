@@ -35,6 +35,7 @@ from services.db_service import (
 from services.invitation_email_service import send_invite_email
 from services.phi_access_log import log_phi_access
 from route.caregiver_notes import _require_patient_in_my_care_team
+from services.subscription_service import enforce_caregiver_invite_limit
 
 logger = logging.getLogger(__name__)
 
@@ -216,9 +217,10 @@ async def invite_care_team_member(
             raise HTTPException(status_code=400, detail="Role is required")
 
         patient_id = await get_user_uuid(firebase_uid)
+        await enforce_caregiver_invite_limit(patient_id)
         token = secrets.token_urlsafe(32)
 
-        await create_care_team_invitation(
+        invitation_id = await create_care_team_invitation(
             patient_id=patient_id,
             invitee_email=request.email,
             role=request.role.strip(),
@@ -267,7 +269,12 @@ async def invite_care_team_member(
                 "(BACKEND_URL or MOBILE_API_BASE_URL), then tap Resend.",
             )
 
-        return {"status": "invited", "email_sent": True}
+        return {
+            "status": "invited",
+            "email_sent": True,
+            "invitation_id": invitation_id,
+            "token": token,
+        }
 
     except HTTPException:
         raise
