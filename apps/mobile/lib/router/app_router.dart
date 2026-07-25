@@ -79,9 +79,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Color(0xFF1A5F5F)),
+            const Icon(Icons.error_outline, size: 64, color: Color(0xFF1A3A5C)),
             const SizedBox(height: 16),
-            const Text('Page not found', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A5F5F))),
+            const Text('Page not found', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A3A5C))),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => context.go('/patient/home'),

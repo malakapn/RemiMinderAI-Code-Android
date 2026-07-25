@@ -6,7 +6,7 @@ import '../config/theme.dart';
 abstract final class RemiShellUi {
   static const Color headerGreen = AppTheme.primaryColor;
   static const Color bodyCream = AppTheme.backgroundColor;
-  static const Color navActivePill = Color(0xFF2C6E6E);
+  static const Color navActivePill = Color(0xFF1A3A5C);
   static const Color navActiveIcon = Color(0xFFFFD700);
   static const Color navInactiveIcon = Color(0xFFE6CFA1);
 

@@ -69,7 +69,7 @@ class CustomTimePickerSheet {
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0D4B5A),
+                      color: Color(0xFF1A3A5C),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -106,7 +106,7 @@ class CustomTimePickerSheet {
                           child: Text(
                             l10n.hourLabel,
                             style: const TextStyle(
-                              color: Color(0xFF0D4B5A),
+                              color: Color(0xFF1A3A5C),
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -118,7 +118,7 @@ class CustomTimePickerSheet {
                           child: Text(
                             l10n.minuteLabel,
                             style: const TextStyle(
-                              color: Color(0xFF0D4B5A),
+                              color: Color(0xFF1A3A5C),
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -130,7 +130,7 @@ class CustomTimePickerSheet {
                           child: Text(
                             l10n.amPmLabel,
                             style: const TextStyle(
-                              color: Color(0xFF0D4B5A),
+                              color: Color(0xFF1A3A5C),
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -159,7 +159,7 @@ class CustomTimePickerSheet {
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w500,
-                                    color: Color(0xFF0D4B5A),
+                                    color: Color(0xFF1A3A5C),
                                   ),
                                 ),
                               ),
@@ -181,7 +181,7 @@ class CustomTimePickerSheet {
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w500,
-                                    color: Color(0xFF0D4B5A),
+                                    color: Color(0xFF1A3A5C),
                                   ),
                                 ),
                               ),
@@ -235,7 +235,7 @@ class CustomTimePickerSheet {
                     child: Text(
                       l10n.selectedTimeLabel(pickedTimeLabel),
                       style: const TextStyle(
-                        color: Color(0xFF0D4B5A),
+                        color: Color(0xFF1A3A5C),
                         fontSize: 21,
                         fontWeight: FontWeight.w700,
                       ),
@@ -248,7 +248,7 @@ class CustomTimePickerSheet {
                         child: OutlinedButton(
                           onPressed: () => Navigator.of(ctx).pop(),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF0D4B5A),
+                            foregroundColor: const Color(0xFF1A3A5C),
                             side: const BorderSide(
                               color: Color(0xFF222222),
                               width: 1.2,
@@ -274,7 +274,7 @@ class CustomTimePickerSheet {
                         child: ElevatedButton(
                           onPressed: () => Navigator.of(ctx).pop(picked),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D4B5A),
+                            backgroundColor: const Color(0xFF1A3A5C),
                             foregroundColor: Colors.white,
                             minimumSize: const Size.fromHeight(58),
                             shape: RoundedRectangleBorder(
@@ -332,7 +332,7 @@ class _AmPmToggleButton extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 18,
-            color: const Color(0xFF0D4B5A),
+            color: const Color(0xFF1A3A5C),
             fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
           ),
         ),
@@ -357,9 +357,9 @@ Widget _presetTimeButton({
   return OutlinedButton(
     style: OutlinedButton.styleFrom(
       side: const BorderSide(color: Color(0xFF222222), width: 1.3),
-      foregroundColor: const Color(0xFF0D4B5A),
+      foregroundColor: const Color(0xFF1A3A5C),
       backgroundColor:
-          selected ? const Color(0xFFE3EDF1) : const Color(0xFFF8F7ED),
+          selected ? const Color(0xFFE6F0FA) : const Color(0xFFF8F7ED),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
       ),

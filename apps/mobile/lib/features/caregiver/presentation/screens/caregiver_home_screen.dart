@@ -15,16 +15,16 @@ import '../../../../core/services/backend_api_service.dart';
 
 // Caregiver home palette (iOS ASC parity)
 const Color _teal = AppTheme.primaryColor;
-const Color _tealMid = Color(0xFF2A6B63);
+const Color _tealMid = Color(0xFF2A5478);
 const Color _cream = AppTheme.backgroundColor;
 const Color _white20 = Color(0x33FFFFFF);
-const Color _sage = Color(0xFF7DA68A);
-const Color _sagePale = Color(0xFFD6E8DC);
-const Color _sageDark = Color(0xFF4F7A61);
+const Color _sage = Color(0xFF4A7FB5);
+const Color _sagePale = Color(0xFFE6F0FA);
+const Color _sageDark = Color(0xFF1A3A5C);
 const Color _danger = Color(0xFFB94040);
-const Color _textMuted = Color(0xFF84968F);
-const Color _textPrimary = Color(0xFF162623);
-const Color _textSecondary = Color(0xFF4D6360);
+const Color _textMuted = Color(0xFF6B7FA0);
+const Color _textPrimary = Color(0xFF0F1E30);
+const Color _textSecondary = Color(0xFF3D5A7A);
 
 class CaregiverHomeScreen extends ConsumerStatefulWidget {
   const CaregiverHomeScreen({super.key});
@@ -461,7 +461,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
   }) {
     return CustomPaint(
       painter: _DashedBorderPainter(
-        color: const Color(0x260D3D38),
+        color: const Color(0x261A3A5C),
         radius: 14,
       ),
       child: Container(
@@ -566,7 +566,7 @@ class _CaregiverHomeScreenState extends ConsumerState<CaregiverHomeScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isRead
-              ? const Color(0x1A0D3D38)
+              ? const Color(0x1A1A3A5C)
               : const Color(0x33B94040),
         ),
       ),

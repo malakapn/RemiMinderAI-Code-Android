@@ -316,7 +316,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   fontFamily: 'Merriweather', // Merriweather-Bold font
                   fontWeight: FontWeight.w700, // Bold weight
                   fontSize: 28, // Increased size for more prominence
-                  color: Color(0xFF1B4E59), // Dark teal
+                  color: Color(0xFF1A3A5C), // Dark teal
                   letterSpacing: -0.5, // Better spacing for serif font
                 ),
               ),
@@ -345,7 +345,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Merriweather', // Merriweather-Bold for consistency
                   fontWeight: FontWeight.w700, // Bold weight
                   fontSize: 28, // Reduced size for better hierarchy
-                  color: Color(0xFF1A4D4D), // Dark teal
+                  color: Color(0xFF1A3A5C), // Dark teal
                 ),
               ),
 
@@ -477,7 +477,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1B4E59), // Teal background
+                  color: const Color(0xFF1A3A5C), // Teal background
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -490,7 +490,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: ElevatedButton(
                   onPressed: _navigateToEmailForm,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1B4E59),
+                    backgroundColor: const Color(0xFF1A3A5C),
                     foregroundColor: Colors.white,
                     elevation:
                         0, // Remove default elevation since we have shadow
@@ -543,9 +543,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w500,
                       fontSize: 16,
-                      color: Color(0xFF1B4E59), // Teal
+                      color: Color(0xFF1A3A5C), // Teal
                       decoration: TextDecoration.underline, // Underlined
-                      decorationColor: Color(0xFF1B4E59),
+                      decorationColor: Color(0xFF1A3A5C),
                     ),
                   ),
                 ),
@@ -568,9 +568,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w500,
                       fontSize: 16,
-                      color: Color(0xFF1B4E59), // Teal
+                      color: Color(0xFF1A3A5C), // Teal
                       decoration: TextDecoration.underline, // Underlined
-                      decorationColor: Color(0xFF1B4E59),
+                      decorationColor: Color(0xFF1A3A5C),
                     ),
                   ),
                 ),

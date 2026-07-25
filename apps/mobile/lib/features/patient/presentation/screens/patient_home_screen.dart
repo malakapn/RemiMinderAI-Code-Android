@@ -16,7 +16,7 @@ import '../../../shared/widgets/scroll_bottom_fade.dart';
 
 // Home screen palette (iOS ASC parity)
 const Color _teal = AppTheme.primaryColor;
-const Color _tealMid = Color(0xFF2A6B63);
+const Color _tealMid = Color(0xFF2A5478);
 const Color _cream = AppTheme.backgroundColor;
 const Color _gold = Color(0xFFC9A84C);
 const Color _goldLight = Color(0xFFF0D080);

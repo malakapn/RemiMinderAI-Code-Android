@@ -18,7 +18,7 @@ class LoadingShimmer extends StatefulWidget {
 
 class _LoadingShimmerState extends State<LoadingShimmer>
     with SingleTickerProviderStateMixin {
-  static const _teal = Color(0xFF1A9E9E);
+  static const _teal = Color(0xFF4A7FB5);
   static const _cream = Color(0xFFF7F3EC);
 
   late final AnimationController _controller;
