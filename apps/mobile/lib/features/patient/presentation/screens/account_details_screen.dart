@@ -240,11 +240,8 @@ class _AccountDetailsScreenState extends ConsumerState<AccountDetailsScreen> {
   ) {
     final cached = PatientApiService.getCachedSummaries();
     final used = profile?.summaryCount ?? cached?.length ?? 0;
-    final usageLabel = profile?.isPremium == true
-        ? 'Unlimited summaries'
-        : profile?.isTrial == true
-            ? '$used / 3 trial summaries'
-            : l10n.freePlanUsage(used, kFreeSummaryLimit);
+    final summaryLabel = used == 1 ? 'summary' : 'summaries';
+    final usageLabel = '$used $summaryLabel generated';
 
     return Container(
       padding: const EdgeInsets.all(16),
