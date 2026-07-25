@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -31,6 +32,14 @@ def _utcnow() -> datetime:
 def _normalize_plan(raw: Optional[str]) -> str:
     value = (raw or PLAN_TRIAL).strip().upper()
     return value if value in {PLAN_TRIAL, PLAN_FREE, PLAN_PREMIUM, PLAN_EXPIRED} else PLAN_FREE
+
+
+def _is_test_premium_uid(firebase_uid: Optional[str]) -> bool:
+    if not firebase_uid:
+        return False
+    raw = os.getenv("REMIMINDER_TEST_PREMIUM_UIDS", "")
+    allowed = {item.strip() for item in raw.split(",") if item.strip()}
+    return firebase_uid in allowed
 
 
 def _serialize_status(row) -> dict:
@@ -131,6 +140,12 @@ async def get_subscription_status(firebase_uid: str) -> dict:
         if plan != _normalize_plan(row.plan):
             row = _fetch_user_subscription_row(conn, user_id=str(row.id))
         status = _serialize_status(row)
+        if _is_test_premium_uid(firebase_uid):
+            status["plan"] = PLAN_PREMIUM
+            status["trial_active"] = False
+            status["trial_days_remaining"] = 0
+            status["revenuecat_entitlement_active"] = True
+            status["subscription_source"] = "test_allowlist"
     set(cache_key, status, 60)
     return status
 
