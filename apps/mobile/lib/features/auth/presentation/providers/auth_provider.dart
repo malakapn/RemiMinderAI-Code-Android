@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -90,7 +91,7 @@ class AuthNotifier extends Notifier<AuthState> {
         // Set authenticated with saved role - don't load profile here
         // Profile is loaded during sign-in flow
         state = AuthState.authenticated(user);
-        await _syncSubscriptionStatus(user);
+        unawaited(_syncSubscriptionStatus(user));
         await _syncFcmTokenAndAttachRefreshListener();
         await _syncReminderNotifications(user);
       } else {
@@ -137,7 +138,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
-        await _syncSubscriptionStatus(user);
+        unawaited(_syncSubscriptionStatus(user));
         await AnalyticsService.instance.trialStarted();
         await _syncFcmTokenAndAttachRefreshListener();
         await _syncReminderNotifications(user);
@@ -174,7 +175,7 @@ class AuthNotifier extends Notifier<AuthState> {
             : profile.role;
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
-        await _syncSubscriptionStatus(user);
+        unawaited(_syncSubscriptionStatus(user));
       } catch (e, st) {
         debugPrint('🔴 signIn: backend profile load failed (non-fatal): $e');
         state = AuthState.authenticated(user);
@@ -209,7 +210,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
       state = AuthState.authenticated(user,
           profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
-      await _syncSubscriptionStatus(user);
+      unawaited(_syncSubscriptionStatus(user));
       await _syncFcmTokenAndAttachRefreshListener();
       await _syncReminderNotifications(user);
     } catch (e, st) {
@@ -261,7 +262,7 @@ class AuthNotifier extends Notifier<AuthState> {
             : profile.role;
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
-        await _syncSubscriptionStatus(user);
+        unawaited(_syncSubscriptionStatus(user));
       } catch (backendError) {
         debugPrint('Apple SignIn: backend non-fatal: \$backendError');
         state = AuthState.authenticated(user);

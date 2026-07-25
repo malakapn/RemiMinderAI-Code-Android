@@ -248,6 +248,9 @@ class BackendApiService {
           message = detail;
         }
       } catch (_) {}
+      if (message == 'Not Found') {
+        message = 'Vox backend is not deployed yet. Please deploy the latest backend.';
+      }
       throw Exception(message);
     }
 
@@ -280,6 +283,9 @@ class BackendApiService {
           message = detail;
         }
       } catch (_) {}
+      if (message == 'Not Found') {
+        message = 'Vox backend is not deployed yet. Please deploy the latest backend.';
+      }
       throw Exception(message);
     }
 
