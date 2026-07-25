@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/models/monetization_status.dart';
-import '../../../../core/services/analytics_service.dart';
-import '../../../../core/widgets/upgrade_prompt_sheet.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import 'rounded_navigation_bar.dart';
 
 /// App shell that wraps all patient screens with a floating bottom navigation bar
@@ -63,38 +58,16 @@ class _PatientAppShellState extends State<PatientAppShell> {
   }
 }
 
-class _VoxFloatingButton extends ConsumerWidget {
+class _VoxFloatingButton extends StatelessWidget {
   const _VoxFloatingButton();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(authNotifierProvider).profile;
-    final plan = profile?.normalizedPlan ?? 'FREE';
-    final isPremium = profile?.isPremium ?? false;
-    final isTrial = profile?.isTrial ?? false;
-    final trialVoxAvailable = isTrial &&
-        (profile?.remivoxInteractionCount ?? 0) <
-            MonetizationLimits.trialVoxInteractionLimit;
-
+  Widget build(BuildContext context) {
     return Semantics(
       button: true,
       label: 'Vox',
       child: GestureDetector(
-        onTap: () async {
-          if (!isPremium && !trialVoxAvailable) {
-            await AnalyticsService.instance.featureGated('vox', plan);
-            if (context.mounted) {
-              await showUpgradePromptSheet(
-                context,
-                reason: UpgradePromptReason.voxLocked,
-                screen: 'patient_shell',
-              );
-            }
-            return;
-          }
-          if (!context.mounted) return;
-          context.push('/patient/vox');
-        },
+        onTap: () => context.push('/patient/vox'),
         child: Container(
           width: 72,
           height: 72,
