@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/account_data_actions.dart';
 import '../../../../core/config/app_build_info.dart';
+import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/revenuecat_service.dart';
 import '../../../../core/services/subscription_api_service.dart';

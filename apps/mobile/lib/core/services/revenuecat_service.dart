@@ -49,7 +49,8 @@ class RevenueCatService {
   Future<CustomerInfo?> purchasePackage(Package package) async {
     await configure();
     if (!_configured) return null;
-    return Purchases.purchasePackage(package);
+    final result = await Purchases.purchase(PurchaseParams.package(package));
+    return result.customerInfo;
   }
 
   Future<CustomerInfo?> restorePurchases() async {
