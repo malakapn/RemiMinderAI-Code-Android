@@ -67,8 +67,10 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
     try:
         logger.info(f"Starting AI summary pipeline for visit {visit_id}, transcript {transcript_id}")
 
-        # Enforce monetization limits before incurring AI generation cost.
-        await enforce_summary_limit(user_id)
+        # Subscription enforcement is opt-in while monetization is rolling out.
+        # Never let subscription metadata issues break production summary generation.
+        if (os.getenv("ENFORCE_SUMMARY_LIMITS") or "").strip().lower() == "true":
+            await enforce_summary_limit(user_id)
 
         # Step A: Fetch user's language preferences
         logger.info(f"🔍 [LANGUAGE] Fetching language preferences for user {user_id}")
@@ -119,7 +121,15 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
             summary_text,
             structured_result,
         )
-        await increment_summary_count(user_id)
+        try:
+            await increment_summary_count(user_id)
+        except Exception:
+            logger.warning(
+                "Summary count increment failed (non-fatal) user_id=%s visit_id=%s",
+                user_id,
+                visit_id,
+                exc_info=True,
+            )
         logger.info(f"Structured summary saved successfully for visit {visit_id}")
 
         doctor_name = structured_result.get("doctor_name")
