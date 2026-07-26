@@ -434,12 +434,29 @@ async def get_visit_metadata(
         with engine.connect() as conn:
             row = conn.execute(
                 text("""
-                    SELECT id, doctor, specialty, title, created_at, status
-                    FROM visits
-                    WHERE id = :visit_id AND user_id = :user_id
+                    SELECT v.id, v.doctor, v.specialty, v.title, v.created_at, v.status
+                    FROM visits v
+                    WHERE v.id = :visit_id
+                      AND (
+                        v.user_id::text = :user_uuid
+                        OR v.user_id::text = :firebase_uid
+                        OR EXISTS (
+                          SELECT 1
+                          FROM summaries_log s
+                          WHERE s.visit_id = v.id
+                            AND (
+                              s.user_id::text = :user_uuid
+                              OR s.user_id::text = :firebase_uid
+                            )
+                        )
+                      )
                     LIMIT 1
                 """),
-                {"visit_id": visit_id, "user_id": user_uuid},
+                {
+                    "visit_id": visit_id,
+                    "user_uuid": user_uuid,
+                    "firebase_uid": user_id,
+                },
             ).fetchone()
 
         if not row:
