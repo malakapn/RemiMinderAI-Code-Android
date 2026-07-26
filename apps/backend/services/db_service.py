@@ -606,7 +606,11 @@ async def delete_scanned_document(
         raise
 
 
-async def get_latest_ai_summary_for_visit(visit_id: str, user_id: str) -> Optional[str]:
+async def get_latest_ai_summary_for_visit(
+    visit_id: str,
+    user_id: str,
+    firebase_uid: Optional[str] = None,
+) -> Optional[str]:
     """
     Get the latest AI-generated summary for a visit from summaries_log table.
     Returns summary_text if exists, None if not found.
@@ -619,12 +623,23 @@ async def get_latest_ai_summary_for_visit(visit_id: str, user_id: str) -> Option
         with engine.connect() as conn:
             query = text("""
                 SELECT summary_text, created_at FROM summaries_log
-                WHERE visit_id = :visit_id AND user_id = :user_id
+                WHERE visit_id = :visit_id
+                  AND (
+                    user_id::text = :user_id
+                    OR (:firebase_uid IS NOT NULL AND user_id::text = :firebase_uid)
+                  )
                 ORDER BY created_at DESC
                 LIMIT 1
             """)
 
-            result = conn.execute(query, {"visit_id": visit_id, "user_id": user_id})
+            result = conn.execute(
+                query,
+                {
+                    "visit_id": visit_id,
+                    "user_id": user_id,
+                    "firebase_uid": firebase_uid,
+                },
+            )
             row = result.fetchone()
 
             if row and row[0]:
@@ -640,7 +655,11 @@ async def get_latest_ai_summary_for_visit(visit_id: str, user_id: str) -> Option
         raise
 
 
-async def get_latest_ai_structured_summary_for_visit(visit_id: str, user_id: str) -> Optional[dict]:
+async def get_latest_ai_structured_summary_for_visit(
+    visit_id: str,
+    user_id: str,
+    firebase_uid: Optional[str] = None,
+) -> Optional[dict]:
     """
     Get the latest structured AI summary for a visit from summaries_log table.
     Returns structured_data_json if exists, None if not found.
@@ -653,12 +672,23 @@ async def get_latest_ai_structured_summary_for_visit(visit_id: str, user_id: str
         with engine.connect() as conn:
             query = text("""
                 SELECT structured_data_json, created_at FROM summaries_log
-                WHERE visit_id = :visit_id AND user_id = :user_id
+                WHERE visit_id = :visit_id
+                  AND (
+                    user_id::text = :user_id
+                    OR (:firebase_uid IS NOT NULL AND user_id::text = :firebase_uid)
+                  )
                 ORDER BY created_at DESC
                 LIMIT 1
             """)
 
-            result = conn.execute(query, {"visit_id": visit_id, "user_id": user_id})
+            result = conn.execute(
+                query,
+                {
+                    "visit_id": visit_id,
+                    "user_id": user_id,
+                    "firebase_uid": firebase_uid,
+                },
+            )
             row = result.fetchone()
 
             if row and row[0]:

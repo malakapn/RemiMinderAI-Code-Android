@@ -497,7 +497,11 @@ async def get_visit_summary(
         logger.info(f"Resolved firebase_uid={user_id} to user_uuid={user_uuid}")
 
         # Step 2: Fetch latest summary for this visit
-        summary_text = await get_latest_ai_summary_for_visit(visit_id, user_uuid)
+        summary_text = await get_latest_ai_summary_for_visit(
+            visit_id,
+            user_uuid,
+            firebase_uid=user_id,
+        )
 
         logger.info(f"DB query result for visit_id={visit_id}, user_uuid={user_uuid}: summary_text={summary_text is not None}")
 
@@ -540,7 +544,11 @@ async def get_visit_summary_structured(
         logger.info(f"Resolved firebase_uid={user_id} to user_uuid={user_uuid}")
 
         # Step 2: Fetch latest structured summary for this visit
-        structured_data = await get_latest_ai_structured_summary_for_visit(visit_id, user_uuid)
+        structured_data = await get_latest_ai_structured_summary_for_visit(
+            visit_id,
+            user_uuid,
+            firebase_uid=user_id,
+        )
 
         logger.info(
             "DB query result for visit_id=%s, user_uuid=%s: structured_data=%s",
@@ -554,7 +562,11 @@ async def get_visit_summary_structured(
             return structured_data
 
         # Legacy rows: summary_text saved without structured_data_json — still show Visit Details UI.
-        summary_text = await get_latest_ai_summary_for_visit(visit_id, user_uuid)
+        summary_text = await get_latest_ai_summary_for_visit(
+            visit_id,
+            user_uuid,
+            firebase_uid=user_id,
+        )
         if summary_text and str(summary_text).strip():
             logger.info(
                 "Structured JSON missing; returning text summary only for visit_id=%s",
