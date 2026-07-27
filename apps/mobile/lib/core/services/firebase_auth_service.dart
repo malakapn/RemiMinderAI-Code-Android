@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import '../config/environment.dart';
 import '../models/user.dart';
+import 'google_sign_in_config.dart';
 import 'token_manager.dart';
 import 'secure_storage.dart';
 
@@ -21,7 +23,15 @@ class FirebaseAuthService {
     TokenManager? tokenManager,
     SecureStorage? secureStorage,
   })  : _firebaseAuth = firebaseAuth ?? firebase_auth.FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn(),
+        // serverClientId is required on Android so Google returns an ID token
+        // that Firebase Auth can exchange. Without it, Indian (and other)
+        // Android users often see Missing Google ID token / sign_in_failed.
+        _googleSignIn = googleSignIn ??
+            GoogleSignIn(
+              serverClientId: Environment.googleWebClientId.isNotEmpty
+                  ? Environment.googleWebClientId
+                  : null,
+            ),
         _tokenManager = tokenManager ?? TokenManager(SecureStorage()),
         _secureStorage = secureStorage ?? SecureStorage();
 
@@ -94,7 +104,12 @@ class FirebaseAuthService {
 
   Future<User> signInWithGoogle({UserRole? selectedRole}) async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      // Prefer native default_web_client_id on Android when available.
+      final webClientId = await resolveGoogleWebClientId();
+      final googleSignIn = GoogleSignIn(
+        serverClientId: webClientId.isNotEmpty ? webClientId : null,
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) throw Exception('Google sign-in cancelled');
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       if (googleAuth.idToken == null) throw Exception('Missing Google ID token');

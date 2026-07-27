@@ -14,7 +14,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 /// Returns true when Firebase Core is ready for auth, Firestore, and FCM.
-Future<bool> bootstrapFirebase({Duration timeout = const Duration(seconds: 8)}) async {
+/// Slightly longer than 8s so India / high-latency mobile networks can finish
+/// Firebase init without treating a slow start as total failure.
+Future<bool> bootstrapFirebase({Duration timeout = const Duration(seconds: 12)}) async {
   if (Firebase.apps.isNotEmpty) return true;
 
   try {
