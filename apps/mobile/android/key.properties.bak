@@ -1,0 +1,4 @@
+storePassword=aaAA123!
+keyPassword=aaAA123!
+keyAlias=upload
+storeFile=../../../../upload-keystore-new.jks

@@ -35,11 +35,21 @@ android {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.remiminder.app.dev"
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = "upload"
+            keyPassword = "aaAA123!"
+            storeFile = file("../../../../upload-keystore-new.jks")
+            storePassword = "aaAA123!"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
