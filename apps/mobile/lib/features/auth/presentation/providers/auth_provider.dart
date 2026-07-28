@@ -75,7 +75,7 @@ class AuthNotifier extends Notifier<AuthState> {
       // Check if authentication services are available with timeout
       final user = await _authRepository
           .getCurrentUser()
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
       if (user != null) {
         // Set authenticated with saved role - don't load profile here
         // Profile is loaded during sign-in flow
@@ -181,24 +181,28 @@ class AuthNotifier extends Notifier<AuthState> {
       final user =
           await _authRepository.signInWithGoogle(selectedRole: selectedRole);
 
-      // Bootstrap user in backend
-      await _backendApiService.bootstrapUser();
-      await _saveUserToFirestore(user);
-
-      // Fetch user profile from backend
-      final profile = await _backendApiService.getMyProfile();
-
-      // Always honour the role the user selected — never let backend override it
-      final resolvedRole = selectedRole != null
-          ? (selectedRole == UserRole.caregiver ? 'caregiver' : 'patient')
-          : profile.role;
-
-      state = AuthState.authenticated(user,
-          profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
+// Match email sign-in: Firebase success is enough to authenticate.
+      // Backend bootstrap can be slow from India → us-central1; do not fail login.
+      try {
+        await _backendApiService.bootstrapUser();
+        await _saveUserToFirestore(user);
+        final profile = await _backendApiService.getMyProfile();
+        final resolvedRole = selectedRole != null
+            ? (selectedRole == UserRole.caregiver ? 'caregiver' : 'patient')
+            : profile.role;
+        state = AuthState.authenticated(user,
+            profile: AuthProfile.fromUserProfile(profile)
+                .copyWith(role: resolvedRole));
+      } catch (e, st) {
+        debugPrint(
+            '🔴 signInWithGoogle: backend profile load failed (non-fatal): \$e');
+        debugPrint('\$st');
+        state = AuthState.authenticated(user);
+      }
       await _syncFcmTokenAndAttachRefreshListener();
       await _syncReminderNotifications(user);
     } catch (e, st) {
-      debugPrint('🔴 signInWithGoogle: backend profile load failed: $e');
+      debugPrint('🔴 signInWithGoogle: Google Auth failed: $e');
       debugPrint('$st');
       const googleConfigureMsg =
           'Google Sign-In failed. Please ensure your Google account is configured correctly.';
@@ -220,7 +224,8 @@ class AuthNotifier extends Notifier<AuthState> {
       final msg = e.toString();
       if (msg.contains(googleConfigureMsg) ||
           msg.contains('sign_in_failed') ||
-          msg.contains('SIGN_IN_FAILED')) {
+          msg.contains('SIGN_IN_FAILED') ||
+          msg.contains('Missing Google ID token')) {
         state = AuthState.error(googleConfigureMsg);
       } else if (msg.contains('cancelled')) {
         state = AuthState.error('Google sign-in was cancelled.');

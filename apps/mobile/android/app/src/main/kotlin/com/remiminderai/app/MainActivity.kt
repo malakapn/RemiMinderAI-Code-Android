@@ -1,0 +1,32 @@
+package com.remiminderai.app
+
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+class MainActivity : FlutterActivity() {
+    private val channelName = "com.remiminderai.app/google_auth"
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getWebClientId" -> {
+                        val webClientId = try {
+                            val resId = resources.getIdentifier(
+                                "default_web_client_id",
+                                "string",
+                                packageName
+                            )
+                            if (resId != 0) getString(resId) else null
+                        } catch (_: Exception) {
+                            null
+                        }
+                        result.success(webClientId)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+}

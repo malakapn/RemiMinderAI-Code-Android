@@ -106,7 +106,10 @@ Firebase Auth   Cloud Storage   Real-time Sync
 ## Deployment & Scaling
 
 - **Mobile Apps**: App Store and Google Play Store
-- **Backend**: Google Cloud Run with automatic scaling
+- **Backend**: Google Cloud Run with automatic scaling (**production API: `us-central1`**)
 - **Database**: Cloud SQL with read replicas
 - **CI/CD**: GitHub Actions for automated testing and deployment
-- **Global CDN**: Fast content delivery worldwide
+- **AI**: Vertex Gemini in `us-west4`
+- **Global CDN**: Documented intent only — not configured for the API path
+
+> For the full Phase 2 component map, India Android login analysis, recommended fixes, and cost-saving guidance, see [`BACKEND_ARCHITECTURE_AND_INDIA_LOGIN.md`](BACKEND_ARCHITECTURE_AND_INDIA_LOGIN.md).

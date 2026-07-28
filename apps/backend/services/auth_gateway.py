@@ -325,14 +325,14 @@ def _get_or_create_firebase_user(engine, firebase_uid: str, email: str) -> str:
 
                     if existing_firebase_uid == firebase_uid:
                         # Same Firebase UID - this user is already properly linked
-                            logger.info("Firebase user identity confirmed", extra={
-                                "auth_provider": "firebase",
-                                "user_resolved": True,
-                                "identity_confirmed": True,
-                                "firebase_uid": firebase_uid,
-                                "email": email
-                            })
-                            return str(row[0])
+                        logger.info("Firebase user identity confirmed", extra={
+                            "auth_provider": "firebase",
+                            "user_resolved": True,
+                            "identity_confirmed": True,
+                            "firebase_uid": firebase_uid,
+                            "email": email
+                        })
+                        return str(row[0])
 
                     elif existing_firebase_uid is None:
                         # No Firebase UID set - safe to link
@@ -351,20 +351,21 @@ def _get_or_create_firebase_user(engine, firebase_uid: str, email: str) -> str:
                         })
                         return str(row[0])
 
-                else:
-                    # Different Firebase UID - identity conflict
-                    logger.warning("Firebase identity conflict detected", extra={
-                        "auth_provider": "firebase",
-                        "identity_conflict": True,
-                        "attempted_firebase_uid": firebase_uid,
-                        "existing_firebase_uid": existing_firebase_uid,
-                        "email": email,
-                        "conflict_type": "different_firebase_uid"
-                    })
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail="Identity conflict: This email is already associated with a different Firebase account. Please contact support if you believe this is an error."
-                    )
+                    else:
+                        # Different Firebase UID - identity conflict
+                        logger.warning("Firebase identity conflict detected", extra={
+                            "auth_provider": "firebase",
+                            "identity_conflict": True,
+                            "attempted_firebase_uid": firebase_uid,
+                            "existing_firebase_uid": existing_firebase_uid,
+                            "email": email,
+                            "conflict_type": "different_firebase_uid"
+                        })
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail="Identity conflict: This email is already associated with a different Firebase account. Please contact support if you believe this is an error."
+                        )
+                # No email match — fall through to create new user
         except HTTPException:
             # Re-raise identity conflicts
             raise
