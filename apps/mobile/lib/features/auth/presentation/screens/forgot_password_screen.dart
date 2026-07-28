@@ -66,7 +66,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         'Merriweather', // Consistent with other auth screens
                     fontWeight: FontWeight.w700, // Bold weight
                     fontSize: 32,
-                    color: Color(0xFF1A4D4D), // Dark teal for consistency
+                    color: Color(0xFF1A3A5C), // Dark teal for consistency
                   ),
                 ),
 
@@ -178,7 +178,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       tapTargetSize: MaterialTapTargetSize.padded,
                       side: const BorderSide(
                         color: Color(
-                            0xFF1A4D4D), // Consistent primary color for border
+                            0xFF1A3A5C), // Consistent primary color for border
                         width: 1.5,
                       ),
                       shape: RoundedRectangleBorder(
@@ -191,7 +191,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         fontFamily: 'Poppins', // Consistent typography
                         fontWeight: FontWeight.w600, // SemiBold for buttons
                         fontSize: 16,
-                        color: Color(0xFF1A4D4D), // Consistent primary color
+                        color: Color(0xFF1A3A5C), // Consistent primary color
                       ),
                     ),
                   ),

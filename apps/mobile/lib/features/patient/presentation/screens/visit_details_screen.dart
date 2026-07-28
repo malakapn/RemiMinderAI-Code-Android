@@ -594,7 +594,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     return _buildSummaryCategoryCard(
       title: l10n.visitSummary,
       icon: Icons.summarize_outlined,
-      accentColor: const Color(0xFF2E7D62),
+      accentColor: const Color(0xFF2D6A4F),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -632,7 +632,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     return _buildSummaryCategoryCard(
       title: l10n.medication,
       icon: Icons.medication_outlined,
-      accentColor: const Color(0xFF3AA8A1),
+      accentColor: const Color(0xFF4A7FB5),
       child: _buildBulletList(items),
     );
   }
@@ -654,7 +654,7 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     return _buildSummaryCategoryCard(
       title: l10n.nextToDo,
       icon: Icons.playlist_add_check_outlined,
-      accentColor: const Color(0xFF557A7F),
+      accentColor: const Color(0xFF4A7FB5),
       child: _buildBulletList(items),
     );
   }

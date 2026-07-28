@@ -24,8 +24,8 @@ class AccountSecurityScreen extends StatelessWidget {
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color(0xFF1A4D4D), // Dark teal-green
-                    Color(0xFF051818), // Very dark green/black
+                    Color(0xFF1A3A5C), // Dark teal-green
+                    Color(0xFF0F2640), // Very dark green/black
                   ],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,

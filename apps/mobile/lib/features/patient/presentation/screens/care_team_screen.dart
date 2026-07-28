@@ -5,10 +5,10 @@ import '../../../care_team/data/services/care_team_api_service.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../core/utils/relationship_l10n.dart';
 
-const Color _teal = Color(0xFF0D3D38);
+const Color _teal = Color(0xFF1A3A5C);
 const Color _cream = Color(0xFFEDEAE1);
 const Color _gold = Color(0xFFC9A84C);
-const Color _lightTeal = Color(0xFFE8F4F2);
+const Color _lightTeal = Color(0xFFE6F0FA);
 const Color _cancelBg = Color(0xFFFDECEA);
 const Color _cancelText = Color(0xFFC0392B);
 const Color _dividerLabel = Color(0xFF9CA3AF);

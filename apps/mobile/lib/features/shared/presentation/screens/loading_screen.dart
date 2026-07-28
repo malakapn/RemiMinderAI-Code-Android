@@ -167,7 +167,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
                 fontFamily: 'Merriweather', // Serif typeface as requested
                 fontSize: 36,
                 fontWeight: FontWeight.w700, // Bold weight
-                color: Color(0xff1B4E59), // primaryGreen (primaryColor)
+                color: Color(0xff1A3A5C), // primaryGreen (primaryColor)
                 letterSpacing: 0.5,
               ),
             ),
@@ -180,7 +180,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
               style: TextStyle(
                 fontFamily: 'Poppins', // Sans-serif as requested
                 fontSize: 12, // Small size (~12-14sp) as requested
-                color: Color(0xff557A7F), // textSecondary (accentColor)
+                color: Color(0xff4A7FB5), // textSecondary (accentColor)
               ),
             ),
 
@@ -242,7 +242,7 @@ class _LoadingDotState extends State<_LoadingDot>
         height: 10,
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: const BoxDecoration(
-          color: Color(0xff3AA8A1),
+          color: Color(0xff4A7FB5),
           shape: BoxShape.circle,
         ),
       ),

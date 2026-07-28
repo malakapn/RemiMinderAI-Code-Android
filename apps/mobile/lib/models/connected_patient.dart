@@ -90,7 +90,7 @@ class ConnectedPatient {
   }
 
   static const _avatarPalettes = [
-    (Color(0xFFE1F5EE), Color(0xFF0F6E56)),
+    (Color(0xFFE6F0FA), Color(0xFF1A3A5C)),
     (Color(0xFFE6F1FB), Color(0xFF185FA5)),
     (Color(0xFFEEEDFE), Color(0xFF534AB7)),
     (Color(0xFFFAEEDA), Color(0xFF854F0B)),

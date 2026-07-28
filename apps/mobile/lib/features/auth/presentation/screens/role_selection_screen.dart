@@ -142,7 +142,7 @@ class RoleSelectionScreen extends ConsumerWidget {
 
 class _RoleCard extends StatelessWidget {
   static const Color _cream = Color(0xFFF8F4E8);
-  static const Color _teal = Color(0xFF1B4E59);
+  static const Color _teal = Color(0xFF1A3A5C);
 
   final String title;
   final String description;

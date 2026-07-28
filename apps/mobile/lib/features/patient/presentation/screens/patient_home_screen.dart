@@ -14,10 +14,10 @@ import '../../data/models/patient_task.dart';
 import '../../data/services/patient_tasks_api_service.dart';
 import '../../../shared/widgets/scroll_bottom_fade.dart';
 
-// Home screen palette
-const Color _teal = Color(0xFF0D3D38);
-const Color _tealMid = Color(0xFF155048);
-const Color _cream = Color(0xFFEDEAE1);
+// Home screen palette (iOS ASC parity)
+const Color _teal = AppTheme.primaryColor;
+const Color _tealMid = Color(0xFF2A5478);
+const Color _cream = AppTheme.backgroundColor;
 const Color _gold = Color(0xFFC9A84C);
 const Color _goldLight = Color(0xFFF0D080);
 const Color _white20 = Color(0x33FFFFFF);

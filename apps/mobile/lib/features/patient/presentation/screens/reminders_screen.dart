@@ -814,7 +814,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B4E59),
+                      backgroundColor: const Color(0xFF1A3A5C),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
@@ -1030,7 +1030,7 @@ class _RemindersScreenState extends State<RemindersScreen>
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B4E59),
+                      backgroundColor: const Color(0xFF1A3A5C),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),

@@ -505,10 +505,10 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
         label = l10n.statusExpired;
         break;
       case 'accepted':
-        dot = const Color(0xFF16A34A);
-        bg = const Color(0xFFD6EAD8);
-        fg = const Color(0xFF14532D);
-        border = const Color(0xFF86EFAC);
+        dot = const Color(0xFF2D6A4F);
+        bg = const Color(0xFFE8F5E9);
+        fg = const Color(0xFF2D6A4F);
+        border = const Color(0xFF81C784);
         label = l10n.statusJoined;
         break;
       case 'pending':
@@ -561,7 +561,7 @@ class _InitialsAvatar extends StatelessWidget {
   });
 
   static const _palettes = [
-    (Color(0xFFE1F5EE), Color(0xFF0F6E56)),
+    (Color(0xFFE6F0FA), Color(0xFF1A3A5C)),
     (Color(0xFFE6F1FB), Color(0xFF185FA5)),
     (Color(0xFFEEEDFE), Color(0xFF534AB7)),
     (Color(0xFFFAEEDA), Color(0xFF854F0B)),
