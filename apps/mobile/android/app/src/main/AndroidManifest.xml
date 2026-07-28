@@ -23,7 +23,7 @@
         <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="reminders"/>
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@mipmap/launcher_icon"/>
         <activity
-            android:name="com.remiminder.app.dev.MainActivity"
+            android:name="com.remiminderai.app.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
