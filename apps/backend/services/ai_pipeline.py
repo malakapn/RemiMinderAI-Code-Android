@@ -26,6 +26,16 @@ from services.alert_service import (
 logger = logging.getLogger(__name__)
 
 
+async def enforce_summary_limit(user_id: str) -> None:
+    """Stub — real enforcement added with subscription_service."""
+    pass
+
+
+async def increment_summary_count(user_id: str) -> None:
+    """Stub — real counting added with subscription_service."""
+    pass
+
+
 def _log_background_task_error(task: asyncio.Task) -> None:
     """Avoid silent failures when notify coroutines crash after create_task."""
 
@@ -65,6 +75,11 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
     """
     try:
         logger.info(f"Starting AI summary pipeline for visit {visit_id}, transcript {transcript_id}")
+
+
+        # Subscription enforcement is opt-in while monetization is rolling out.
+        if (os.getenv("ENFORCE_SUMMARY_LIMITS") or "").strip().lower() == "true":
+            await enforce_summary_limit(user_id)
 
         # Step A: Fetch user's language preferences
         logger.info(f"🔍 [LANGUAGE] Fetching language preferences for user {user_id}")
@@ -115,6 +130,15 @@ async def run_ai_summary_pipeline(visit_id: str, transcript_id: str, user_id: st
             summary_text,
             structured_result,
         )
+        try:
+            await increment_summary_count(user_id)
+        except Exception:
+            logger.warning(
+                "Summary count increment failed (non-fatal) user_id=%s visit_id=%s",
+                user_id,
+                visit_id,
+                exc_info=True,
+            )
         logger.info(f"Structured summary saved successfully for visit {visit_id}")
 
         doctor_name = structured_result.get("doctor_name")
