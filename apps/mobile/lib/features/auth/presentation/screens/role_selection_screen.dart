@@ -136,7 +136,7 @@ class RoleSelectionScreen extends ConsumerWidget {
     // Pass the selected role to the login/register screens
     final roleParam =
         selectedRole == UserRole.patient ? 'patient' : 'caregiver';
-    context.go('/login?role=$roleParam');
+    context.go('/auth-choice?role=$roleParam');
   }
 }
 
