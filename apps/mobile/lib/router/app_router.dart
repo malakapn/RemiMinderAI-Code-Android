@@ -8,6 +8,7 @@ import '../features/auth/presentation/screens/welcome_screen.dart';
 import '../features/auth/presentation/screens/role_selection_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/auth_choice_screen.dart';
+import '../features/auth/presentation/screens/email_verification_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/patient/presentation/screens/patient_home_screen.dart';
@@ -42,7 +43,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Never redirect these screens
       const noRedirectRoutes = [
-        '/loading', '/welcome', '/role-selection', '/auth-choice',
+        '/loading', '/welcome', '/role-selection', '/auth-choice', '/verify-email',
         '/login', '/register', '/forgot-password',
       ];
       if (noRedirectRoutes.contains(location) || location.startsWith('/auth')) {
@@ -103,6 +104,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/role-selection',
         builder: (context, state) => const RoleSelectionScreen(),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (context, state) => const EmailVerificationScreen(),
       ),
       GoRoute(
         path: '/auth-choice',

@@ -79,6 +79,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'Connection error. Please check your internet connection and try again.';
     }
 
+    if (errorString.contains('email_not_verified')) {
+      return 'EMAIL_NOT_VERIFIED';
+    }
+
     if (errorString.contains('timeout')) {
       return 'Request timed out. Please try again.';
     }
@@ -185,6 +189,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       if (mounted) {
         final errorMessage = _getUserFriendlyErrorMessage(e);
+        if (errorMessage == 'EMAIL_NOT_VERIFIED') {
+          final role = _userRole ?? 'patient';
+          context.go('/verify-email?role=$role');
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage)),
         );

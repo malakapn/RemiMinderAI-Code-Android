@@ -48,6 +48,7 @@ class FirebaseAuthService {
       );
       if (userCredential.user == null) throw Exception('Firebase sign up failed');
       await userCredential.user!.reload();
+      await userCredential.user!.sendEmailVerification();
       final idToken = await userCredential.user!.getIdToken();
       if (idToken == null) throw Exception('Failed to get Firebase ID token');
       await _tokenManager.saveTokens(idToken, '');
@@ -76,6 +77,9 @@ class FirebaseAuthService {
       if (userCredential.user == null) throw Exception('Firebase sign in failed');
       final signedInUser = userCredential.user!;
       await signedInUser.reload();
+      if (!signedInUser.emailVerified) {
+        throw Exception("EMAIL_NOT_VERIFIED");
+      }
       final idToken = await signedInUser.getIdToken();
       if (idToken == null) throw Exception('Failed to get Firebase ID token');
       await _tokenManager.saveTokens(idToken, '');

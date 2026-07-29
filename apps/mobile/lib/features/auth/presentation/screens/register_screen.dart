@@ -451,8 +451,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _registerWithEmail() async {
     if (_isSubmitting) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isSubmitting = true);
-    if (_formKey.currentState?.validate() ?? false) {
+    if (true) {
       if (!_acceptTerms) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -491,10 +492,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             barrierDismissible: false,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: const Text('Account Created!'),
+                title: const Text('Verify Your Email'),
                 content:
-                    const Text('Your account has been created successfully. '
-                        'You can now sign in with your email and password.'),
+                    const Text('We sent a verification link to your email. '
+                        'Please check your inbox and verify before signing in.'),
                 actions: [
                   TextButton(
                     onPressed: () {
@@ -504,9 +505,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       final roleParam = selectedRole == UserRole.patient
                           ? 'patient'
                           : 'caregiver';
-                      context.go('/login?role=$roleParam');
+                      context.go('/verify-email?role=$roleParam');
                     },
-                    child: const Text('Go to Sign In'),
+                    child: const Text('OK'),
                   ),
                 ],
               );
