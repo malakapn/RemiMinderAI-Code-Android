@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import "../../../../core/services/revenuecat_service.dart";
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter/foundation.dart';
@@ -81,6 +82,7 @@ class AuthNotifier extends Notifier<AuthState> {
         // Profile is loaded during sign-in flow
         state = AuthState.authenticated(user);
         await _syncFcmTokenAndAttachRefreshListener();
+      if (state.user != null) await RevenueCatService().login(state.user!.id);
         await _syncReminderNotifications(user);
       } else {
         state = AuthState.unauthenticated();
@@ -127,8 +129,10 @@ class AuthNotifier extends Notifier<AuthState> {
         state = AuthState.authenticated(user,
             profile: AuthProfile.fromUserProfile(profile));
         await _syncFcmTokenAndAttachRefreshListener();
+      if (state.user != null) await RevenueCatService().login(state.user!.id);
         await _syncReminderNotifications(user);
       } catch (_) {
+      await RevenueCatService().logout();
         await _authRepository.signOut();
         const msg =
             'Account created, but we could not finish setup. Please sign in with your email and password.';
@@ -166,6 +170,7 @@ class AuthNotifier extends Notifier<AuthState> {
         state = AuthState.authenticated(user);
       }
       await _syncFcmTokenAndAttachRefreshListener();
+      if (state.user != null) await RevenueCatService().login(state.user!.id);
       await _syncReminderNotifications(user);
     } catch (e) {
       state = AuthState.error(e.toString());
@@ -200,6 +205,7 @@ class AuthNotifier extends Notifier<AuthState> {
         state = AuthState.authenticated(user);
       }
       await _syncFcmTokenAndAttachRefreshListener();
+      if (state.user != null) await RevenueCatService().login(state.user!.id);
       await _syncReminderNotifications(user);
     } catch (e, st) {
       debugPrint('🔴 signInWithGoogle: Google Auth failed: $e');
@@ -256,6 +262,7 @@ class AuthNotifier extends Notifier<AuthState> {
         state = AuthState.authenticated(user);
       }
       await _syncFcmTokenAndAttachRefreshListener();
+      if (state.user != null) await RevenueCatService().login(state.user!.id);
       await _syncReminderNotifications(user);
     } catch (e) {
       if (e.toString().contains('cancelled')) {
@@ -277,6 +284,7 @@ class AuthNotifier extends Notifier<AuthState> {
       if (kDebugMode) {
         print('🔐 AuthNotifier: calling _authRepository.signOut()');
       }
+      await RevenueCatService().logout();
       await _authRepository.signOut();
       if (kDebugMode) {
         print(

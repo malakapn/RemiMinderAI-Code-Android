@@ -1,3 +1,4 @@
+import "core/services/revenuecat_service.dart";
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -35,6 +36,12 @@ Future<void> main() async {
     await NotificationService().initialize();
   } catch (e) {
     debugPrint('NotificationService initialization failed: $e');
+  }
+
+  try {
+    await RevenueCatService().initialize();
+  } catch (e) {
+    debugPrint("RevenueCat initialization failed: $e");
   }
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

@@ -66,6 +66,7 @@ dependencies:
   image_picker: ^1.1.1
   path_provider: ^2.1.2
   sign_in_with_apple: ^8.0.0
+  purchases_flutter: ^10.6.0
 
 dev_dependencies:
   flutter_test:

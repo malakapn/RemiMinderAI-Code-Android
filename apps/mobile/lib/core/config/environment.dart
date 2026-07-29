@@ -77,6 +77,9 @@ class Environment {
   static const String defaultFirebaseWebClientId =
       '575820802106-m8q0lu61mdgls5r354uvd93phvf7ig9a.apps.googleusercontent.com';
 
+  static String get revenueCatApiKey =>
+      _isLoaded ? (dotenv.env["REVENUECAT_API_KEY"] ?? "").trim() : "";
+
   static String get _billingUrlScheme {
     if (_isLoaded && dotenv.env['BILLING_URL_SCHEME'] != null) {
       final s = dotenv.env['BILLING_URL_SCHEME']!.trim();
