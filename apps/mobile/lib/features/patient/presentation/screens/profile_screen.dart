@@ -89,32 +89,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Upgrade to Premium
-        InkWell(
-          onTap: () => context.go("/upgrade"),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1A3A5C), Color(0xFF0C1F33)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.workspace_premium, color: Color(0xFFC9A84C), size: 24),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text("Upgrade to Premium",
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                ),
-                Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 16),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
         // Account Details
         InkWell(
           onTap: () {
@@ -443,6 +417,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Upgrade to Premium
+        InkWell(
+          onTap: () => context.go("/upgrade"),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1A3A5C), Color(0xFF0C1F33)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.workspace_premium, color: Color(0xFFC9A84C), size: 24),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text("Upgrade to Premium",
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+                Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 16),
+              ],
+            ),
+          ),
+        ),
         Row(
           children: [
             // Sign Out Button
