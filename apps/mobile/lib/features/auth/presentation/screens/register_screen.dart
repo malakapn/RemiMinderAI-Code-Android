@@ -24,6 +24,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
+  bool _isSubmitting = false;
 
   /// Convert technical errors to user-friendly messages
   String _getUserFriendlyErrorMessage(dynamic error) {
@@ -311,7 +312,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _acceptTerms ? _registerWithEmail : null,
+                    onPressed: _acceptTerms && !_isSubmitting ? _registerWithEmail : null,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -449,6 +450,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _registerWithEmail() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
     if (_formKey.currentState?.validate() ?? false) {
       if (!_acceptTerms) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -511,6 +514,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           );
         }
       } catch (e) {
+        setState(() => _isSubmitting = false);
         if (mounted) {
           final errorMessage = _getUserFriendlyErrorMessage(e);
           ScaffoldMessenger.of(context).showSnackBar(

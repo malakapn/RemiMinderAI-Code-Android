@@ -92,6 +92,7 @@ async def get_user_email(user_id: str) -> str:
         raise
 
 
+# FIXED: was engine.connect without commit
 async def save_raw_transcript(
     visit_id: str,
     user_id: str,
