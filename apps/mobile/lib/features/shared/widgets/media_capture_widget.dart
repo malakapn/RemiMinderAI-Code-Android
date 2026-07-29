@@ -263,7 +263,7 @@ class _MediaCaptureWidgetState extends State<MediaCaptureWidget> {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xFF1A3A5C),
         duration: const Duration(seconds: 3),
       ),
     );

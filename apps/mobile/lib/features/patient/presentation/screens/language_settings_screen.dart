@@ -104,8 +104,8 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color(0xFF1A4D4D),
-                    Color(0xFF051818),
+                    Color(0xFF1A3A5C),
+                    Color(0xFF0C1F33),
                   ],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,

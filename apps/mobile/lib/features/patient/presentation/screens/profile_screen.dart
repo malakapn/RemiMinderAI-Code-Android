@@ -41,8 +41,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color(0xFF1A4D4D), // Dark teal-green
-                    Color(0xFF051818), // Very dark green/black
+                    Color(0xFF1A3A5C), // Dark navy
+                    Color(0xFF0C1F33), // Very dark navy
                   ],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,

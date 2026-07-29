@@ -225,7 +225,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               content: Text(
                 'If an account exists for this email, we\'ve sent you password reset instructions.',
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: const Color(0xFF1A3A5C),
             ),
           );
         }
