@@ -9,6 +9,7 @@ import '../features/auth/presentation/screens/role_selection_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/auth_choice_screen.dart';
 import '../features/auth/presentation/screens/email_verification_screen.dart';
+import '../features/patient/presentation/screens/upgrade_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/patient/presentation/screens/patient_home_screen.dart';
@@ -104,6 +105,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/role-selection',
         builder: (context, state) => const RoleSelectionScreen(),
+      ),
+      GoRoute(
+        path: '/upgrade',
+        builder: (context, state) => const UpgradeScreen(),
       ),
       GoRoute(
         path: '/verify-email',
