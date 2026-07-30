@@ -79,9 +79,31 @@ class Environment {
   static const String revenueCatAppleApiKey = '';
   static const String revenueCatAndroidPackageName = 'com.remiminderai.app';
   static const String revenueCatCustomUrlScheme = 'rc-e42394e597';
-  static const String revenueCatPremiumEntitlement = 'premium';
-  static const String revenueCatMonthlyProductId = 'remi_premium_monthly';
-  static const String revenueCatAnnualProductId = 'remi_premium_annual';
+  /// RevenueCat entitlement + product IDs (override via `.env`; no store prices in code).
+  static String get revenueCatPremiumEntitlement {
+    final fromEnv = _isLoaded
+        ? dotenv.env['REVENUECAT_PREMIUM_ENTITLEMENT']?.trim()
+        : null;
+    return (fromEnv != null && fromEnv.isNotEmpty) ? fromEnv : 'premium';
+  }
+
+  static String get revenueCatMonthlyProductId {
+    final fromEnv = _isLoaded
+        ? dotenv.env['REVENUECAT_MONTHLY_PRODUCT_ID']?.trim()
+        : null;
+    return (fromEnv != null && fromEnv.isNotEmpty)
+        ? fromEnv
+        : 'remi_premium_monthly';
+  }
+
+  static String get revenueCatAnnualProductId {
+    final fromEnv = _isLoaded
+        ? dotenv.env['REVENUECAT_ANNUAL_PRODUCT_ID']?.trim()
+        : null;
+    return (fromEnv != null && fromEnv.isNotEmpty)
+        ? fromEnv
+        : 'remi_premium_annual';
+  }
 
   static bool get isProduction => flutterEnv == 'production';
   static bool get isStaging => flutterEnv == 'staging';

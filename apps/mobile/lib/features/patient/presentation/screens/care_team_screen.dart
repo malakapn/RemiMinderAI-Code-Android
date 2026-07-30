@@ -317,8 +317,10 @@ class _CareTeamScreenState extends ConsumerState<CareTeamScreen> {
       if (!mounted) return;
       if (isPremium) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Premium supports up to 5 caregivers.'),
+          SnackBar(
+            content: Text(
+              'Premium supports up to ${MonetizationLimits.premiumCaregiverLimit} caregivers.',
+            ),
           ),
         );
         return;

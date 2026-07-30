@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../../../../core/config/environment.dart';
+import '../../../../core/models/monetization_status.dart';
 import '../../../../core/services/analytics_service.dart';
 import '../../../../core/services/revenuecat_service.dart';
 import '../../../../core/services/subscription_api_service.dart';
@@ -35,18 +36,36 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
     try {
       final offerings = await RevenueCatService.instance.getOfferings();
       final packages = offerings?.current?.availablePackages ?? const <Package>[];
-      Package? findPackage(String productId) {
+      Package? byProductId(String productId) {
         for (final package in packages) {
           if (package.storeProduct.identifier == productId) return package;
         }
         return null;
       }
 
+      Package? byType(PackageType type) {
+        for (final package in packages) {
+          if (package.packageType == type) return package;
+        }
+        return null;
+      }
+
       if (!mounted) return;
       setState(() {
-        _monthlyPackage = findPackage(Environment.revenueCatMonthlyProductId);
-        _annualPackage = findPackage(Environment.revenueCatAnnualProductId);
+        // Prefer configured product IDs; fall back to RevenueCat package types.
+        // Prices always come from the store product — never hardcoded.
+        _monthlyPackage = byProductId(Environment.revenueCatMonthlyProductId) ??
+            byType(PackageType.monthly);
+        _annualPackage = byProductId(Environment.revenueCatAnnualProductId) ??
+            byType(PackageType.annual);
         _loadingOfferings = false;
+        if (_monthlyPackage == null && _annualPackage == null) {
+          _error = 'Premium plans are not available in your store yet.';
+        } else if (_monthlyPackage == null) {
+          _selectedPlan = _BillingPlan.yearly;
+        } else if (_annualPackage == null) {
+          _selectedPlan = _BillingPlan.monthly;
+        }
       });
     } catch (_) {
       if (!mounted) return;
@@ -138,14 +157,57 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
     }
   }
 
+  Package? _packageFor(_BillingPlan plan) =>
+      plan == _BillingPlan.monthly ? _monthlyPackage : _annualPackage;
+
   String _priceFor(_BillingPlan plan) {
-    final package = plan == _BillingPlan.monthly ? _monthlyPackage : _annualPackage;
-    if (package != null) return package.storeProduct.priceString;
-    return plan == _BillingPlan.monthly ? '\$4.99' : '\$39.99';
+    final package = _packageFor(plan);
+    final price = package?.storeProduct.priceString.trim();
+    if (price != null && price.isNotEmpty) return price;
+    return '—';
   }
 
   String _periodFor(_BillingPlan plan) {
-    return plan == _BillingPlan.monthly ? '/ month' : '/ year';
+    final package = _packageFor(plan);
+    switch (package?.packageType) {
+      case PackageType.monthly:
+        return '/ month';
+      case PackageType.annual:
+        return '/ year';
+      default:
+        return plan == _BillingPlan.monthly ? '/ month' : '/ year';
+    }
+  }
+
+  String _titleFor(_BillingPlan plan) {
+    final package = _packageFor(plan);
+    final title = package?.storeProduct.title.trim();
+    if (title != null && title.isNotEmpty) {
+      // Store titles are often long; keep a short label from package type when possible.
+      switch (package?.packageType) {
+        case PackageType.monthly:
+          return 'Monthly';
+        case PackageType.annual:
+          return 'Annual';
+        default:
+          break;
+      }
+    }
+    return plan == _BillingPlan.monthly ? 'Monthly' : 'Annual';
+  }
+
+  /// Savings vs 12× monthly, computed from live store prices (null if unavailable).
+  String? _annualSavingsBadge() {
+    final monthly = _monthlyPackage?.storeProduct.price;
+    final annual = _annualPackage?.storeProduct.price;
+    if (monthly == null || annual == null || monthly <= 0 || annual <= 0) {
+      return null;
+    }
+    final yearlyIfMonthly = monthly * 12;
+    if (yearlyIfMonthly <= annual) return null;
+    final pct = (((yearlyIfMonthly - annual) / yearlyIfMonthly) * 100).round();
+    if (pct <= 0) return null;
+    return 'Save $pct%';
   }
 
   void _closeUpgrade() {
@@ -259,7 +321,10 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                           const SizedBox(height: 14),
                           _buildBenefitItem('Vox voice companion', theme),
                           const SizedBox(height: 14),
-                          _buildBenefitItem('Invite up to 5 caregivers', theme),
+                          _buildBenefitItem(
+                            'Invite up to ${MonetizationLimits.premiumCaregiverLimit} caregivers',
+                            theme,
+                          ),
                           const SizedBox(height: 14),
                           _buildBenefitItem('Future premium AI features', theme),
                         ],
@@ -277,39 +342,50 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                         style: TextStyle(color: theme.colorScheme.error),
                         textAlign: TextAlign.center,
                       ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _planCard(
-                            theme: theme,
-                            title: 'Monthly',
-                            price: _priceFor(_BillingPlan.monthly),
-                            period: _periodFor(_BillingPlan.monthly),
-                            selected: _selectedPlan == _BillingPlan.monthly,
-                            onTap: () => setState(() => _selectedPlan = _BillingPlan.monthly),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: _planCard(
-                            theme: theme,
-                            title: 'Annual',
-                            price: _priceFor(_BillingPlan.yearly),
-                            period: _periodFor(_BillingPlan.yearly),
-                            selected: _selectedPlan == _BillingPlan.yearly,
-                            highlight: true,
-                            badge: 'Save 33%',
-                            onTap: () => setState(() => _selectedPlan = _BillingPlan.yearly),
-                          ),
-                        ),
-                      ],
-                    ),
+                    if (!_loadingOfferings &&
+                        (_monthlyPackage != null || _annualPackage != null))
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_monthlyPackage != null)
+                            Expanded(
+                              child: _planCard(
+                                theme: theme,
+                                title: _titleFor(_BillingPlan.monthly),
+                                price: _priceFor(_BillingPlan.monthly),
+                                period: _periodFor(_BillingPlan.monthly),
+                                selected: _selectedPlan == _BillingPlan.monthly,
+                                onTap: () => setState(
+                                  () => _selectedPlan = _BillingPlan.monthly,
+                                ),
+                              ),
+                            ),
+                          if (_monthlyPackage != null && _annualPackage != null)
+                            const SizedBox(width: 14),
+                          if (_annualPackage != null)
+                            Expanded(
+                              child: _planCard(
+                                theme: theme,
+                                title: _titleFor(_BillingPlan.yearly),
+                                price: _priceFor(_BillingPlan.yearly),
+                                period: _periodFor(_BillingPlan.yearly),
+                                selected: _selectedPlan == _BillingPlan.yearly,
+                                highlight: true,
+                                badge: _annualSavingsBadge(),
+                                onTap: () => setState(
+                                  () => _selectedPlan = _BillingPlan.yearly,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     const SizedBox(height: 28),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _loading ? null : _purchaseSelectedPlan,
+                        onPressed: (_loading || _packageFor(_selectedPlan) == null)
+                            ? null
+                            : _purchaseSelectedPlan,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme.colorScheme.primary,
                           foregroundColor: Colors.white,

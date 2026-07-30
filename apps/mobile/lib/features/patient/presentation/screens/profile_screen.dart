@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/account_data_actions.dart';
 import '../../../../core/config/app_build_info.dart';
+import '../../../../core/models/monetization_status.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/revenuecat_service.dart';
@@ -380,7 +381,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final title = isPremium ? 'Premium active' : 'RemiMinderAI Premium';
     final subtitle = isPremium
         ? 'Vox, unlimited summaries, and caregiver support are unlocked.'
-        : 'Unlock Vox, unlimited summaries, and up to 5 caregivers.';
+        : 'Unlock Vox, unlimited summaries, and up to ${MonetizationLimits.premiumCaregiverLimit} caregivers.';
 
     return Container(
       padding: const EdgeInsets.all(16),
