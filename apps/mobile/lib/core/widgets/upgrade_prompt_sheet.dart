@@ -42,7 +42,7 @@ extension UpgradePromptReasonCopy on UpgradePromptReason {
       case UpgradePromptReason.summaryLimit:
         return "You've used your free doctor visit summaries. Upgrade to RemiMinderAI Premium to continue organizing your healthcare and unlock Vox, your AI healthcare companion.";
       case UpgradePromptReason.voxLocked:
-        return 'Vox reads medication reminders and explains doctor summaries in a warm, natural voice. Upgrade to Premium to use Vox whenever you need it.';
+        return 'Vox reads medication reminders and visit summaries aloud, can set reminders and log check-ins by voice, and supports live translation. Upgrade to Premium to use Vox whenever you need it.';
       case UpgradePromptReason.caregiverLimit:
         return 'Premium lets you invite more caregivers so your loved ones can stay connected to your care.';
       case UpgradePromptReason.trialExpired:

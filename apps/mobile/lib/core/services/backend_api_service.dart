@@ -223,14 +223,18 @@ class BackendApiService {
   }
 
   /// Register or refresh this device's FCM token for server push notifications.
-  Future<Map<String, dynamic>> getVoxTodayBriefing() async {
+  Future<Map<String, dynamic>> getVoxTodayBriefing({
+    String replyLanguage = 'en',
+  }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
     }
 
     final response = await http.post(
-      Uri.parse('${Environment.apiBaseUrl}/api/remivox/today'),
+      Uri.parse(
+        '${Environment.apiBaseUrl}/api/remivox/today?reply_language=$replyLanguage',
+      ),
       headers: {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
@@ -257,7 +261,11 @@ class BackendApiService {
     return json.decode(response.body) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> askVox(String prompt) async {
+  Future<Map<String, dynamic>> askVox(
+    String prompt, {
+    String replyLanguage = 'en',
+    String timezone = 'UTC',
+  }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
@@ -269,7 +277,11 @@ class BackendApiService {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
       },
-      body: json.encode({'prompt': prompt}),
+      body: json.encode({
+        'prompt': prompt,
+        'reply_language': replyLanguage,
+        'timezone': timezone,
+      }),
     );
 
     if (response.statusCode != 200) {
@@ -290,6 +302,70 @@ class BackendApiService {
     }
 
     return json.decode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> translateVoxTurn({
+    String? text,
+    String? audioBase64,
+    String sourceLanguage = 'en',
+    String targetLanguage = 'bn',
+    String contentType = 'audio/wav',
+  }) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) {
+      throw Exception('Authentication required. Please log in again.');
+    }
+
+    final response = await http.post(
+      Uri.parse('${Environment.apiBaseUrl}/api/remivox/translate-turn'),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        if (text != null) 'text': text,
+        if (audioBase64 != null) 'audio_base64': audioBase64,
+        'source_language': sourceLanguage,
+        'target_language': targetLanguage,
+        'content_type': contentType,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      String message = 'Live translate is not available right now.';
+      try {
+        final decoded = json.decode(response.body);
+        final detail = decoded is Map ? decoded['detail'] : null;
+        if (detail is String && detail.isNotEmpty) message = detail;
+      } catch (_) {}
+      throw Exception(message);
+    }
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Hydra S2S live WebSocket URL (token in query; API key stays on server).
+  Uri voxLiveWebSocketUri({
+    required String accessToken,
+    String mode = 'translate',
+    String sourceLanguage = 'en',
+    String targetLanguage = 'bn',
+    String timezone = 'UTC',
+  }) {
+    final base = Uri.parse(Environment.apiBaseUrl);
+    final scheme = base.scheme == 'https' ? 'wss' : 'ws';
+    return Uri(
+      scheme: scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+      path: '/api/remivox/live',
+      queryParameters: {
+        'token': accessToken,
+        'mode': mode,
+        'source_language': sourceLanguage,
+        'target_language': targetLanguage,
+        'timezone': timezone,
+      },
+    );
   }
 
   /// Register or refresh this device's FCM token for server push notifications.

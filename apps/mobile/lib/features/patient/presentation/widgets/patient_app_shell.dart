@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/widgets/upgrade_prompt_sheet.dart';
@@ -95,14 +97,26 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     super.dispose();
   }
 
+  Future<String> _timezone() async {
+    try {
+      return await FlutterTimezone.getLocalTimezone();
+    } catch (_) {
+      return 'UTC';
+    }
+  }
+
   Future<void> _handleTap() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
       final prompt = await _listenForPrompt();
+      final tz = await _timezone();
       final data = prompt == null || prompt.trim().isEmpty
           ? await BackendApiService().getVoxTodayBriefing()
-          : await BackendApiService().askVox(prompt.trim());
+          : await BackendApiService().askVox(
+              prompt.trim(),
+              timezone: tz,
+            );
       final text = data['text']?.toString() ?? 'Vox has nothing to read right now.';
       final audio = data['audio_base64'] as String?;
       if (audio != null && audio.isNotEmpty) {
@@ -112,6 +126,10 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(text)),
         );
+      }
+      final action = data['action']?.toString();
+      if (action == 'open_live_translate' && mounted) {
+        context.push('/patient/vox');
       }
     } catch (e) {
       final message = e.toString();
@@ -130,6 +148,10 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _openVoxScreen() {
+    context.push('/patient/vox');
   }
 
   Future<String?> _listenForPrompt() async {
@@ -166,6 +188,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: _handleTap,
+      onLongPress: _openVoxScreen,
       child: Stack(
         alignment: Alignment.center,
         children: [
