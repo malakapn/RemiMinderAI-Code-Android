@@ -556,13 +556,13 @@ async def handle_prompt(
                 target = code
                 break
         text = (
-            f"Open Live Translate and I will speak with you between English and "
-            f"{language_display_name(target)}. Tap Live Translate on the Vox screen to start. "
+            f"Starting live translation between English and "
+            f"{language_display_name(target)}. Speak naturally. "
             + DISCLAIMER
         )
         return {
             "text": text,
-            "action": "open_live_translate",
+            "action": "start_live_translate",
             "action_payload": {"target_language": target},
             "reply_language": lang,
         }

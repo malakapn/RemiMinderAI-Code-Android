@@ -4,10 +4,14 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+
+import '../../../../core/config/supported_languages.dart';
+import '../../../../core/providers/locale_provider.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/widgets/upgrade_prompt_sheet.dart';
+import '../services/vox_live_session.dart';
 import 'rounded_navigation_bar.dart';
 
 /// App shell that wraps all patient screens with a floating bottom navigation bar
@@ -90,9 +94,12 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   final AudioPlayer _player = AudioPlayer();
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _busy = false;
+  bool _liveActive = false;
+  VoxLiveSession? _live;
 
   @override
   void dispose() {
+    _live?.dispose();
     _player.dispose();
     super.dispose();
   }
@@ -105,53 +112,148 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     }
   }
 
+  Future<String> _preferredLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return normalizeLanguageCode(
+        prefs.getString(kPreferredLanguagePrefsKey) ?? 'en',
+      );
+    } catch (_) {
+      return 'en';
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _handleTap() async {
+    // Second tap during live translate stops the session in place.
+    if (_liveActive) {
+      await _stopLive();
+      return;
+    }
     if (_busy) return;
     setState(() => _busy = true);
     try {
       final prompt = await _listenForPrompt();
       final tz = await _timezone();
+      final lang = await _preferredLanguage();
+      final wantsTranslate = prompt != null &&
+          prompt.toLowerCase().contains('translate');
+
+      if (wantsTranslate) {
+        var target = lang == 'en' ? 'bn' : lang;
+        for (final entry in const {
+          'bangla': 'bn',
+          'bengali': 'bn',
+          'hindi': 'hi',
+          'spanish': 'es',
+          'french': 'fr',
+          'portuguese': 'pt',
+          'german': 'de',
+          'tamil': 'ta',
+          'gujarati': 'gu',
+          'punjabi': 'pa',
+          'english': 'en',
+        }.entries) {
+          if (prompt!.toLowerCase().contains(entry.key)) {
+            target = entry.value;
+            break;
+          }
+        }
+        await _startLiveInPlace(targetLanguage: target);
+        return;
+      }
+
       final data = prompt == null || prompt.trim().isEmpty
-          ? await BackendApiService().getVoxTodayBriefing()
+          ? await BackendApiService().getVoxTodayBriefing(replyLanguage: lang)
           : await BackendApiService().askVox(
               prompt.trim(),
+              replyLanguage: lang,
               timezone: tz,
             );
-      final text = data['text']?.toString() ?? 'Vox has nothing to read right now.';
+      final text =
+          data['text']?.toString() ?? 'Vox has nothing to read right now.';
       final audio = data['audio_base64'] as String?;
       if (audio != null && audio.isNotEmpty) {
-        final bytes = base64Decode(audio);
-        await _playAudio(bytes);
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(text)),
-        );
+        await _playAudio(base64Decode(audio));
+      } else {
+        _snack(text);
       }
+
       final action = data['action']?.toString();
-      if (action == 'open_live_translate' && mounted) {
-        context.push('/patient/vox');
+      if (action == 'start_live_translate') {
+        final payload = data['action_payload'];
+        final target = payload is Map
+            ? normalizeLanguageCode(
+                payload['target_language']?.toString() ?? 'bn',
+              )
+            : (lang == 'en' ? 'bn' : lang);
+        await _startLiveInPlace(targetLanguage: target);
       }
     } catch (e) {
       final message = e.toString();
       if (!mounted) return;
-      if (message.toLowerCase().contains('premium')) {
+      if (message.toLowerCase().contains('premium') ||
+          message.toLowerCase().contains('trial')) {
         await showUpgradePromptSheet(
           context,
-          reason: UpgradePromptReason.voxLocked,
+          reason: UpgradePromptReason.trialExpired,
           screen: 'patient_shell',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        _snack(message);
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted && !_liveActive) setState(() => _busy = false);
     }
   }
 
-  void _openVoxScreen() {
-    context.push('/patient/vox');
+  Future<void> _startLiveInPlace({required String targetLanguage}) async {
+    final session = VoxLiveSession(
+      sourceLanguage: 'en',
+      targetLanguage: targetLanguage == 'en' ? 'bn' : targetLanguage,
+      mode: 'translate',
+      timezone: await _timezone(),
+    );
+    setState(() {
+      _live = session;
+      _liveActive = true;
+      _busy = true;
+    });
+    _snack(
+      'Vox live translate on (${languageLabel(session.targetLanguage)}). '
+      'Tap Vox again to stop.',
+    );
+    try {
+      await session.start(
+        onStatus: (s) {
+          if (mounted) _snack(s);
+        },
+        onError: (m) {
+          if (mounted) _snack(m);
+        },
+      );
+    } catch (e) {
+      _snack(e.toString());
+      await _stopLive();
+    }
+  }
+
+  Future<void> _stopLive() async {
+    await _live?.stop();
+    _live = null;
+    if (mounted) {
+      setState(() {
+        _liveActive = false;
+        _busy = false;
+      });
+      _snack('Vox stopped.');
+    }
   }
 
   Future<String?> _listenForPrompt() async {
@@ -159,11 +261,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       final available = await _speech.initialize();
       if (!available) return null;
       var heard = '';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vox is listening...')),
-        );
-      }
+      _snack('Vox is listening...');
       await _speech.listen(
         listenFor: const Duration(seconds: 5),
         pauseFor: const Duration(seconds: 2),
@@ -188,7 +286,6 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: _handleTap,
-      onLongPress: _openVoxScreen,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -196,7 +293,9 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
+              color: _liveActive
+                  ? const Color(0xFF2E7D32)
+                  : Theme.of(context).colorScheme.primary,
               shape: BoxShape.circle,
               border: Border.all(
                 color: const Color(0xFFC9A84C),
@@ -210,10 +309,10 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                 ),
               ],
             ),
-            child: const Column(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
+                const Text(
                   'Vox',
                   style: TextStyle(
                     color: Colors.white,
@@ -223,10 +322,10 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                     height: 1,
                   ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
                 Text(
-                  "Today's",
-                  style: TextStyle(
+                  _liveActive ? 'Live' : "Ask",
+                  style: const TextStyle(
                     color: Colors.white,
                     fontFamily: 'Poppins',
                     fontSize: 10,
@@ -235,8 +334,8 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                   ),
                 ),
                 Text(
-                  'Visit',
-                  style: TextStyle(
+                  _liveActive ? 'Tap stop' : 'me',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontFamily: 'Poppins',
                     fontSize: 10,

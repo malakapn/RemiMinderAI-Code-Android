@@ -19,7 +19,8 @@ PLAN_EXPIRED = "EXPIRED"
 TRIAL_DAYS = 14
 TRIAL_SUMMARY_LIMIT = 3
 FREE_SUMMARY_LIMIT = 2
-TRIAL_REMIVOX_LIMIT = 2
+# Deprecated: Vox no longer uses a separate interaction quota (full trial access).
+TRIAL_REMIVOX_LIMIT = 0
 FREE_CAREGIVER_LIMIT = 1
 TRIAL_CAREGIVER_LIMIT = 1
 PREMIUM_CAREGIVER_LIMIT = 5
@@ -256,12 +257,15 @@ async def increment_remivox_interaction(firebase_uid: str) -> None:
 
 
 async def enforce_remivox_access(firebase_uid: str) -> dict:
+    """
+    Vox follows the same access model as the rest of RemiMinder:
+    available during the 14-day trial and for Premium; locked after trial
+    until the user subscribes. No separate Vox interaction quota.
+    """
     status = await get_subscription_status(firebase_uid)
     plan = status["plan"]
     allowed = plan == PLAN_PREMIUM or (
-        plan == PLAN_TRIAL
-        and status["trial_active"]
-        and int(status["remivox_interaction_count"] or 0) < TRIAL_REMIVOX_LIMIT
+        plan == PLAN_TRIAL and status["trial_active"]
     )
     if allowed:
         return status
@@ -271,8 +275,11 @@ async def enforce_remivox_access(firebase_uid: str) -> dict:
             "code": "premium_required",
             "feature": "remivox",
             "plan": plan,
-            "limit": TRIAL_REMIVOX_LIMIT if plan == PLAN_TRIAL else 0,
-            "message": "Upgrade to RemiMinderAI Premium to use Vox.",
+            "limit": 0,
+            "message": (
+                "Your 14-day trial has ended. Subscribe to RemiMinderAI Premium "
+                "to keep using all features, including Vox."
+            ),
         },
     )
 

@@ -35,7 +35,8 @@ enum MonetizationPlan {
 class MonetizationLimits {
   static const int trialSummaryLimit = 3;
   static const int freeSummaryLimit = 2;
-  static const int trialVoxInteractionLimit = 2;
+  /// Vox is included in the full 14-day trial (no separate interaction cap).
+  static const int trialVoxInteractionLimit = 0;
   static const int freeCaregiverLimit = 1;
   static const int trialCaregiverLimit = 1;
   static const int premiumCaregiverLimit = 5;
@@ -87,10 +88,7 @@ class MonetizationStatus {
   bool get isExpired => plan == MonetizationPlan.expired;
 
   bool get canUseVox =>
-      isPremium ||
-      (isTrial &&
-          remivoxInteractionCount <
-              MonetizationLimits.trialVoxInteractionLimit);
+      isPremium || isTrial;
 
   bool get canGenerateSummary {
     if (isPremium) return true;

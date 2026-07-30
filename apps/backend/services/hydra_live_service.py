@@ -20,7 +20,9 @@ from services.remivox_intents import (
     hydra_tool_schemas,
 )
 from services.remivox_languages import normalize_language_code
-from services.subscription_service import PLAN_PREMIUM, enforce_remivox_access, increment_remivox_interaction
+from services.subscription_service import (
+    enforce_remivox_access,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,7 @@ async def run_hydra_live_proxy(
         await client_ws.close(code=1013)
         return
 
-    status = await enforce_remivox_access(firebase_uid)
+    await enforce_remivox_access(firebase_uid)
     user_uuid = await get_user_uuid(firebase_uid)
     src = normalize_language_code(source_language)
     tgt = normalize_language_code(target_language, default="bn" if mode == "translate" else "en")
@@ -193,9 +195,6 @@ async def run_hydra_live_proxy(
 
             reader_task = asyncio.create_task(hydra_reader())
             await configured.wait()
-
-            if status.get("plan") != PLAN_PREMIUM:
-                await increment_remivox_interaction(firebase_uid)
 
             try:
                 while True:

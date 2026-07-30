@@ -29,7 +29,7 @@ extension UpgradePromptReasonCopy on UpgradePromptReason {
       case UpgradePromptReason.summaryLimit:
         return 'Keep your visit summaries going';
       case UpgradePromptReason.voxLocked:
-        return 'Unlock Vox';
+        return 'Your trial has ended';
       case UpgradePromptReason.caregiverLimit:
         return 'Invite more caregivers';
       case UpgradePromptReason.trialExpired:
@@ -40,13 +40,13 @@ extension UpgradePromptReasonCopy on UpgradePromptReason {
   String get message {
     switch (this) {
       case UpgradePromptReason.summaryLimit:
-        return "You've used your free doctor visit summaries. Upgrade to RemiMinderAI Premium to continue organizing your healthcare and unlock Vox, your AI healthcare companion.";
+        return "You've used your free doctor visit summaries. Upgrade to RemiMinderAI Premium to continue organizing your healthcare.";
       case UpgradePromptReason.voxLocked:
-        return 'Vox reads medication reminders and visit summaries aloud, can set reminders and log check-ins by voice, and supports live translation. Upgrade to Premium to use Vox whenever you need it.';
+        return 'Your 14-day trial has ended. Subscribe to RemiMinderAI Premium to keep using all features, including Vox.';
       case UpgradePromptReason.caregiverLimit:
         return 'Premium lets you invite more caregivers so your loved ones can stay connected to your care.';
       case UpgradePromptReason.trialExpired:
-        return 'You can keep using your reminders and documents. Upgrade when you are ready to continue premium summaries and Vox.';
+        return 'Your 14-day trial has ended. Subscribe to RemiMinderAI Premium to keep using all features — summaries, caregivers, and Vox.';
     }
   }
 }

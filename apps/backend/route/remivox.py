@@ -19,9 +19,7 @@ from services.remivox_languages import (
     normalize_language_code,
 )
 from services.subscription_service import (
-    PLAN_PREMIUM,
     enforce_remivox_access,
-    increment_remivox_interaction,
 )
 
 logger = logging.getLogger(__name__)
@@ -247,7 +245,7 @@ async def remivox_translate_turn(
     firebase_uid = current_user.get("sub")
     if not firebase_uid:
         raise HTTPException(status_code=401, detail="Invalid token")
-    status = await enforce_remivox_access(firebase_uid)
+    await enforce_remivox_access(firebase_uid)
 
     src = normalize_language_code(request.source_language)
     tgt = normalize_language_code(request.target_language, default="bn")
@@ -270,8 +268,6 @@ async def remivox_translate_turn(
         "Not a medical interpreter.)"
     )
     audio_base64, content_type = _synthesize_smallestai(translated, language=tgt)
-    if status["plan"] != PLAN_PREMIUM:
-        await increment_remivox_interaction(firebase_uid)
     return RemiVoxBriefingResponse(
         text=text,
         audio_base64=audio_base64,
@@ -342,7 +338,7 @@ async def _remivox_response(
     if not firebase_uid:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    status = await enforce_remivox_access(firebase_uid)
+    await enforce_remivox_access(firebase_uid)
     user_uuid = await get_user_uuid(firebase_uid)
     reminders = await list_patient_reminders(user_uuid)
     summaries = await get_user_summaries(user_uuid, firebase_uid=firebase_uid)
@@ -367,8 +363,6 @@ async def _remivox_response(
         action_payload = {}
 
     audio_base64, content_type = _synthesize_smallestai(text, language=lang)
-    if status["plan"] != PLAN_PREMIUM:
-        await increment_remivox_interaction(firebase_uid)
 
     return RemiVoxBriefingResponse(
         text=text,
