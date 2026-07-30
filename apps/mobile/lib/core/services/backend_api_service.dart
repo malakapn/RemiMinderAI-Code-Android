@@ -262,9 +262,12 @@ class BackendApiService {
   }
 
   Future<Map<String, dynamic>> askVox(
-    String prompt, {
+    String? prompt, {
     String replyLanguage = 'en',
     String timezone = 'UTC',
+    String? audioBase64,
+    String contentType = 'audio/wav',
+    bool autoDetectLanguage = true,
   }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
@@ -278,9 +281,13 @@ class BackendApiService {
         'Content-Type': 'application/json',
       },
       body: json.encode({
-        'prompt': prompt,
+        if (prompt != null && prompt.trim().isNotEmpty) 'prompt': prompt.trim(),
         'reply_language': replyLanguage,
         'timezone': timezone,
+        if (audioBase64 != null && audioBase64.isNotEmpty)
+          'audio_base64': audioBase64,
+        'content_type': contentType,
+        'auto_detect_language': autoDetectLanguage,
       }),
     );
 

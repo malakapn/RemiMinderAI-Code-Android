@@ -35,12 +35,17 @@ class RemiVoxBriefingResponse(BaseModel):
     action: Optional[str] = None
     action_payload: Optional[dict[str, Any]] = None
     reply_language: Optional[str] = None
+    detected_language: Optional[str] = None
+    transcript: Optional[str] = None
 
 
 class RemiVoxAskRequest(BaseModel):
     prompt: Optional[str] = None
     reply_language: Optional[str] = Field(default="en")
     timezone: Optional[str] = Field(default="UTC")
+    audio_base64: Optional[str] = None
+    content_type: Optional[str] = "audio/wav"
+    auto_detect_language: bool = True
 
 
 class RemiVoxTranslateTurnRequest(BaseModel):
@@ -122,47 +127,88 @@ def _synthesize_smallestai(text: str, language: str = "en") -> tuple[Optional[st
     return base64.b64encode(response.content).decode("ascii"), content_type
 
 
-def _pulse_transcribe(audio_b64: str, language: str, content_type: str = "audio/wav") -> str:
+def _pulse_transcribe(
+    audio_b64: str,
+    language: str = "multi",
+    content_type: str = "audio/wav",
+) -> tuple[str, str]:
+    """
+    Transcribe with Pulse. Use language='multi' to auto-detect spoken language.
+    Returns (transcript, detected_or_requested_language_code).
+    """
     api_key = os.getenv("SMALLESTAI_API_KEY", "").strip()
     if not api_key:
         raise HTTPException(status_code=503, detail="Speech transcription is not configured.")
-    lang = normalize_language_code(language)
-    url = os.getenv(
+
+    lang_param = (language or "multi").strip().lower() or "multi"
+    if lang_param != "multi":
+        lang_param = normalize_language_code(lang_param)
+
+    base = os.getenv(
         "SMALLESTAI_STT_URL",
-        f"https://api.smallest.ai/waves/v1/pulse/get_text?language={lang}",
-    ).strip()
-    # Pulse commonly accepts multipart or JSON with base64 depending on deployment;
-    # use JSON base64 payload first, then multipart fallback.
+        "https://api.smallest.ai/waves/v1/pulse/get_text",
+    ).strip().rstrip("?")
+    # Force query language for auto-detect / locale.
+    if "language=" in base:
+        url = base
+    else:
+        sep = "&" if "?" in base else "?"
+        url = f"{base}{sep}language={lang_param}"
+
     headers = {"Authorization": f"Bearer {api_key}"}
+    audio_bytes = base64.b64decode(audio_b64)
     try:
+        # Preferred: raw audio body (Pulse pre-recorded API).
         response = requests.post(
             url,
-            headers={**headers, "Content-Type": "application/json"},
-            json={"audio": audio_b64, "language": lang},
+            headers={**headers, "Content-Type": content_type or "audio/wav"},
+            data=audio_bytes,
             timeout=45,
         )
         if response.status_code >= 400:
-            files = {
-                "file": (
-                    "vox.wav",
-                    base64.b64decode(audio_b64),
-                    content_type or "audio/wav",
-                )
-            }
+            files = {"file": ("vox.wav", audio_bytes, content_type or "audio/wav")}
             response = requests.post(url, headers=headers, files=files, timeout=45)
+        if response.status_code >= 400:
+            response = requests.post(
+                url,
+                headers={**headers, "Content-Type": "application/json"},
+                json={"audio": audio_b64, "language": lang_param},
+                timeout=45,
+            )
         if response.status_code >= 400:
             logger.warning("Pulse STT failed: %s %s", response.status_code, response.text[:300])
             raise HTTPException(status_code=502, detail="Could not transcribe audio.")
-        data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+
+        data: Any = {}
+        try:
+            data = response.json()
+        except Exception:
+            text = response.text.strip()
+            return text, normalize_language_code(lang_param if lang_param != "multi" else "en")
+
+        text = ""
+        detected = lang_param if lang_param != "multi" else "en"
         if isinstance(data, dict):
             for key in ("text", "transcript", "transcription"):
                 if data.get(key):
-                    return str(data[key]).strip()
-            # Nested shapes
-            if isinstance(data.get("data"), dict) and data["data"].get("text"):
-                return str(data["data"]["text"]).strip()
-        text = response.text.strip()
-        return text
+                    text = str(data[key]).strip()
+                    break
+            if not text and isinstance(data.get("data"), dict):
+                nested = data["data"]
+                for key in ("text", "transcript", "transcription"):
+                    if nested.get(key):
+                        text = str(nested[key]).strip()
+                        break
+            raw_lang = data.get("language") or data.get("detected_language")
+            if not raw_lang and isinstance(data.get("data"), dict):
+                raw_lang = data["data"].get("language")
+            if isinstance(data.get("languages"), list) and data["languages"]:
+                raw_lang = raw_lang or data["languages"][0]
+            if raw_lang:
+                detected = normalize_language_code(str(raw_lang))
+        if not text:
+            raise HTTPException(status_code=400, detail="No speech detected.")
+        return text, detected
     except HTTPException:
         raise
     except Exception as exc:
@@ -172,18 +218,17 @@ def _pulse_transcribe(audio_b64: str, language: str, content_type: str = "audio/
 
 def _simple_translate(text: str, source_language: str, target_language: str) -> str:
     """
-    Lightweight translation via Gemini if configured; otherwise return source text
-    with a language note (Hydra live path is preferred for spoken translation).
+    Translate via Gemini when configured so non-English speech can drive English
+    intent matching, then spoken replies can return in the user's language.
     """
     src = normalize_language_code(source_language)
     tgt = normalize_language_code(target_language)
-    if src == tgt:
+    if src == tgt or not (text or "").strip():
         return text
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
     if not api_key.strip():
-        return (
-            f"({language_display_name(src)} → {language_display_name(tgt)}) {text}"
-        )
+        # Without Gemini, keep original text (intent matching may be weaker).
+        return text
     try:
         import google.generativeai as genai  # type: ignore
 
@@ -191,13 +236,14 @@ def _simple_translate(text: str, source_language: str, target_language: str) -> 
         model = genai.GenerativeModel("gemini-2.0-flash")
         prompt = (
             f"Translate the following from {language_display_name(src)} to "
-            f"{language_display_name(tgt)}. Return only the translation, no quotes.\n\n{text}"
+            f"{language_display_name(tgt)}. Return only the translation, no quotes "
+            f"or commentary.\n\n{text}"
         )
         result = model.generate_content(prompt)
         out = (getattr(result, "text", None) or "").strip()
         return out or text
     except Exception as exc:
-        logger.warning("Translate fallback failed: %s", exc)
+        logger.warning("Translate failed: %s", exc)
         return text
 
 
@@ -234,6 +280,9 @@ async def remivox_ask(
         prompt=request.prompt,
         reply_language=request.reply_language or "en",
         timezone_name=request.timezone or "UTC",
+        audio_base64=request.audio_base64,
+        content_type=request.content_type or "audio/wav",
+        auto_detect_language=bool(request.auto_detect_language),
     )
 
 
@@ -253,11 +302,13 @@ async def remivox_translate_turn(
     if not source_text:
         if not request.audio_base64:
             raise HTTPException(status_code=400, detail="Provide text or audio_base64.")
-        source_text = _pulse_transcribe(
+        source_text, detected = _pulse_transcribe(
             request.audio_base64,
-            src,
+            language="multi" if src == "en" else src,
             content_type=request.content_type or "audio/wav",
         )
+        if detected:
+            src = detected
     if not source_text:
         raise HTTPException(status_code=400, detail="No speech detected.")
 
@@ -276,6 +327,8 @@ async def remivox_translate_turn(
         action="translate_turn",
         action_payload={"source_text": source_text, "translated_text": translated},
         reply_language=tgt,
+        detected_language=src,
+        transcript=source_text,
     )
 
 
@@ -333,6 +386,9 @@ async def _remivox_response(
     prompt: Optional[str],
     reply_language: str,
     timezone_name: str,
+    audio_base64: Optional[str] = None,
+    content_type: str = "audio/wav",
+    auto_detect_language: bool = True,
 ):
     firebase_uid = current_user.get("sub")
     if not firebase_uid:
@@ -342,11 +398,36 @@ async def _remivox_response(
     user_uuid = await get_user_uuid(firebase_uid)
     reminders = await list_patient_reminders(user_uuid)
     summaries = await get_user_summaries(user_uuid, firebase_uid=firebase_uid)
-    lang = normalize_language_code(reply_language)
 
-    if prompt:
+    preferred = normalize_language_code(reply_language)
+    spoken_lang = preferred
+    transcript: Optional[str] = None
+    intent_prompt = (prompt or "").strip()
+
+    # Audio path: Pulse auto-detects Hindi/Gujarati/Spanish/etc., then we act + reply
+    # in that same language.
+    if audio_base64:
+        stt_lang = "multi" if auto_detect_language else preferred
+        transcript, spoken_lang = _pulse_transcribe(
+            audio_base64,
+            language=stt_lang,
+            content_type=content_type or "audio/wav",
+        )
+        intent_prompt = transcript
+        # Restrict to Remi's supported set; fall back to preferred app language.
+        if spoken_lang not in SUPPORTED_LANGUAGE_CODES:
+            spoken_lang = preferred
+
+    lang = spoken_lang if audio_base64 else preferred
+
+    if intent_prompt:
+        # Intent engine is English-keyed; translate non-English speech → English for actions.
+        english_prompt = intent_prompt
+        if lang != "en":
+            english_prompt = _simple_translate(intent_prompt, lang, "en")
+
         result = await handle_prompt(
-            prompt=prompt,
+            prompt=english_prompt,
             user_uuid=user_uuid,
             reminders=reminders,
             summaries=summaries,
@@ -356,20 +437,26 @@ async def _remivox_response(
         text = result["text"]
         action = result.get("action")
         action_payload = result.get("action_payload") or {}
-        lang = normalize_language_code(result.get("reply_language") or lang)
+        # Speak back in the language the user used.
+        if lang != "en":
+            text = _simple_translate(text, "en", lang)
     else:
         text = build_briefing(reminders, summaries)
+        if lang != "en":
+            text = _simple_translate(text, "en", lang)
         action = "briefing"
         action_payload = {}
 
-    audio_base64, content_type = _synthesize_smallestai(text, language=lang)
+    audio_out, out_type = _synthesize_smallestai(text, language=lang)
 
     return RemiVoxBriefingResponse(
         text=text,
-        audio_base64=audio_base64,
-        content_type=content_type,
-        audio_unavailable=audio_base64 is None,
+        audio_base64=audio_out,
+        content_type=out_type,
+        audio_unavailable=audio_out is None,
         action=action,
         action_payload=action_payload,
         reply_language=lang,
+        detected_language=spoken_lang if audio_base64 else None,
+        transcript=transcript,
     )

@@ -1,11 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../../../core/config/supported_languages.dart';
 import '../../../../core/providers/locale_provider.dart';
@@ -92,7 +94,7 @@ class _VoxButtonBody extends StatefulWidget {
 
 class _VoxButtonBodyState extends State<_VoxButtonBody> {
   final AudioPlayer _player = AudioPlayer();
-  final stt.SpeechToText _speech = stt.SpeechToText();
+  final AudioRecorder _recorder = AudioRecorder();
   bool _busy = false;
   bool _liveActive = false;
   VoxLiveSession? _live;
@@ -101,6 +103,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   void dispose() {
     _live?.dispose();
     _player.dispose();
+    _recorder.dispose();
     super.dispose();
   }
 
@@ -131,7 +134,6 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   }
 
   Future<void> _handleTap() async {
-    // Second tap during live translate stops the session in place.
     if (_liveActive) {
       await _stopLive();
       return;
@@ -139,61 +141,46 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final prompt = await _listenForPrompt();
+      _snack('Vox is listening… speak in any Remi language');
+      final clip = await _recordPromptClip();
       final tz = await _timezone();
       final lang = await _preferredLanguage();
-      final wantsTranslate = prompt != null &&
-          prompt.toLowerCase().contains('translate');
 
-      if (wantsTranslate) {
-        var target = lang == 'en' ? 'bn' : lang;
-        for (final entry in const {
-          'bangla': 'bn',
-          'bengali': 'bn',
-          'hindi': 'hi',
-          'spanish': 'es',
-          'french': 'fr',
-          'portuguese': 'pt',
-          'german': 'de',
-          'tamil': 'ta',
-          'gujarati': 'gu',
-          'punjabi': 'pa',
-          'english': 'en',
-        }.entries) {
-          if (prompt!.toLowerCase().contains(entry.key)) {
-            target = entry.value;
-            break;
-          }
-        }
-        await _startLiveInPlace(targetLanguage: target);
+      if (clip == null) {
+        final data = await BackendApiService().getVoxTodayBriefing(
+          replyLanguage: lang,
+        );
+        await _playResponse(data);
         return;
       }
 
-      final data = prompt == null || prompt.trim().isEmpty
-          ? await BackendApiService().getVoxTodayBriefing(replyLanguage: lang)
-          : await BackendApiService().askVox(
-              prompt.trim(),
-              replyLanguage: lang,
-              timezone: tz,
-            );
-      final text =
-          data['text']?.toString() ?? 'Vox has nothing to read right now.';
-      final audio = data['audio_base64'] as String?;
-      if (audio != null && audio.isNotEmpty) {
-        await _playAudio(base64Decode(audio));
-      } else {
-        _snack(text);
-      }
+      final data = await BackendApiService().askVox(
+        null,
+        replyLanguage: lang,
+        timezone: tz,
+        audioBase64: clip.base64,
+        contentType: clip.contentType,
+        autoDetectLanguage: true,
+      );
+      await _playResponse(data);
 
       final action = data['action']?.toString();
+      final detected = normalizeLanguageCode(
+        data['detected_language']?.toString() ?? lang,
+      );
       if (action == 'start_live_translate') {
         final payload = data['action_payload'];
         final target = payload is Map
             ? normalizeLanguageCode(
-                payload['target_language']?.toString() ?? 'bn',
+                payload['target_language']?.toString() ?? detected,
               )
-            : (lang == 'en' ? 'bn' : lang);
-        await _startLiveInPlace(targetLanguage: target);
+            : detected;
+        await _startLiveInPlace(
+          sourceLanguage: detected,
+          targetLanguage: target == detected
+              ? (detected == 'en' ? 'bn' : 'en')
+              : target,
+        );
       }
     } catch (e) {
       final message = e.toString();
@@ -213,10 +200,62 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     }
   }
 
-  Future<void> _startLiveInPlace({required String targetLanguage}) async {
+  Future<void> _playResponse(Map<String, dynamic> data) async {
+    final text =
+        data['text']?.toString() ?? 'Vox has nothing to read right now.';
+    final audio = data['audio_base64'] as String?;
+    final detected = data['detected_language']?.toString();
+    if (detected != null && detected.isNotEmpty) {
+      _snack('Heard ${languageLabel(normalizeLanguageCode(detected))}');
+    }
+    if (audio != null && audio.isNotEmpty) {
+      await _playAudio(base64Decode(audio));
+    } else {
+      _snack(text);
+    }
+  }
+
+  Future<({String base64, String contentType})?> _recordPromptClip() async {
+    try {
+      final allowed = await _recorder.hasPermission();
+      if (!allowed) return null;
+      final dir = await getTemporaryDirectory();
+      final path =
+          '${dir.path}/vox_${DateTime.now().millisecondsSinceEpoch}.wav';
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+      await Future<void>.delayed(const Duration(seconds: 5));
+      final saved = await _recorder.stop();
+      final filePath = saved ?? path;
+      final file = File(filePath);
+      if (!await file.exists()) return null;
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) return null;
+      try {
+        await file.delete();
+      } catch (_) {}
+      return (base64: base64Encode(bytes), contentType: 'audio/wav');
+    } catch (_) {
+      try {
+        if (await _recorder.isRecording()) await _recorder.stop();
+      } catch (_) {}
+      return null;
+    }
+  }
+
+  Future<void> _startLiveInPlace({
+    required String sourceLanguage,
+    required String targetLanguage,
+  }) async {
     final session = VoxLiveSession(
-      sourceLanguage: 'en',
-      targetLanguage: targetLanguage == 'en' ? 'bn' : targetLanguage,
+      sourceLanguage: sourceLanguage,
+      targetLanguage: targetLanguage,
       mode: 'translate',
       timezone: await _timezone(),
     );
@@ -226,8 +265,8 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       _busy = true;
     });
     _snack(
-      'Vox live translate on (${languageLabel(session.targetLanguage)}). '
-      'Tap Vox again to stop.',
+      'Vox live on (${languageLabel(sourceLanguage)} ↔ '
+      '${languageLabel(targetLanguage)}). Tap Vox to stop.',
     );
     try {
       await session.start(
@@ -253,27 +292,6 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
         _busy = false;
       });
       _snack('Vox stopped.');
-    }
-  }
-
-  Future<String?> _listenForPrompt() async {
-    try {
-      final available = await _speech.initialize();
-      if (!available) return null;
-      var heard = '';
-      _snack('Vox is listening...');
-      await _speech.listen(
-        listenFor: const Duration(seconds: 5),
-        pauseFor: const Duration(seconds: 2),
-        onResult: (result) {
-          heard = result.recognizedWords;
-        },
-      );
-      await Future<void>.delayed(const Duration(seconds: 5));
-      await _speech.stop();
-      return heard;
-    } catch (_) {
-      return null;
     }
   }
 
@@ -324,7 +342,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  _liveActive ? 'Live' : "Ask",
+                  _liveActive ? 'Live' : 'Ask',
                   style: const TextStyle(
                     color: Colors.white,
                     fontFamily: 'Poppins',
@@ -393,7 +411,6 @@ NavigationItem getCurrentNavigationItem(String location) {
   } else if (location.startsWith('/caregiver/accept-invitations')) {
     return NavigationItem.careTeam;
   } else {
-    // Default to home for unknown routes
     return NavigationItem.home;
   }
 }
