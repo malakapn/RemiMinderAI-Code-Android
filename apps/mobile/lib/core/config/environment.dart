@@ -3,9 +3,6 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'billing_redirect_stub.dart'
-    if (dart.library.io) 'billing_redirect.dart' as billing_redirect;
-
 /// Environment configuration for MediMinder Flutter app
 class Environment {
   static bool _isLoaded = false;
@@ -85,32 +82,6 @@ class Environment {
   static const String revenueCatPremiumEntitlement = 'premium';
   static const String revenueCatMonthlyProductId = 'remi_premium_monthly';
   static const String revenueCatAnnualProductId = 'remi_premium_annual';
-
-  static String get _billingUrlScheme {
-    if (_isLoaded && dotenv.env['BILLING_URL_SCHEME'] != null) {
-      final s = dotenv.env['BILLING_URL_SCHEME']!.trim();
-      if (s.isNotEmpty) return s;
-    }
-    return billing_redirect.defaultBillingUrlScheme();
-  }
-
-  static String get billingSuccessUrl {
-    if (_isLoaded &&
-        dotenv.env['BILLING_SUCCESS_URL'] != null &&
-        dotenv.env['BILLING_SUCCESS_URL']!.trim().isNotEmpty) {
-      return dotenv.env['BILLING_SUCCESS_URL']!.trim();
-    }
-    return '$_billingUrlScheme://billing/success?session_id={CHECKOUT_SESSION_ID}';
-  }
-
-  static String get billingCancelUrl {
-    if (_isLoaded &&
-        dotenv.env['BILLING_CANCEL_URL'] != null &&
-        dotenv.env['BILLING_CANCEL_URL']!.trim().isNotEmpty) {
-      return dotenv.env['BILLING_CANCEL_URL']!.trim();
-    }
-    return '$_billingUrlScheme://billing/cancel';
-  }
 
   static bool get isProduction => flutterEnv == 'production';
   static bool get isStaging => flutterEnv == 'staging';
