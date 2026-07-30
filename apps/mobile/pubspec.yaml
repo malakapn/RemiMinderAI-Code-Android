@@ -1,6 +1,6 @@
 name: RemiMinder
 description: A healthcare companion app for patients and caregivers
-version: 1.4.3+67
+version: 1.4.4+69
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

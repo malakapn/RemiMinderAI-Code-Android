@@ -77,7 +77,10 @@ class FirebaseAuthService {
       if (userCredential.user == null) throw Exception('Firebase sign in failed');
       final signedInUser = userCredential.user!;
       await signedInUser.reload();
-      if (!signedInUser.emailVerified) {
+      // Only enforce email verification for accounts created after Jul 29, 2026
+      final createdAt = signedInUser.metadata.creationTime;
+      final verificationCutoff = DateTime(2026, 7, 29);
+      if (!signedInUser.emailVerified && createdAt != null && createdAt.isAfter(verificationCutoff)) {
         throw Exception("EMAIL_NOT_VERIFIED");
       }
       final idToken = await signedInUser.getIdToken();
