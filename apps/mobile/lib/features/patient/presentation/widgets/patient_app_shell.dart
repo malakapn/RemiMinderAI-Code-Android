@@ -1,4 +1,19 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../../core/config/supported_languages.dart';
+import '../../../../core/providers/locale_provider.dart';
+import '../../../../core/services/backend_api_service.dart';
+import '../../../../core/widgets/upgrade_prompt_sheet.dart';
+import '../services/vox_live_session.dart';
 import 'rounded_navigation_bar.dart';
 
 /// App shell that wraps all patient screens with a floating bottom navigation bar
@@ -21,27 +36,353 @@ class PatientAppShell extends StatefulWidget {
 class _PatientAppShellState extends State<PatientAppShell> {
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Padding(
             padding: EdgeInsets.only(
-              bottom: 70 + 12 + 16 + MediaQuery.of(context).padding.bottom,
+              bottom: 70 + 12 + 16 + bottomInset,
             ),
             child: widget.child,
           ),
+
+          if (widget.routes == null)
+            Positioned(
+              right: 56,
+              bottom: bottomInset + 102,
+              child: const _VoxFloatingButton(),
+            ),
 
           // Floating navigation bar
           Positioned(
             left: 0,
             right: 0,
-            bottom: MediaQuery.of(context).padding.bottom,
+            bottom: bottomInset,
             child: RoundedNavigationBar(
               currentItem: widget.currentItem,
               routes: widget.routes,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VoxFloatingButton extends StatelessWidget {
+  const _VoxFloatingButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Vox',
+      child: const _VoxButtonBody(),
+    );
+  }
+}
+
+class _VoxButtonBody extends StatefulWidget {
+  const _VoxButtonBody();
+
+  @override
+  State<_VoxButtonBody> createState() => _VoxButtonBodyState();
+}
+
+class _VoxButtonBodyState extends State<_VoxButtonBody> {
+  final AudioPlayer _player = AudioPlayer();
+  final AudioRecorder _recorder = AudioRecorder();
+  bool _busy = false;
+  bool _liveActive = false;
+  VoxLiveSession? _live;
+
+  @override
+  void dispose() {
+    _live?.dispose();
+    _player.dispose();
+    _recorder.dispose();
+    super.dispose();
+  }
+
+  Future<String> _timezone() async {
+    try {
+      return await FlutterTimezone.getLocalTimezone();
+    } catch (_) {
+      return 'UTC';
+    }
+  }
+
+  Future<String> _preferredLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return normalizeLanguageCode(
+        prefs.getString(kPreferredLanguagePrefsKey) ?? 'en',
+      );
+    } catch (_) {
+      return 'en';
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _handleTap() async {
+    if (_liveActive) {
+      await _stopLive();
+      return;
+    }
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      _snack('Vox is listening… speak in any Remi language');
+      final clip = await _recordPromptClip();
+      final tz = await _timezone();
+      final lang = await _preferredLanguage();
+
+      if (clip == null) {
+        final data = await BackendApiService().getVoxTodayBriefing(
+          replyLanguage: lang,
+        );
+        await _playResponse(data);
+        return;
+      }
+
+      final data = await BackendApiService().askVox(
+        null,
+        replyLanguage: lang,
+        timezone: tz,
+        audioBase64: clip.base64,
+        contentType: clip.contentType,
+        autoDetectLanguage: true,
+      );
+      await _playResponse(data);
+
+      final action = data['action']?.toString();
+      final detected = normalizeLanguageCode(
+        data['detected_language']?.toString() ?? lang,
+      );
+      if (action == 'start_live_translate') {
+        final payload = data['action_payload'];
+        final target = payload is Map
+            ? normalizeLanguageCode(
+                payload['target_language']?.toString() ?? detected,
+              )
+            : detected;
+        await _startLiveInPlace(
+          sourceLanguage: detected,
+          targetLanguage: target == detected
+              ? (detected == 'en' ? 'bn' : 'en')
+              : target,
+        );
+      }
+    } catch (e) {
+      final message = e.toString();
+      if (!mounted) return;
+      if (message.toLowerCase().contains('premium') ||
+          message.toLowerCase().contains('trial')) {
+        await showUpgradePromptSheet(
+          context,
+          reason: UpgradePromptReason.trialExpired,
+          screen: 'patient_shell',
+        );
+      } else {
+        _snack(message);
+      }
+    } finally {
+      if (mounted && !_liveActive) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _playResponse(Map<String, dynamic> data) async {
+    final text =
+        data['text']?.toString() ?? 'Vox has nothing to read right now.';
+    final audio = data['audio_base64'] as String?;
+    final detected = data['detected_language']?.toString();
+    if (detected != null && detected.isNotEmpty) {
+      _snack('Heard ${languageLabel(normalizeLanguageCode(detected))}');
+    }
+    if (audio != null && audio.isNotEmpty) {
+      await _playAudio(base64Decode(audio));
+    } else {
+      _snack(text);
+    }
+  }
+
+  Future<({String base64, String contentType})?> _recordPromptClip() async {
+    try {
+      final allowed = await _recorder.hasPermission();
+      if (!allowed) return null;
+      final dir = await getTemporaryDirectory();
+      final path =
+          '${dir.path}/vox_${DateTime.now().millisecondsSinceEpoch}.wav';
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+      await Future<void>.delayed(const Duration(seconds: 5));
+      final saved = await _recorder.stop();
+      final filePath = saved ?? path;
+      final file = File(filePath);
+      if (!await file.exists()) return null;
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) return null;
+      try {
+        await file.delete();
+      } catch (_) {}
+      return (base64: base64Encode(bytes), contentType: 'audio/wav');
+    } catch (_) {
+      try {
+        if (await _recorder.isRecording()) await _recorder.stop();
+      } catch (_) {}
+      return null;
+    }
+  }
+
+  Future<void> _startLiveInPlace({
+    required String sourceLanguage,
+    required String targetLanguage,
+  }) async {
+    final session = VoxLiveSession(
+      sourceLanguage: sourceLanguage,
+      targetLanguage: targetLanguage,
+      mode: 'translate',
+      timezone: await _timezone(),
+    );
+    setState(() {
+      _live = session;
+      _liveActive = true;
+      _busy = true;
+    });
+    _snack(
+      'Vox live on (${languageLabel(sourceLanguage)} ↔ '
+      '${languageLabel(targetLanguage)}). Tap Vox to stop.',
+    );
+    try {
+      await session.start(
+        onStatus: (s) {
+          if (mounted) _snack(s);
+        },
+        onError: (m) {
+          if (mounted) _snack(m);
+        },
+      );
+    } catch (e) {
+      _snack(e.toString());
+      await _stopLive();
+    }
+  }
+
+  Future<void> _stopLive() async {
+    await _live?.stop();
+    _live = null;
+    if (mounted) {
+      setState(() {
+        _liveActive = false;
+        _busy = false;
+      });
+      _snack('Vox stopped.');
+    }
+  }
+
+  Future<void> _playAudio(Uint8List bytes) async {
+    await _player.stop();
+    await _player.play(BytesSource(bytes));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _handleTap,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: _liveActive
+                  ? const Color(0xFF2E7D32)
+                  : Theme.of(context).colorScheme.primary,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFFC9A84C),
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Vox',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Poppins',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _liveActive ? 'Live' : 'Ask',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Poppins',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    height: 1,
+                  ),
+                ),
+                Text(
+                  _liveActive ? 'Tap stop' : 'me',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Poppins',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_busy)
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -56,7 +397,8 @@ NavigationItem getCurrentNavigationItem(String location) {
     return NavigationItem.overview;
   } else if (location.startsWith('/patient/care-team')) {
     return NavigationItem.careTeam;
-  } else if (location.startsWith('/patient/profile')) {
+  } else if (location.startsWith('/patient/profile') ||
+      location.startsWith('/patient/language-settings')) {
     return NavigationItem.profile;
   } else if (location.startsWith('/profile')) {
     return NavigationItem.profile;
@@ -69,7 +411,6 @@ NavigationItem getCurrentNavigationItem(String location) {
   } else if (location.startsWith('/caregiver/accept-invitations')) {
     return NavigationItem.careTeam;
   } else {
-    // Default to home for unknown routes
     return NavigationItem.home;
   }
 }

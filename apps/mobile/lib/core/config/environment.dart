@@ -3,9 +3,6 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'billing_redirect_stub.dart'
-    if (dart.library.io) 'billing_redirect.dart' as billing_redirect;
-
 /// Environment configuration for MediMinder Flutter app
 class Environment {
   static bool _isLoaded = false;
@@ -13,9 +10,6 @@ class Environment {
   static const String _productionApiBaseUrl =
       'https://remiminder-backend-575820802106.us-central1.run.app';
 
-  /// Default host for dev. **Physical devices:** `10.0.2.2` (Android) and `localhost`
-  /// (iOS/desktop) point at the **phone**, not your PC — set `MOBILE_API_BASE_URL` in `.env`
-  /// to `http://<your-computer-LAN-IP>:<port>` (e.g. Docker backend often `:8001`).
   static String get _defaultDevApiBaseUrl {
     try {
       return (!kIsWeb && Platform.isAndroid)
@@ -29,7 +23,6 @@ class Environment {
   static String get authProvider =>
       _isLoaded ? (dotenv.env['AUTH_PROVIDER'] ?? 'firebase') : 'firebase';
 
-  /// Backend origin for REST calls. Prefer `MOBILE_API_BASE_URL` in `.env` for real devices.
   static String get apiBaseUrl {
     final configured = _isLoaded
         ? (dotenv.env['MOBILE_API_BASE_URL'] ?? dotenv.env['API_BASE_URL'])
@@ -46,7 +39,6 @@ class Environment {
   static String get flutterEnv =>
       _isLoaded ? (dotenv.env['FLUTTER_ENV'] ?? 'development') : 'development';
 
-  /// OAuth Web client ID for Google Sign-In + Firebase (`serverClientId`).
   static String get googleWebClientId {
     String? pick(String? raw) {
       final t = raw?.trim();
@@ -80,30 +72,33 @@ class Environment {
   static String get revenueCatApiKey =>
       _isLoaded ? (dotenv.env["REVENUECAT_API_KEY"] ?? "").trim() : "";
 
-  static String get _billingUrlScheme {
-    if (_isLoaded && dotenv.env['BILLING_URL_SCHEME'] != null) {
-      final s = dotenv.env['BILLING_URL_SCHEME']!.trim();
-      if (s.isNotEmpty) return s;
-    }
-    return billing_redirect.defaultBillingUrlScheme();
+  static const String revenueCatAppleApiKey = '';
+  static const String revenueCatAndroidPackageName = 'com.remiminderai.app';
+  static const String revenueCatCustomUrlScheme = 'rc-e42394e597';
+
+  static String get revenueCatPremiumEntitlement {
+    final fromEnv = _isLoaded
+        ? dotenv.env['REVENUECAT_PREMIUM_ENTITLEMENT']?.trim()
+        : null;
+    return (fromEnv != null && fromEnv.isNotEmpty) ? fromEnv : 'premium';
   }
 
-  static String get billingSuccessUrl {
-    if (_isLoaded &&
-        dotenv.env['BILLING_SUCCESS_URL'] != null &&
-        dotenv.env['BILLING_SUCCESS_URL']!.trim().isNotEmpty) {
-      return dotenv.env['BILLING_SUCCESS_URL']!.trim();
-    }
-    return '$_billingUrlScheme://billing/success?session_id={CHECKOUT_SESSION_ID}';
+  static String get revenueCatMonthlyProductId {
+    final fromEnv = _isLoaded
+        ? dotenv.env['REVENUECAT_MONTHLY_PRODUCT_ID']?.trim()
+        : null;
+    return (fromEnv != null && fromEnv.isNotEmpty)
+        ? fromEnv
+        : 'remi_premium_monthly';
   }
 
-  static String get billingCancelUrl {
-    if (_isLoaded &&
-        dotenv.env['BILLING_CANCEL_URL'] != null &&
-        dotenv.env['BILLING_CANCEL_URL']!.trim().isNotEmpty) {
-      return dotenv.env['BILLING_CANCEL_URL']!.trim();
-    }
-    return '$_billingUrlScheme://billing/cancel';
+  static String get revenueCatAnnualProductId {
+    final fromEnv = _isLoaded
+        ? dotenv.env['REVENUECAT_ANNUAL_PRODUCT_ID']?.trim()
+        : null;
+    return (fromEnv != null && fromEnv.isNotEmpty)
+        ? fromEnv
+        : 'remi_premium_annual';
   }
 
   static bool get isProduction => flutterEnv == 'production';

@@ -1,6 +1,6 @@
 name: RemiMinder
 description: A healthcare companion app for patients and caregivers
-version: 1.4.4+69
+version: 1.4.4+70
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -62,11 +62,13 @@ dependencies:
   permission_handler: ^12.0.1
   camera: 0.10.6
   record: 6.1.2
+  web_socket_channel: ^3.0.2
   speech_to_text: ^7.3.0
   image_picker: ^1.1.1
   path_provider: ^2.1.2
   sign_in_with_apple: ^8.0.0
   purchases_flutter: ^10.6.0
+  audioplayers: ^6.8.1
 
 dev_dependencies:
   flutter_test:

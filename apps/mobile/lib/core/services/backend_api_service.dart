@@ -182,44 +182,156 @@ class BackendApiService {
     return jsonData['phone'] as String?;
   }
 
-  /// Stripe Checkout (subscription). Opens returned URL in the device browser.
-  /// [interval] must be `monthly` or `yearly` (matches Stripe Price IDs on server).
-  Future<String> createSubscriptionCheckoutUrl({
-    required String interval,
+  /// Vox today briefing
+  Future<Map<String, dynamic>> getVoxTodayBriefing({
+    String replyLanguage = 'en',
   }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
       throw Exception('Authentication required. Please log in again.');
     }
 
-    final uri = Uri.parse(
-      '${Environment.apiBaseUrl}/api/billing/create-checkout-session',
-    );
     final response = await http.post(
-      uri,
+      Uri.parse(
+        '${Environment.apiBaseUrl}/api/remivox/today?reply_language=$replyLanguage',
+      ),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      String message = 'Vox is not available right now. Please try again.';
+      try {
+        final decoded = json.decode(response.body);
+        final detail = decoded is Map ? decoded['detail'] : null;
+        if (detail is Map && detail['message'] is String) {
+          message = detail['message'] as String;
+        } else if (detail is String && detail.isNotEmpty) {
+          message = detail;
+        }
+      } catch (_) {}
+      if (message == 'Not Found') {
+        message = 'Vox backend is not deployed yet. Please deploy the latest backend.';
+      }
+      throw Exception(message);
+    }
+
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> askVox(
+    String? prompt, {
+    String replyLanguage = 'en',
+    String timezone = 'UTC',
+    String? audioBase64,
+    String contentType = 'audio/wav',
+    bool autoDetectLanguage = true,
+  }) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) {
+      throw Exception('Authentication required. Please log in again.');
+    }
+
+    final response = await http.post(
+      Uri.parse('${Environment.apiBaseUrl}/api/remivox/ask'),
       headers: {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
       },
       body: json.encode({
-        'interval': interval,
-        'success_url': Environment.billingSuccessUrl,
-        'cancel_url': Environment.billingCancelUrl,
+        if (prompt != null && prompt.trim().isNotEmpty) 'prompt': prompt.trim(),
+        'reply_language': replyLanguage,
+        'timezone': timezone,
+        if (audioBase64 != null && audioBase64.isNotEmpty)
+          'audio_base64': audioBase64,
+        'content_type': contentType,
+        'auto_detect_language': autoDetectLanguage,
       }),
     );
 
     if (response.statusCode != 200) {
-      throw Exception(
-        'Checkout failed: ${response.statusCode} - ${response.body}',
-      );
+      String message = 'Vox is not available right now. Please try again.';
+      try {
+        final decoded = json.decode(response.body);
+        final detail = decoded is Map ? decoded['detail'] : null;
+        if (detail is Map && detail['message'] is String) {
+          message = detail['message'] as String;
+        } else if (detail is String && detail.isNotEmpty) {
+          message = detail;
+        }
+      } catch (_) {}
+      if (message == 'Not Found') {
+        message = 'Vox backend is not deployed yet. Please deploy the latest backend.';
+      }
+      throw Exception(message);
+    }
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> translateVoxTurn({
+    String? text,
+    String? audioBase64,
+    String sourceLanguage = 'en',
+    String targetLanguage = 'bn',
+    String contentType = 'audio/wav',
+  }) async {
+    final accessToken = await _authService.getAccessToken();
+    if (accessToken == null) {
+      throw Exception('Authentication required. Please log in again.');
     }
 
-    final data = json.decode(response.body) as Map<String, dynamic>;
-    final url = data['url'] as String?;
-    if (url == null || url.isEmpty) {
-      throw Exception('Invalid checkout response');
+    final response = await http.post(
+      Uri.parse('${Environment.apiBaseUrl}/api/remivox/translate-turn'),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        if (text != null) 'text': text,
+        if (audioBase64 != null) 'audio_base64': audioBase64,
+        'source_language': sourceLanguage,
+        'target_language': targetLanguage,
+        'content_type': contentType,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      String message = 'Live translate is not available right now.';
+      try {
+        final decoded = json.decode(response.body);
+        final detail = decoded is Map ? decoded['detail'] : null;
+        if (detail is String && detail.isNotEmpty) message = detail;
+      } catch (_) {}
+      throw Exception(message);
     }
-    return url;
+    return json.decode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Hydra S2S live WebSocket URL (token in query; API key stays on server).
+  Uri voxLiveWebSocketUri({
+    required String accessToken,
+    String mode = 'translate',
+    String sourceLanguage = 'en',
+    String targetLanguage = 'bn',
+    String timezone = 'UTC',
+  }) {
+    final base = Uri.parse(Environment.apiBaseUrl);
+    final scheme = base.scheme == 'https' ? 'wss' : 'ws';
+    return Uri(
+      scheme: scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+      path: '/api/remivox/live',
+      queryParameters: {
+        'token': accessToken,
+        'mode': mode,
+        'source_language': sourceLanguage,
+        'target_language': targetLanguage,
+        'timezone': timezone,
+      },
+    );
   }
 
   /// Register or refresh this device's FCM token for server push notifications.
