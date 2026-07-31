@@ -110,7 +110,7 @@ Future<void> showUpgradePromptSheet(
             ElevatedButton(
               onPressed: () {
                 Navigator.of(sheetContext).pop(false);
-                context.go('/patient/upgrade');
+                context.go('/upgrade');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,

@@ -184,6 +184,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       }
     } catch (e) {
       final message = e.toString();
+      debugPrint("VOX_ERROR: $message");
       if (!mounted) return;
       if (message.toLowerCase().contains('premium') ||
           message.toLowerCase().contains('trial')) {

@@ -140,13 +140,13 @@ def _pulse_transcribe(
     if not api_key:
         raise HTTPException(status_code=503, detail="Speech transcription is not configured.")
 
-    lang_param = (language or "multi").strip().lower() or "multi"
+    lang_param = (language or "en").strip().lower() or "en"
     if lang_param != "multi":
         lang_param = normalize_language_code(lang_param)
 
     base = os.getenv(
         "SMALLESTAI_STT_URL",
-        "https://api.smallest.ai/waves/v1/pulse/get_text",
+        "https://api.smallest.ai/waves/v1/stt/?model=pulse",
     ).strip().rstrip("?")
     # Force query language for auto-detect / locale.
     if "language=" in base:
@@ -161,7 +161,7 @@ def _pulse_transcribe(
         # Preferred: raw audio body (Pulse pre-recorded API).
         response = requests.post(
             url,
-            headers={**headers, "Content-Type": content_type or "audio/wav"},
+            headers={**headers, "Content-Type": "application/octet-stream"},
             data=audio_bytes,
             timeout=45,
         )
@@ -407,7 +407,7 @@ async def _remivox_response(
     # Audio path: Pulse auto-detects Hindi/Gujarati/Spanish/etc., then we act + reply
     # in that same language.
     if audio_base64:
-        stt_lang = "multi" if auto_detect_language else preferred
+        stt_lang = "en" if auto_detect_language else preferred
         transcript, spoken_lang = _pulse_transcribe(
             audio_base64,
             language=stt_lang,

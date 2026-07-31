@@ -80,7 +80,7 @@ async def get_user_email(user_id: str) -> str:
             query = text("""
                 SELECT email FROM users WHERE id = CAST(:user_id AS uuid)
             """)
-            result = conn.execute(query, {"user_id": user_id})
+            result = conn.execute(query, {"user_id": user_id, "firebase_uid": firebase_uid or user_id})
             row = result.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="User not found")
@@ -587,7 +587,7 @@ async def get_latest_ai_structured_summary_for_visit(visit_id: str, user_id: str
         raise
 
 
-async def get_user_summaries(user_id: str) -> list[dict]:
+async def get_user_summaries(user_id: str, firebase_uid: str = None) -> list[dict]:
     """
     Get all summaries for a user by joining summaries_log and visits tables.
     Returns list of summary objects with visit metadata, ordered by newest first.
@@ -610,11 +610,11 @@ async def get_user_summaries(user_id: str) -> list[dict]:
                     s.created_at AS visit_date
                 FROM summaries_log s
                 JOIN visits v ON v.id = s.visit_id
-                WHERE s.user_id = :user_id
+                WHERE s.user_id::text = :user_id OR s.user_id::text = :firebase_uid
                 ORDER BY s.created_at DESC;
             """)
 
-            result = conn.execute(query, {"user_id": user_id})
+            result = conn.execute(query, {"user_id": user_id, "firebase_uid": firebase_uid or user_id})
             rows = result.fetchall()
 
             summaries = []
