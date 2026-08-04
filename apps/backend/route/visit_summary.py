@@ -887,3 +887,43 @@ async def get_user_lab_results(user_id: str = Depends(get_user_id)):
     except Exception as e:
         logger.error("Failed to fetch lab results for user %s: %s", user_id, e)
         raise HTTPException(status_code=500, detail=f"Failed to fetch lab results: {str(e)}")
+
+
+# ── Caregiver patient summaries & reminders ──────────────────────────
+@router.get("/caregivers/patients/{patient_id}/summaries")
+async def get_caregiver_patient_summaries(
+    patient_id: str,
+    user_id: str = Depends(get_user_id),
+):
+    """Caregiver fetches summaries for a linked patient."""
+    try:
+        from services.db_service import get_user_uuid, get_user_summaries
+        caregiver_uuid = await get_user_uuid(user_id)
+        await assert_patient_access(caregiver_uuid, patient_id, "view")
+        summaries = await get_user_summaries(patient_id)
+        return summaries
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Caregiver summaries fetch failed caregiver=%s patient=%s: %s", user_id, patient_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch patient summaries: {e}")
+
+
+@router.get("/caregivers/patients/{patient_id}/reminders")
+async def get_caregiver_patient_reminders(
+    patient_id: str,
+    user_id: str = Depends(get_user_id),
+):
+    """Caregiver fetches reminders for a linked patient."""
+    try:
+        from services.db_service import get_user_uuid
+        from services.reminder_service import list_patient_reminders
+        caregiver_uuid = await get_user_uuid(user_id)
+        await assert_patient_access(caregiver_uuid, patient_id, "view")
+        reminders = await list_patient_reminders(patient_id)
+        return reminders
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Caregiver reminders fetch failed caregiver=%s patient=%s: %s", user_id, patient_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch patient reminders: {e}")

@@ -79,8 +79,15 @@ class AuthNotifier extends Notifier<AuthState> {
           .timeout(const Duration(seconds: 15));
       if (user != null) {
         // Set authenticated with saved role - don't load profile here
-        // Profile is loaded during sign-in flow
+        // Load profile on restore so name shows on Home
         state = AuthState.authenticated(user);
+        try {
+          final profile = await _backendApiService.getMyProfile();
+          final resolvedRole = profile.role.isEmpty ? state.user?.role : profile.role;
+          state = state.copyWith(profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
+        } catch (e) {
+          debugPrint('restoreAuth: profile load failed (non-fatal): \$e');
+        }
         await _syncFcmTokenAndAttachRefreshListener();
       if (state.user != null) await RevenueCatService().login(state.user!.id);
         await _syncReminderNotifications(user);
