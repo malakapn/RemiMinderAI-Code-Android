@@ -899,8 +899,9 @@ async def get_caregiver_patient_summaries(
     try:
         from services.db_service import get_user_uuid, get_user_summaries
         caregiver_uuid = await get_user_uuid(user_id)
-        await assert_patient_access(caregiver_uuid, patient_id, "view")
-        summaries = await get_user_summaries(patient_id)
+        patient_uuid = await get_user_uuid(patient_id)
+        await assert_patient_access(caregiver_uuid, patient_uuid, "view")
+        summaries = await get_user_summaries(patient_uuid, firebase_uid=patient_id)
         return summaries
     except HTTPException:
         raise
@@ -919,11 +920,31 @@ async def get_caregiver_patient_reminders(
         from services.db_service import get_user_uuid
         from services.reminder_service import list_patient_reminders
         caregiver_uuid = await get_user_uuid(user_id)
-        await assert_patient_access(caregiver_uuid, patient_id, "view")
-        reminders = await list_patient_reminders(patient_id)
+        patient_uuid = await get_user_uuid(patient_id)
+        await assert_patient_access(caregiver_uuid, patient_uuid, "view")
+        reminders = await list_patient_reminders(patient_uuid)
         return reminders
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Caregiver reminders fetch failed caregiver=%s patient=%s: %s", user_id, patient_id, e)
         raise HTTPException(status_code=500, detail=f"Failed to fetch patient reminders: {e}")
+
+
+@router.post("/caregivers/patients/{patient_id}/sync-access")
+async def sync_caregiver_patient_access(
+    patient_id: str,
+    user_id: str = Depends(get_user_id),
+):
+    """Sync care team access for a caregiver-patient link."""
+    try:
+        from services.db_service import get_user_uuid
+        caregiver_uuid = await get_user_uuid(user_id)
+        patient_uuid = await get_user_uuid(patient_id)
+        await assert_patient_access(caregiver_uuid, patient_uuid, "view")
+        return {"status": "ok", "access": "confirmed"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("sync-access failed caregiver=%s patient=%s: %s", user_id, patient_id, e)
+        raise HTTPException(status_code=500, detail=str(e))

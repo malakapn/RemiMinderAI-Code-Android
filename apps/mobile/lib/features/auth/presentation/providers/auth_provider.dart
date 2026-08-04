@@ -83,8 +83,8 @@ class AuthNotifier extends Notifier<AuthState> {
         state = AuthState.authenticated(user);
         try {
           final profile = await _backendApiService.getMyProfile();
-          final resolvedRole = profile.role.isEmpty ? state.user?.role : profile.role;
-          state = state.copyWith(profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole));
+          final resolvedRole = (profile.role?.toString() ?? '').isEmpty ? state.user?.role : profile.role?.toString();
+          state = state.copyWith(profile: AuthProfile.fromUserProfile(profile).copyWith(role: resolvedRole as String?));
         } catch (e) {
           debugPrint('restoreAuth: profile load failed (non-fatal): \$e');
         }
