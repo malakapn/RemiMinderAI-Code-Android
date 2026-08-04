@@ -117,3 +117,4 @@ experiment_results/
 
 # Cursor / local audit clones (never commit)
 _audit_RemiMinderAI-Mobile/
+.github/workflows/build.yml
