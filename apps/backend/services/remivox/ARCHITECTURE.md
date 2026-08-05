@@ -26,18 +26,19 @@ Audio
 
 ## Package layout (`apps/backend/services/remivox/`)
 
-| Module | Layer | Stage A |
-|--------|-------|---------|
-| `voice.py` | Voice (Pulse / Lightning) | Stub — prod STT/TTS stay in `route/remivox.py` |
+| Module | Layer | Stage C status |
+|--------|-------|----------------|
+| `voice.py` | Voice (Pulse / Lightning) | Live (Stage B) |
 | `languages.py` | Locales | Re-exports `remivox_languages` (10 langs) |
-| `intents/models.py` | Intent contracts | **Live** Pydantic models |
-| `intents/router.py` | Intent Router | Stub → `UNKNOWN` |
-| `intents/extractors.py` | Entity extraction | Stub |
-| `actions/executor.py` | Action Layer | Stub (no DB writes) |
-| `response/builder.py` | Response Layer | Stub + disclaimer policy constants |
-| `state/conversation.py` | Pending slots | In-memory stub + 5 min TTL |
-| `observability.py` | Logging | Structured log helper |
-| `pipeline.py` | Orchestration | Raises `NotImplementedError` |
+| `intents/models.py` | Intent contracts | Live Pydantic models |
+| `intents/router.py` | Intent Router | Live deterministic router |
+| `intents/extractors.py` | Entity extraction | Live (time/freq/title/match) |
+| `actions/executor.py` | Action Layer | Live → reminder_service |
+| `actions/types.py` | ActionResult | Live |
+| `response/builder.py` | Response Layer | Live neighbor tone + conditional disclaimer |
+| `state/conversation.py` | Pending slots | In-memory + 5 min TTL |
+| `observability.py` | Logging | Voice + interaction logs |
+| `pipeline.py` | Orchestration | `run_care_turn` wired from `/ask` |
 
 ## Existing foundation (must preserve)
 
@@ -118,7 +119,24 @@ Session language should stick for the Vox conversation (Stage D). Stage B fixes 
 
 Tone: *friendly neighbor helping organize care*.
 
-## Stage B (Voice Layer extraction) — current
+## Stage C (Intent + Action) — current
+
+**Status:** Complete on `cursor/remivox-v2-stage-c-96fc`
+
+Deterministic care flow:
+
+```
+Pulse STT → Intent Router → Action Executor → reminder_service/DB
+         → Response Builder → Lightning TTS
+```
+
+- `POST /api/remivox/ask` calls `run_care_turn` (not Hydra) for care actions
+- Hydra schemas/tools are read-only; protected mutations blocked in `execute_hydra_tool`
+- In-memory conversation state (`remivox:state:{user}:{session}`, TTL 5m)
+- `REMIVOX_TEST_MODE=true` bypasses trial gate for QA only
+- Disclaimer only for `MEDICAL_ADVICE_REFUSAL`
+
+## Stage B (Voice Layer extraction)
 
 **Status:** Complete on `cursor/remivox-v2-stage-b-96fc`
 
@@ -126,23 +144,21 @@ Tone: *friendly neighbor helping organize care*.
 - `route/remivox.py` keeps `/ask` contract; thin wrappers call Voice Layer
 - Bug fix: `auto_detect_language=true` → Pulse `language=multi` (via `resolve_stt_language`)
 - TTS uses reply language (hi/bn/gu/…); English fallback only if locale TTS fails
-- Hydra untouched
-- Intent Router / Action Executor **not** wired yet
 
-### Old vs new voice flow
+### Old vs new care flow
 
 ```
-OLD (inline in route/remivox.py):
-  audio → _pulse_transcribe (auto_detect wrongly forced en)
-       → handle_prompt
-       → _synthesize_smallestai(text, language=lang)
+OLD: audio → Pulse → handle_prompt (legacy) → Lightning
+     Hydra tools could create/complete/snooze/skip reminders
 
-NEW (Stage B):
-  audio → resolve_stt_language(auto_detect) → multi | preferred
-       → remivox.voice.transcribe_pulse (Pulse)
-       → handle_prompt (unchanged Stage B)
-       → remivox.voice.synthesize_lightning(text, language=reply_lang)
-       → observability log_voice_operation
+NEW (Stage C):
+  audio → Pulse (multi)
+       → translate to EN for router (if needed)
+       → remivox.intents.router.route_intent
+       → remivox.actions.executor.execute_intent → reminder_service
+       → remivox.response.builder.build_response
+       → Lightning TTS (reply language)
+  Hydra: conversational/read-only only
 ```
 
 ## Migration stages
@@ -150,7 +166,7 @@ NEW (Stage B):
 | Stage | Scope | Prod behavior change? |
 |-------|--------|------------------------|
 | A | Package, models, stubs, docs, test skeleton | No |
-| **B (this)** | Move Pulse/Lightning into `voice.py`; fix language detect | Voice only |
-| C | Intent router + Action Executor; gate Hydra care tools | Yes |
-| D | Conversation state + sticky language | Yes |
-| E | Cutover `/ask` to `pipeline.run`; deprecate shim | Yes |
+| B | Move Pulse/Lightning into `voice.py`; fix language detect | Voice only |
+| **C (this)** | Intent router + Action Executor; gate Hydra care tools | Yes |
+| D | Stronger sticky language / state polish | Yes |
+| E | Deprecate legacy `handle_prompt` shim | Yes |
