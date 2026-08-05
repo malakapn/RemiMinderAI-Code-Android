@@ -90,6 +90,15 @@ async def lifespan(app: FastAPI):
         logger.info("SQL migrations step completed.")
     else:
         logger.info("Cloud SQL not fully configured; skipping automatic migrations.")
+
+    # Stage E: warn loudly if RemiVox trial bypass is misconfigured for production.
+    try:
+        from services.remivox.config_audit import audit_remivox_production_config
+
+        audit_remivox_production_config()
+    except Exception as exc:
+        logger.warning("RemiVox config audit skipped: %s", exc)
+
     yield
 
 

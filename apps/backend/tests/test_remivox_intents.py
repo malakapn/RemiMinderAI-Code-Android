@@ -1,11 +1,13 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import timezone
 from unittest.mock import AsyncMock, patch
 
-from services.remivox_intents import (
+from services.remivox.legacy.handle_prompt import (
     _extract_create_title,
     _parse_recurrence,
     _parse_time_today,
+)
+from services.remivox_intents import (
     build_briefing,
     build_hydra_instructions,
 )
@@ -55,12 +57,14 @@ class RemiVoxParseTests(unittest.TestCase):
 
 
 class RemiVoxHandlePromptTests(unittest.IsolatedAsyncioTestCase):
+    """Legacy handle_prompt — retained under remivox.legacy for rollback."""
+
     async def test_create_reminder_calls_service(self):
-        from services.remivox_intents import handle_prompt
+        from services.remivox.legacy import handle_prompt
 
         fake_created = {"id": "r1", "title": "Allegra"}
         with patch(
-            "services.remivox_intents.create_new_reminder",
+            "services.remivox.legacy.handle_prompt.create_new_reminder",
             new=AsyncMock(return_value=fake_created),
         ) as create_mock:
             result = await handle_prompt(
@@ -76,7 +80,7 @@ class RemiVoxHandlePromptTests(unittest.IsolatedAsyncioTestCase):
         create_mock.assert_awaited()
 
     async def test_complete_checkin(self):
-        from services.remivox_intents import handle_prompt
+        from services.remivox.legacy import handle_prompt
 
         reminders = {
             "today": [
@@ -92,7 +96,7 @@ class RemiVoxHandlePromptTests(unittest.IsolatedAsyncioTestCase):
             "past": [],
         }
         with patch(
-            "services.remivox_intents.complete_reminder",
+            "services.remivox.legacy.handle_prompt.complete_reminder",
             new=AsyncMock(return_value={"id": "m1"}),
         ) as complete_mock:
             result = await handle_prompt(
@@ -105,7 +109,7 @@ class RemiVoxHandlePromptTests(unittest.IsolatedAsyncioTestCase):
         complete_mock.assert_awaited()
 
     async def test_read_summary(self):
-        from services.remivox_intents import handle_prompt
+        from services.remivox.legacy import handle_prompt
 
         result = await handle_prompt(
             prompt="Vox can you read my last summary",

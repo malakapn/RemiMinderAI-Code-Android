@@ -120,7 +120,7 @@ class HydraBypassRegressionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_hydra_cannot_bypass_executor_for_protected_actions(self):
         with patch(
-            "services.remivox_intents.create_new_reminder",
+            "services.reminder_service.create_new_reminder",
             new_callable=AsyncMock,
         ) as mock_create:
             out = await execute_hydra_tool(

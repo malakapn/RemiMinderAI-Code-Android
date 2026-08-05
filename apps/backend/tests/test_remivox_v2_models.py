@@ -128,7 +128,7 @@ class RemiVoxV2Phase8SkeletonTests(unittest.TestCase):
     Phase 8 acceptance cases — skeleton only until Intent Router ships.
 
     These tests document expected behavior. They are skipped in Stage A so CI
-    stays green while production continues on remivox_intents.handle_prompt.
+    stays green; production /ask uses remivox.pipeline.run_care_turn (Stage E).
     """
 
     @skip("Stage B/C: Intent Router + extractors not wired")

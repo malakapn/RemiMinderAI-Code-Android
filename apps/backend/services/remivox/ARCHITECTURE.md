@@ -1,198 +1,175 @@
 # RemiVox v2 Architecture
 
-**Status:** Stage D production hardening (cache state, test-mode, PHI-safe logs)  
+**Status:** Stage E — legacy care path retired from production routes  
 **Source of truth branch:** `feature/android-v1.4.0-full-port`  
-**Working branch:** `cursor/remivox-v2-stage-d-96fc`
+**Working branch:** `cursor/remivox-v2-stage-e-96fc`
 
 ## Principles
 
 1. **Backend-controlled, deterministic care assistant** for medication/reminder workflows.
 2. **Keep SmallestAI:** Pulse (STT) + Lightning (TTS).
 3. **Hydra is optional conversational only** — never the decision maker for protected care actions.
-4. **Do not delete** existing Pulse/Lightning/Hydra/`remivox_intents` until Stages B–E are tested and approved.
-5. **Do not merge to `main`** until full Vox v2 passes tests.
+4. **Do not merge Hydra into the care pipeline** — voice / care / conversation stay separate.
+5. **Do not merge to `main`** until Stage E review + QA on `feature/android-v1.4.0-full-port`.
 
-## Target pipeline
+## Final production pipeline
 
 ```
-Audio
+Audio / text
   → Smallest Pulse STT
-  → Language Detection
+  → Language Detection (preserve locale)
+  → translate → EN (router keyed on English)
   → Intent Router          (structured IntentResult)
   → Action Executor        (reminder_service / DB)
   → Response Builder       (session language; conditional disclaimer)
+  → translate ← user language
   → Smallest Lightning TTS
+```
+
+```
+Hydra (live WS) — conversational ONLY
+  ├── explanation / visit summaries
+  ├── caregiver conversations
+  └── read-only tools (briefing, caregiver brief, last summary)
+  ✗ NO reminder mutations
+```
+
+```
+Smallest.ai = ears + voice
+RemiVox     = care workflow brain
+Hydra       = optional conversation layer
 ```
 
 ## Package layout (`apps/backend/services/remivox/`)
 
-| Module | Layer | Stage C status |
-|--------|-------|----------------|
-| `voice.py` | Voice (Pulse / Lightning) | Live (Stage B) |
-| `languages.py` | Locales | Re-exports `remivox_languages` (10 langs) |
-| `intents/models.py` | Intent contracts | Live Pydantic models |
-| `intents/router.py` | Intent Router | Live deterministic router |
-| `intents/extractors.py` | Entity extraction | Live (time/freq/title/match) |
+| Module | Layer | Status |
+|--------|-------|--------|
+| `voice.py` | Voice (Pulse / Lightning) | Live |
+| `languages.py` | Locales + session language | Live |
+| `intents/models.py` | Intent contracts | Live |
+| `intents/router.py` | Intent Router | Live |
+| `intents/extractors.py` | Entity extraction | Live |
 | `actions/executor.py` | Action Layer | Live → reminder_service |
 | `actions/types.py` | ActionResult | Live |
-| `response/builder.py` | Response Layer | Live neighbor tone + conditional disclaimer |
-| `state/conversation.py` | Pending slots | `cache_service` + 5 min TTL |
-| `observability.py` | Logging | PHI-safe voice / intent / action logs |
-| `pipeline.py` | Orchestration | `run_care_turn` wired from `/ask` |
+| `response/builder.py` | Response Layer | Live |
+| `state/conversation.py` | Pending slots via `cache_service` | Live (TTL 5m) |
+| `observability.py` | PHI-safe logging | Live |
+| `pipeline.py` | `run_care_turn` | Live — **production `/ask` path** |
+| `config_audit.py` | Startup test-mode warnings | Live (Stage E) |
+| `legacy/handle_prompt.py` | Pre-v2 monolithic handler | **Retired from routes** (rollback only) |
 
-## Existing foundation (must preserve)
+## Production route
 
-| File | Role |
-|------|------|
-| `apps/backend/route/remivox.py` | `/today`, `/ask`, `/translate-turn`, `/live`; Pulse; Lightning |
-| `apps/backend/services/remivox_intents.py` | Current deterministic intents + Hydra tool schemas |
-| `apps/backend/services/remivox_languages.py` | 10-language helpers |
-| `apps/backend/services/hydra_live_service.py` | Hydra WS proxy |
-| `apps/backend/services/reminder_service.py` | Create / complete / snooze / skip |
-| Mobile audio `askVox` + `vox_live_session.dart` | audio_base64 flow |
+`POST /api/remivox/ask` (`route/remivox.py`):
 
-## Hydra role (v2)
+```
+enforce_remivox_access
+  → Pulse STT (if audio_base64)
+  → resolve_session_language
+  → run_care_turn(...)   # never handle_prompt
+  → Lightning TTS
+```
 
-**Allowed (future conversational):** explain lab results, retell appointment to family, prepare doctor questions, general caregiver chat.
-
-**Forbidden:** Hydra must **not** directly execute:
-
-- `CREATE_REMINDER`
-- `UPDATE_REMINDER`
-- `COMPLETE_REMINDER`
-- `SNOOZE_REMINDER`
-- `SKIP_REMINDER`
-- `DELETE_REMINDER`
-
-Those always require: STT → Intent Router → Action Executor → Backend → Database.
-
-Stage A keeps Hydra infrastructure intact. Stage C will gate/no-op Hydra care tool side-effects.
-
-## Intent catalog
-
-| Intent | Purpose |
-|--------|---------|
-| `CREATE_REMINDER` | New reminder from speech |
-| `UPDATE_REMINDER` | Change time/title/frequency |
-| `COMPLETE_REMINDER` | Mark taken |
-| `SNOOZE_REMINDER` | Snooze |
-| `SKIP_REMINDER` | Skip |
-| `DELETE_REMINDER` | Delete (prefer `CONFIRM_ACTION` before execute) |
-| `CANCEL_ACTION` | Cancel pending clarify/confirm ("No, cancel that") |
-| `CONFIRM_ACTION` | Confirm sensitive pending action |
-| `READ_TODAY_MEDICATIONS` | List today's meds |
-| `READ_APPOINTMENTS` | Appointments / visits |
-| `READ_DOCTOR_SUMMARY` | Latest visit summary |
-| `CAREGIVER_BRIEF` | Caregiver patient status |
-| `HELP` | Capabilities |
-| `CLARIFY` | Ask only for missing slots |
-| `MEDICAL_ADVICE_REFUSAL` | Diagnosis / dose / stop / treatment — **only** disclaimer path |
-| `UNKNOWN` | Fallback |
-
-### Example structured intent
-
-User: `Set a reminder for Metoprolol at 8 PM every day`
+Mobile contract unchanged:
 
 ```json
 {
-  "intent": "CREATE_REMINDER",
-  "language": "en",
-  "entities": {
-    "medication": "Metoprolol",
-    "time": "20:00",
-    "frequency": "daily"
-  }
+  "audio_base64": "...",
+  "prompt": "...",
+  "timezone": "UTC",
+  "auto_detect_language": true,
+  "session_id": "optional"
 }
 ```
+
+Also: `reply_language`, `content_type` (existing client fields).
+
+## Shared helpers still in `remivox_intents.py`
+
+| Symbol | Role |
+|--------|------|
+| `build_briefing` | Empty-prompt / today briefing + Hydra read tool |
+| `build_caregiver_brief` | Caregiver status (executor + Hydra) |
+| `hydra_tool_schemas` / `execute_hydra_tool` / `build_hydra_instructions` | Hydra conversational gate |
+| `handle_prompt` | **Deprecated shim** → `remivox.legacy` (DeprecationWarning) |
+
+## Hydra role (v2)
+
+**Allowed:** explain lab results, retell appointment to family, prepare doctor questions, general caregiver chat (read-only tools).
+
+**Forbidden — never execute:**
+
+- `CREATE_REMINDER` / `create_reminder`
+- `UPDATE_REMINDER` / `update_reminder`
+- `COMPLETE_REMINDER` / `complete_reminder`
+- `SNOOZE_REMINDER` / `snooze_reminder`
+- `SKIP_REMINDER` / `skip_reminder`
+- `DELETE_REMINDER` / `delete_reminder`
+
+Path for those: Intent → Validation → Action Executor → Reminder Service → Database.
 
 ## Languages
 
 `en`, `hi`, `gu`, `ta`, `pa`, `bn`, `fr`, `pt`, `es`, `de`
 
-Session language should stick for the Vox conversation (Stage D). Stage B fixes Pulse auto-detect (`multi`, not forced `en`).
+Detected language preserved; English forced only when detected/preferred.
 
 ## Disclaimer policy
 
 **No disclaimer** for create/read reminders, appointments, summaries, caregiver brief, check-ins.
 
-**Disclaimer only** for `MEDICAL_ADVICE_REFUSAL` (diagnosis, dosage changes, stopping medication, treatment advice).
+**Disclaimer only** for `MEDICAL_ADVICE_REFUSAL`.
 
 Tone: *friendly neighbor helping organize care*.
 
-## Stage D (hardening) — current
+## Conversation state (cache decision)
 
-**Status:** Complete on `cursor/remivox-v2-stage-d-96fc`
+**Current (Stage D/E):** `cache_service`
 
-- Conversation state stored via `cache_service` (`remivox:state:{user}:{session}`, TTL 5m)
-- Missing/expired/corrupt state handled gracefully (re-clarify, no crash)
-- `REMIVOX_TEST_MODE` defaults OFF; ignored in production unless `REMIVOX_TEST_MODE_ALLOW_IN_PROD=true`; optional UID allowlist
-- Language: detected locale preserved for all 10 supported languages (EN only when detected/preferred)
-- Observability is PHI-safe (no transcripts / medication entities in logs)
-- Hydra still cannot execute protected care actions
-- Legacy `remivox_intents.handle_prompt` retained until Stage E
+- Key: `remivox:state:{user_uuid}:{session_id}`
+- TTL: 5 minutes
+- Fields: `pending_intent`, `pending_entities`, `missing_slots`, `detected_language`, `updated_at`
+- Missing/expired/corrupt → graceful empty (re-clarify)
 
-### State architecture
+**Not in Stage E:** Redis / Cloud SQL schema for state.
 
-```
-run_care_turn
-  → get_state(user, session)
-       cache_service.get("remivox:state:{user}:{session}")
-  → route_intent(+ pending)
-  → execute_intent
-  → upsert_pending / clear_state
-       cache_service.set(..., ttl=300) / invalidate
-```
+**Future:** Redis (or equivalent shared cache) for true multi-instance pending-slot continuity. Process-local `cache_service` may drop pending slots across Cloud Run instances without sticky routing — acceptable degrade for now; does not block migration.
 
-Note: `cache_service` is process-local today. Multi-instance deploys rely on graceful empty-state behavior (user may need to re-state a slot if sticky routing is absent). No Redis / SQL introduced in Stage D.
+## Production configuration checklist
 
-## Stage C (Intent + Action)
+| Flag | Required production value |
+|------|---------------------------|
+| `REMIVOX_TEST_MODE` | `false` (default) |
+| `REMIVOX_TEST_MODE_ALLOW_IN_PROD` | `false` / unset |
+| `REMIVOX_TEST_MODE_UIDS` | unset (or QA-only allowlist in non-prod) |
 
-**Status:** Complete on `cursor/remivox-v2-stage-c-96fc`
+Startup (`main.py` lifespan) calls `audit_remivox_production_config()` and logs **ERROR** if test mode is accidentally enabled in production.
 
-Deterministic care flow:
+## Stage E (this)
 
-```
-Pulse STT → Intent Router → Action Executor → reminder_service/DB
-         → Response Builder → Lightning TTS
-```
+**Status:** Complete on `cursor/remivox-v2-stage-e-96fc`
 
-- `POST /api/remivox/ask` calls `run_care_turn` (not Hydra) for care actions
-- Hydra schemas/tools are read-only; protected mutations blocked in `execute_hydra_tool`
-- Conversation state key shape introduced (`remivox:state:{user}:{session}`, TTL 5m; moved to `cache_service` in Stage D)
-- `REMIVOX_TEST_MODE=true` bypasses trial gate for QA only (hardened in Stage D)
-- Disclaimer only for `MEDICAL_ADVICE_REFUSAL`
-
-## Stage B (Voice Layer extraction)
-
-**Status:** Complete on `cursor/remivox-v2-stage-b-96fc`
-
-- Pulse STT + Lightning TTS live in `services/remivox/voice.py`
-- `route/remivox.py` keeps `/ask` contract; thin wrappers call Voice Layer
-- Bug fix: `auto_detect_language=true` → Pulse `language=multi` (via `resolve_stt_language`)
-- TTS uses reply language (hi/bn/gu/…); English fallback only if locale TTS fails
-
-### Old vs new care flow
-
-```
-OLD: audio → Pulse → handle_prompt (legacy) → Lightning
-     Hydra tools could create/complete/snooze/skip reminders
-
-NEW (Stage C):
-  audio → Pulse (multi)
-       → translate to EN for router (if needed)
-       → remivox.intents.router.route_intent
-       → remivox.actions.executor.execute_intent → reminder_service
-       → remivox.response.builder.build_response
-       → Lightning TTS (reply language)
-  Hydra: conversational/read-only only
-```
+- Production `/ask` verified → `run_care_turn` only
+- `handle_prompt` moved to `services/remivox/legacy/`
+- Deprecated shim retained on `remivox_intents.handle_prompt`
+- Hydra final safety regression
+- Config audit on startup
+- Cache/Redis decision documented (no Redis in E)
+- Mobile contract unchanged
 
 ## Migration stages
 
-| Stage | Scope | Prod behavior change? |
-|-------|--------|------------------------|
-| A | Package, models, stubs, docs, test skeleton | No |
-| B | Move Pulse/Lightning into `voice.py`; fix language detect | Voice only |
-| C | Intent Router + Action Executor; Hydra care gating | Care path live |
-| **D (this)** | cache_service state, test-mode harden, PHI logs, language validation | Hardening |
-| E | Deprecate legacy `handle_prompt` shim | Yes (not started) |
+| Stage | Scope | Status |
+|-------|--------|--------|
+| A | Package, models, stubs, docs | Done |
+| B | Voice Layer extraction | Done |
+| C | Intent Router + Action Executor; Hydra gating | Done |
+| D | cache_service state, test-mode, PHI logs, language | Done |
+| **E (this)** | Legacy retirement from production routes | **Done — awaiting review** |
+
+## Rollback plan
+
+1. Keep draft PR; do not merge to `main` until QA.
+2. If care regressions appear after merge to `feature/android-v1.4.0-full-port`, revert the Stage E commit(s) or temporarily re-wire `_remivox_response` to call `services.remivox.legacy.handle_prompt` (emergency only).
+3. Legacy module + deprecated shim remain available until a later cleanup after production confidence.
+4. State continues on `cache_service`; no schema rollback required.
