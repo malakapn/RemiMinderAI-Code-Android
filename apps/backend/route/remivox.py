@@ -1,9 +1,7 @@
-import base64
 import logging
 import os
 from typing import Any, Optional
 
-import requests
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
@@ -11,6 +9,14 @@ from services.auth_gateway import get_current_user_jwt, verify_auth_token
 from services.db_service import get_user_summaries, get_user_uuid
 from services.hydra_live_service import run_hydra_live_proxy
 from services.reminder_service import list_patient_reminders
+from services.remivox.voice import (
+    VoiceConfigError,
+    VoiceSynthesisError,
+    VoiceTranscriptionError,
+    resolve_stt_language,
+    synthesize_lightning,
+    transcribe_pulse,
+)
 from services.remivox_intents import build_briefing, handle_prompt
 from services.remivox_languages import (
     LANGUAGE_DISPLAY_NAMES,
@@ -63,157 +69,53 @@ class RemiVoxLanguagesResponse(BaseModel):
 
 
 def _synthesize_smallestai(text: str, language: str = "en") -> tuple[Optional[str], Optional[str]]:
-    api_key = os.getenv("SMALLESTAI_API_KEY", "").strip()
-    if not api_key:
+    """
+    Compatibility wrapper → Voice Layer Lightning TTS.
+
+    Returns (audio_base64, content_type). Raises HTTPException on hard failure.
+    Missing API key returns (None, None) so callers can degrade to text-only.
+    """
+    try:
+        result = synthesize_lightning(text, language=language)
+    except VoiceSynthesisError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Vox voice generation failed. Please try again.",
+        ) from exc
+    if result.status == "unavailable":
         return None, None
-
-    lang = normalize_language_code(language)
-    # Prefer Lightning v2 when speaking non-English Remi locales (broader language coverage).
-    default_url = (
-        "https://api.smallest.ai/waves/v1/lightning-v2/get_speech"
-        if lang != "en"
-        else "https://api.smallest.ai/waves/v1/lightning-v3.1/get_speech"
-    )
-    url = os.getenv("SMALLESTAI_TTS_URL", default_url).strip()
-    voice_id = os.getenv("SMALLESTAI_VOICE_ID", "olivia").strip()
-    output_format = os.getenv("SMALLESTAI_OUTPUT_FORMAT", "mp3").strip()
-    sample_rate = int(os.getenv("SMALLESTAI_SAMPLE_RATE", "24000"))
-
-    payload: dict[str, Any] = {
-        "text": text,
-        "voice_id": voice_id,
-        "sample_rate": sample_rate,
-        "speed": 0.95,
-        "language": lang,
-        "output_format": output_format,
-    }
-
-    response = requests.post(
-        url,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json=payload,
-        timeout=25,
-    )
-    if response.status_code >= 400 and lang != "en":
-        # Fallback to English voice path if locale-specific TTS rejects the request.
-        logger.warning(
-            "SmallestAI TTS locale failed (%s): %s %s",
-            lang,
-            response.status_code,
-            response.text[:200],
-        )
-        payload["language"] = "en"
-        response = requests.post(
-            os.getenv(
-                "SMALLESTAI_TTS_URL_FALLBACK",
-                "https://api.smallest.ai/waves/v1/lightning-v3.1/get_speech",
-            ).strip(),
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=25,
-        )
-
-    if response.status_code >= 400:
-        logger.warning("SmallestAI TTS failed: %s %s", response.status_code, response.text[:300])
-        raise HTTPException(status_code=502, detail="Vox voice generation failed. Please try again.")
-
-    content_type = response.headers.get("content-type") or f"audio/{output_format}"
-    return base64.b64encode(response.content).decode("ascii"), content_type
+    return result.audio_base64, result.content_type
 
 
 def _pulse_transcribe(
     audio_b64: str,
     language: str = "multi",
     content_type: str = "audio/wav",
+    preferred_language_fallback: str = "en",
 ) -> tuple[str, str]:
     """
-    Transcribe with Pulse. Use language='multi' to auto-detect spoken language.
+    Compatibility wrapper → Voice Layer Pulse STT.
+
+    Use language='multi' to auto-detect spoken language.
     Returns (transcript, detected_or_requested_language_code).
     """
-    api_key = os.getenv("SMALLESTAI_API_KEY", "").strip()
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Speech transcription is not configured.")
-
-    lang_param = (language or "en").strip().lower() or "en"
-    if lang_param != "multi":
-        lang_param = normalize_language_code(lang_param)
-
-    base = os.getenv(
-        "SMALLESTAI_STT_URL",
-        "https://api.smallest.ai/waves/v1/stt/?model=pulse",
-    ).strip().rstrip("?")
-    # Force query language for auto-detect / locale.
-    if "language=" in base:
-        url = base
-    else:
-        sep = "&" if "?" in base else "?"
-        url = f"{base}{sep}language={lang_param}"
-
-    headers = {"Authorization": f"Bearer {api_key}"}
-    audio_bytes = base64.b64decode(audio_b64)
     try:
-        # Preferred: raw audio body (Pulse pre-recorded API).
-        response = requests.post(
-            url,
-            headers={**headers, "Content-Type": "application/octet-stream"},
-            data=audio_bytes,
-            timeout=45,
+        result = transcribe_pulse(
+            audio_b64,
+            language=language,
+            content_type=content_type,
+            preferred_language_fallback=preferred_language_fallback,
         )
-        if response.status_code >= 400:
-            files = {"file": ("vox.wav", audio_bytes, content_type or "audio/wav")}
-            response = requests.post(url, headers=headers, files=files, timeout=45)
-        if response.status_code >= 400:
-            response = requests.post(
-                url,
-                headers={**headers, "Content-Type": "application/json"},
-                json={"audio": audio_b64, "language": lang_param},
-                timeout=45,
-            )
-        if response.status_code >= 400:
-            logger.warning("Pulse STT failed: %s %s", response.status_code, response.text[:300])
-            raise HTTPException(status_code=502, detail="Could not transcribe audio.")
-
-        data: Any = {}
-        try:
-            data = response.json()
-        except Exception:
-            text = response.text.strip()
-            return text, normalize_language_code(lang_param if lang_param != "multi" else "en")
-
-        text = ""
-        detected = lang_param if lang_param != "multi" else "en"
-        if isinstance(data, dict):
-            for key in ("text", "transcript", "transcription"):
-                if data.get(key):
-                    text = str(data[key]).strip()
-                    break
-            if not text and isinstance(data.get("data"), dict):
-                nested = data["data"]
-                for key in ("text", "transcript", "transcription"):
-                    if nested.get(key):
-                        text = str(nested[key]).strip()
-                        break
-            raw_lang = data.get("language") or data.get("detected_language")
-            if not raw_lang and isinstance(data.get("data"), dict):
-                raw_lang = data["data"].get("language")
-            if isinstance(data.get("languages"), list) and data["languages"]:
-                raw_lang = raw_lang or data["languages"][0]
-            if raw_lang:
-                detected = normalize_language_code(str(raw_lang))
-        if not text:
-            raise HTTPException(status_code=400, detail="No speech detected.")
-        return text, detected
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.warning("Pulse STT error: %s", exc)
-        raise HTTPException(status_code=502, detail="Could not transcribe audio.") from exc
+        return result.transcript, result.detected_language
+    except VoiceConfigError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Speech transcription is not configured.",
+        ) from exc
+    except VoiceTranscriptionError as exc:
+        message = str(exc) or "Could not transcribe audio."
+        status = 400 if "No speech" in message else 502
+        raise HTTPException(status_code=status, detail=message) from exc
 
 
 def _simple_translate(text: str, source_language: str, target_language: str) -> str:
@@ -405,13 +307,17 @@ async def _remivox_response(
     intent_prompt = (prompt or "").strip()
 
     # Audio path: Pulse auto-detects Hindi/Gujarati/Spanish/etc., then we act + reply
-    # in that same language.
+    # in that same language. Stage B fix: auto_detect → language='multi' (not 'en').
     if audio_base64:
-        stt_lang = "en" if auto_detect_language else preferred
+        stt_lang = resolve_stt_language(
+            auto_detect_language=auto_detect_language,
+            preferred_language=preferred,
+        )
         transcript, spoken_lang = _pulse_transcribe(
             audio_base64,
             language=stt_lang,
             content_type=content_type or "audio/wav",
+            preferred_language_fallback=preferred,
         )
         intent_prompt = transcript
         # Restrict to Remi's supported set; fall back to preferred app language.
@@ -447,7 +353,17 @@ async def _remivox_response(
         action = "briefing"
         action_payload = {}
 
-    audio_out, out_type = _synthesize_smallestai(text, language=lang)
+    # Voice Layer TTS — language follows reply language (not hardcoded English).
+    try:
+        tts = synthesize_lightning(text, language=lang)
+        audio_out, out_type = tts.audio_base64, tts.content_type
+        if tts.fallback_status == "english" and action_payload is not None:
+            action_payload = {**action_payload, "tts_fallback": tts.fallback_status}
+    except VoiceSynthesisError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Vox voice generation failed. Please try again.",
+        ) from exc
 
     return RemiVoxBriefingResponse(
         text=text,

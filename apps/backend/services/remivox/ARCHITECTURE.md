@@ -1,8 +1,8 @@
 # RemiVox v2 Architecture
 
-**Status:** Stage A scaffold only (no production behavior change)  
+**Status:** Stage B Voice Layer active (scaffold from Stage A)  
 **Source of truth branch:** `feature/android-v1.4.0-full-port`  
-**Working branch:** `cursor/remivox-v2-stage-a-96fc`
+**Working branch:** `cursor/remivox-v2-stage-b-96fc`
 
 ## Principles
 
@@ -118,20 +118,39 @@ Session language should stick for the Vox conversation (Stage D). Stage B fixes 
 
 Tone: *friendly neighbor helping organize care*.
 
+## Stage B (Voice Layer extraction) — current
+
+**Status:** Complete on `cursor/remivox-v2-stage-b-96fc`
+
+- Pulse STT + Lightning TTS live in `services/remivox/voice.py`
+- `route/remivox.py` keeps `/ask` contract; thin wrappers call Voice Layer
+- Bug fix: `auto_detect_language=true` → Pulse `language=multi` (via `resolve_stt_language`)
+- TTS uses reply language (hi/bn/gu/…); English fallback only if locale TTS fails
+- Hydra untouched
+- Intent Router / Action Executor **not** wired yet
+
+### Old vs new voice flow
+
+```
+OLD (inline in route/remivox.py):
+  audio → _pulse_transcribe (auto_detect wrongly forced en)
+       → handle_prompt
+       → _synthesize_smallestai(text, language=lang)
+
+NEW (Stage B):
+  audio → resolve_stt_language(auto_detect) → multi | preferred
+       → remivox.voice.transcribe_pulse (Pulse)
+       → handle_prompt (unchanged Stage B)
+       → remivox.voice.synthesize_lightning(text, language=reply_lang)
+       → observability log_voice_operation
+```
+
 ## Migration stages
 
 | Stage | Scope | Prod behavior change? |
 |-------|--------|------------------------|
-| **A (this)** | Package, models, stubs, docs, test skeleton | **No** |
-| B | Move Pulse/Lightning into `voice.py`; fix language detect | Yes (Voice) |
+| A | Package, models, stubs, docs, test skeleton | No |
+| **B (this)** | Move Pulse/Lightning into `voice.py`; fix language detect | Voice only |
 | C | Intent router + Action Executor; gate Hydra care tools | Yes |
 | D | Conversation state + sticky language | Yes |
 | E | Cutover `/ask` to `pipeline.run`; deprecate shim | Yes |
-
-## Stage A explicit non-goals
-
-- No edits to production routing logic in `route/remivox.py`
-- No changes to `hydra_live_service.py` behavior
-- No removal of `remivox_intents.py`
-- No mobile client changes
-- No merge to `main`
