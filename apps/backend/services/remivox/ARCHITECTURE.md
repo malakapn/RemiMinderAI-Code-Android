@@ -36,8 +36,8 @@ Audio
 | `actions/executor.py` | Action Layer | Live → reminder_service |
 | `actions/types.py` | ActionResult | Live |
 | `response/builder.py` | Response Layer | Live neighbor tone + conditional disclaimer |
-| `state/conversation.py` | Pending slots | In-memory + 5 min TTL |
-| `observability.py` | Logging | Voice + interaction logs |
+| `state/conversation.py` | Pending slots | `cache_service` + 5 min TTL |
+| `observability.py` | Logging | PHI-safe voice / intent / action logs |
 | `pipeline.py` | Orchestration | `run_care_turn` wired from `/ask` |
 
 ## Existing foundation (must preserve)
@@ -158,8 +158,8 @@ Pulse STT → Intent Router → Action Executor → reminder_service/DB
 
 - `POST /api/remivox/ask` calls `run_care_turn` (not Hydra) for care actions
 - Hydra schemas/tools are read-only; protected mutations blocked in `execute_hydra_tool`
-- In-memory conversation state (`remivox:state:{user}:{session}`, TTL 5m)
-- `REMIVOX_TEST_MODE=true` bypasses trial gate for QA only
+- Conversation state key shape introduced (`remivox:state:{user}:{session}`, TTL 5m; moved to `cache_service` in Stage D)
+- `REMIVOX_TEST_MODE=true` bypasses trial gate for QA only (hardened in Stage D)
 - Disclaimer only for `MEDICAL_ADVICE_REFUSAL`
 
 ## Stage B (Voice Layer extraction)
@@ -193,5 +193,6 @@ NEW (Stage C):
 |-------|--------|------------------------|
 | A | Package, models, stubs, docs, test skeleton | No |
 | B | Move Pulse/Lightning into `voice.py`; fix language detect | Voice only |
+| C | Intent Router + Action Executor; Hydra care gating | Care path live |
 | **D (this)** | cache_service state, test-mode harden, PHI logs, language validation | Hardening |
-| E | Deprecate legacy `handle_prompt` shim | Yes |
+| E | Deprecate legacy `handle_prompt` shim | Yes (not started) |
