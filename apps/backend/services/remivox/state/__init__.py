@@ -6,6 +6,7 @@ from services.remivox.state.conversation import (
     clear_state,
     get_state,
     save_state,
+    upsert_pending,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "clear_state",
     "get_state",
     "save_state",
+    "upsert_pending",
 ]

@@ -1,8 +1,8 @@
 # RemiVox v2 Architecture
 
-**Status:** Stage B Voice Layer active (scaffold from Stage A)  
+**Status:** Stage C Intent Router + Action Executor wired  
 **Source of truth branch:** `feature/android-v1.4.0-full-port`  
-**Working branch:** `cursor/remivox-v2-stage-b-96fc`
+**Working branch:** `cursor/remivox-v2-stage-c-96fc`
 
 ## Principles
 

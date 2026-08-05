@@ -1,19 +1,138 @@
 """
-RemiVox v2 pipeline orchestrator (Stage A stub).
+RemiVox v2 care-turn pipeline (Stage C).
 
-Target flow:
-  Audio → Pulse STT → Language Detection → Intent Router → Action Executor
-  → DB/API → Response Builder → Lightning TTS
+Voice Layer (Pulse/Lightning) stays in route/remivox.py + remivox.voice.
+This pipeline owns: Intent Router → Action Executor → Response Builder (+ state).
 
-Stage A does NOT replace route/remivox.py. Callers must continue using the
-existing route until Stage B+ is approved and wired.
+Hydra is NOT used here for care actions.
 """
 
 from __future__ import annotations
 
 from typing import Any, Optional
 
-from services.remivox.intents.models import IntentResult, VoxIntent
+from services.remivox.actions.executor import execute_intent
+from services.remivox.intents.router import route_intent
+from services.remivox.observability import log_interaction
+from services.remivox.response.builder import build_response
+from services.remivox.state.conversation import (
+    clear_state,
+    get_state,
+    upsert_pending,
+)
+
+
+async def run_care_turn(
+    *,
+    user_uuid: str,
+    text: str,
+    language: str = "en",
+    detected_language: Optional[str] = None,
+    reminders: dict,
+    summaries: list[dict],
+    timezone_name: str = "UTC",
+    session_id: Optional[str] = None,
+    transcript: Optional[str] = None,
+) -> dict[str, Any]:
+    """
+    Deterministic care workflow for one user turn (text already normalized).
+
+    Returns dict compatible with RemiVoxBriefingResponse fields plus intent metadata.
+    """
+    sid = (session_id or "default").strip() or "default"
+    lang = language or "en"
+    detected = detected_language or lang
+
+    prior = get_state(user_uuid, sid)
+    pending_intent = prior.pending_intent if prior else None
+    pending_entities = prior.pending_entities if prior else None
+
+    intent_result = route_intent(
+        text=text,
+        language=lang,
+        pending_intent=pending_intent,
+        pending_entities=pending_entities,
+    )
+
+    action_result = await execute_intent(
+        intent_result=intent_result,
+        user_uuid=user_uuid,
+        reminders=reminders,
+        summaries=summaries,
+        timezone_name=timezone_name or "UTC",
+    )
+
+    if action_result.clear_pending:
+        clear_state(user_uuid, sid)
+    elif action_result.pending_intent:
+        upsert_pending(
+            user_id=user_uuid,
+            session_id=sid,
+            language=lang,
+            detected_language=detected,
+            pending_intent=action_result.pending_intent,
+            pending_entities=action_result.pending_entities,
+            missing_slots=action_result.missing_slots,
+        )
+    elif intent_result.intent.value == "CLARIFY":
+        upsert_pending(
+            user_id=user_uuid,
+            session_id=sid,
+            language=lang,
+            detected_language=detected,
+            pending_intent=str(
+                (intent_result.entities or {}).get("pending_intent") or ""
+            )
+            or None,
+            pending_entities=dict(
+                (intent_result.entities or {}).get("pending_entities") or {}
+            ),
+            missing_slots=list(intent_result.missing_slots or []),
+        )
+
+    built = build_response(
+        intent_result=intent_result,
+        action_result=action_result,
+        reply_language=lang,
+    )
+
+    log_interaction(
+        user_id=user_uuid,
+        detected_language=detected,
+        transcript=transcript or text,
+        intent=intent_result.intent.value,
+        entities=intent_result.entities,
+        action=action_result.action,
+        success=action_result.success,
+        response_language=lang,
+        session_id=sid,
+        error=action_result.error,
+        extra={"message_key": action_result.message_key},
+    )
+
+    pending_out = None
+    state_now = get_state(user_uuid, sid)
+    if state_now and state_now.pending_intent:
+        pending_out = {
+            "intent": state_now.pending_intent,
+            "entities": state_now.pending_entities,
+            "missing_slots": state_now.missing_slots,
+        }
+
+    return {
+        "text": built["text"],
+        "action": action_result.action,
+        "action_payload": {
+            **(action_result.payload or {}),
+            "intent": intent_result.intent.value,
+            "entities": intent_result.entities,
+            "pending": pending_out,
+        },
+        "reply_language": lang,
+        "intent": intent_result.intent.value,
+        "entities": intent_result.entities,
+        "success": action_result.success,
+    }
 
 
 async def run_pipeline(
@@ -28,26 +147,22 @@ async def run_pipeline(
     session_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """
-    End-to-end v2 pipeline entrypoint.
-
-    Stage A: raises NotImplementedError so production cannot accidentally switch.
+    Full end-to-end entry (optional). Stage C route still owns Voice Layer calls;
+    prefer run_care_turn after STT/translate.
     """
     _ = (
-        user_uuid,
-        prompt,
         audio_base64,
         content_type,
-        reply_language,
-        timezone_name,
         auto_detect_language,
-        session_id,
     )
-    raise NotImplementedError(
-        "RemiVox v2 pipeline is Stage A scaffold only. "
-        "Production path remains route/remivox.py + remivox_intents.handle_prompt."
+    if not (prompt or "").strip():
+        raise ValueError("run_pipeline requires prompt text in Stage C route wiring")
+    return await run_care_turn(
+        user_uuid=user_uuid,
+        text=prompt or "",
+        language=reply_language,
+        reminders={"today": [], "upcoming": [], "past": []},
+        summaries=[],
+        timezone_name=timezone_name,
+        session_id=session_id,
     )
-
-
-def empty_intent_placeholder(language: str = "en") -> IntentResult:
-    """Helper for tests / scaffolding."""
-    return IntentResult(intent=VoxIntent.UNKNOWN, language=language, entities={})

@@ -51,6 +51,7 @@ class RemiVoxParseTests(unittest.TestCase):
         )
         self.assertIn("Bangla", text)
         self.assertIn("not a doctor", text.lower())
+        self.assertIn("Do not create", text)  # Stage C: care actions not via Hydra
 
 
 class RemiVoxHandlePromptTests(unittest.IsolatedAsyncioTestCase):

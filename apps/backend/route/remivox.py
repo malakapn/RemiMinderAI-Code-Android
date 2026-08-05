@@ -9,6 +9,7 @@ from services.auth_gateway import get_current_user_jwt, verify_auth_token
 from services.db_service import get_user_summaries, get_user_uuid
 from services.hydra_live_service import run_hydra_live_proxy
 from services.reminder_service import list_patient_reminders
+from services.remivox.pipeline import run_care_turn
 from services.remivox.voice import (
     VoiceConfigError,
     VoiceSynthesisError,
@@ -17,7 +18,7 @@ from services.remivox.voice import (
     synthesize_lightning,
     transcribe_pulse,
 )
-from services.remivox_intents import build_briefing, handle_prompt
+from services.remivox_intents import build_briefing
 from services.remivox_languages import (
     LANGUAGE_DISPLAY_NAMES,
     SUPPORTED_LANGUAGE_CODES,
@@ -52,6 +53,10 @@ class RemiVoxAskRequest(BaseModel):
     audio_base64: Optional[str] = None
     content_type: Optional[str] = "audio/wav"
     auto_detect_language: bool = True
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Optional Vox conversation session id for pending-slot state.",
+    )
 
 
 class RemiVoxTranslateTurnRequest(BaseModel):
@@ -185,6 +190,7 @@ async def remivox_ask(
         audio_base64=request.audio_base64,
         content_type=request.content_type or "audio/wav",
         auto_detect_language=bool(request.auto_detect_language),
+        session_id=request.session_id,
     )
 
 
@@ -291,6 +297,7 @@ async def _remivox_response(
     audio_base64: Optional[str] = None,
     content_type: str = "audio/wav",
     auto_detect_language: bool = True,
+    session_id: Optional[str] = None,
 ):
     firebase_uid = current_user.get("sub")
     if not firebase_uid:
@@ -325,20 +332,25 @@ async def _remivox_response(
             spoken_lang = preferred
 
     lang = spoken_lang if audio_base64 else preferred
+    sid = (session_id or firebase_uid or "default").strip() or "default"
 
     if intent_prompt:
-        # Intent engine is English-keyed; translate non-English speech → English for actions.
+        # Intent Router is English-keyed; translate non-English speech → English for routing.
         english_prompt = intent_prompt
         if lang != "en":
             english_prompt = _simple_translate(intent_prompt, lang, "en")
 
-        result = await handle_prompt(
-            prompt=english_prompt,
+        # Stage C: Intent Router → Action Executor → Response Builder
+        result = await run_care_turn(
             user_uuid=user_uuid,
+            text=english_prompt,
+            language=lang,
+            detected_language=spoken_lang if audio_base64 else lang,
             reminders=reminders,
             summaries=summaries,
             timezone_name=timezone_name or "UTC",
-            reply_language=lang,
+            session_id=sid,
+            transcript=transcript or intent_prompt,
         )
         text = result["text"]
         action = result.get("action")
@@ -348,6 +360,12 @@ async def _remivox_response(
             text = _simple_translate(text, "en", lang)
     else:
         text = build_briefing(reminders, summaries)
+        # Stage C personality: strip legacy always-on disclaimer from briefing.
+        text = text.replace(
+            "This is not medical advice. Take medicines only as prescribed and ask a clinician "
+            "if anything feels unclear.",
+            "",
+        ).strip()
         if lang != "en":
             text = _simple_translate(text, "en", lang)
         action = "briefing"

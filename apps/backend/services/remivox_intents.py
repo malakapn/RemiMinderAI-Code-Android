@@ -590,66 +590,13 @@ async def handle_prompt(
 
 
 def hydra_tool_schemas() -> list[dict]:
+    """
+    Conversational-only tools for Hydra (Stage C).
+
+    Protected care mutations (create/update/complete/snooze/skip/delete) are
+    intentionally omitted — those must go through Intent Router → Action Executor.
+    """
     return [
-        {
-            "type": "function",
-            "name": "create_reminder",
-            "description": (
-                "Create a reminder the user explicitly requested. "
-                "Only store the name, time, and recurrence they said. Never suggest doses."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string"},
-                    "hour": {"type": "integer", "minimum": 0, "maximum": 23},
-                    "minute": {"type": "integer", "minimum": 0, "maximum": 59},
-                    "recurrence": {
-                        "type": "string",
-                        "enum": ["daily", "weekly", "once", "twice"],
-                    },
-                    "reminder_type": {
-                        "type": "string",
-                        "enum": ["medication", "task", "appointment"],
-                    },
-                },
-                "required": ["title", "hour"],
-            },
-        },
-        {
-            "type": "function",
-            "name": "complete_reminder",
-            "description": "Log that the user said they already took/completed a reminder.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title_hint": {"type": "string"},
-                },
-            },
-        },
-        {
-            "type": "function",
-            "name": "snooze_reminder",
-            "description": "Snooze a reminder for N minutes when the user asks.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title_hint": {"type": "string"},
-                    "minutes": {"type": "integer", "minimum": 5, "maximum": 180},
-                },
-            },
-        },
-        {
-            "type": "function",
-            "name": "skip_reminder",
-            "description": "Log that the user chose to skip a reminder (no medical advice).",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title_hint": {"type": "string"},
-                },
-            },
-        },
         {
             "type": "function",
             "name": "get_today_briefing",
@@ -687,14 +634,30 @@ def build_hydra_instructions(
             "Keep replies to one or two short sentences. "
             "You are not a doctor. Do not diagnose, dose, or advise treatment. "
             "If asked for medical advice, say they should ask their clinician. "
-            "If they ask to set a reminder, take a med check-in, or hear a care brief, use tools."
+            "Do not create, update, complete, snooze, skip, or delete reminders. "
+            "For reminder actions, tell the user to use the main Vox button care flow."
         )
     return (
-        "You are Vox, RemiMinder's voice care assistant. Speak warmly in one or two short sentences. "
-        "Help with reminders, check-ins, summaries, and caregiver status using tools. "
+        "You are Vox, RemiMinder's conversational companion. Speak warmly in one or two short sentences. "
+        "You may explain visit summaries, help prepare doctor questions, and support caregiver conversations "
+        "using read-only tools. "
+        "Never create, update, complete, snooze, skip, or delete reminders — those are handled by the "
+        "backend Intent Router, not by you. "
         "Never give medical advice, doses, or drug interaction guidance. "
-        f"Prefer speaking in {tgt}. {DISCLAIMER}"
+        f"Prefer speaking in {tgt}."
     )
+
+
+_HYDRA_PROTECTED_TOOLS = frozenset(
+    {
+        "create_reminder",
+        "update_reminder",
+        "complete_reminder",
+        "snooze_reminder",
+        "skip_reminder",
+        "delete_reminder",
+    }
+)
 
 
 async def execute_hydra_tool(
@@ -706,6 +669,13 @@ async def execute_hydra_tool(
     summaries: list[dict],
     timezone_name: str = "UTC",
 ) -> str:
+    # Stage C hard gate: Hydra must never execute protected care mutations.
+    if name in _HYDRA_PROTECTED_TOOLS:
+        logger.warning("Blocked Hydra protected tool call: %s uid=%s", name, user_uuid)
+        return (
+            "This care action is handled by RemiVox Intent Router, not Hydra. "
+            "Ask the user to use the main Vox care flow for reminders."
+        )
     if name == "get_today_briefing":
         return build_briefing(reminders, summaries)
     if name == "get_caregiver_brief":
@@ -714,56 +684,10 @@ async def execute_hydra_tool(
         title, summary = _latest_summary_text(summaries)
         if not summary:
             return "No completed doctor visit summary found."
-        return f"{title}: {summary[:500]} {DISCLAIMER}"
-    if name == "create_reminder":
-        title = str(arguments.get("title") or "").strip()[:80]
-        if not title:
-            return "Missing reminder title."
-        hour = int(arguments.get("hour", 20))
-        minute = int(arguments.get("minute", 0))
-        recurrence = str(arguments.get("recurrence") or "once")
-        if recurrence not in {"daily", "weekly", "once", "twice"}:
-            recurrence = "once"
-        reminder_type = str(arguments.get("reminder_type") or "medication")
-        if reminder_type not in {"medication", "task", "appointment"}:
-            reminder_type = "medication"
-        try:
-            tz = ZoneInfo(timezone_name)
-        except Exception:
-            tz = timezone.utc
-        now = datetime.now(tz)
-        scheduled = now.replace(hour=hour % 24, minute=minute % 60, second=0, microsecond=0)
-        if scheduled <= now:
-            scheduled += timedelta(days=1)
-        created = await create_new_reminder(
-            ReminderCreate(
-                user_id=user_uuid,
-                reminder_type=reminder_type,  # type: ignore[arg-type]
-                title=title,
-                scheduled_time=scheduled.astimezone(timezone.utc),
-                timezone=timezone_name or "UTC",
-                recurrence=recurrence,  # type: ignore[arg-type]
-                context_data={"source": "remivox_hydra"},
-            )
+        return f"{title}: {summary[:500]}"
+    # Legacy paths below remain unreachable via schemas but stay gated.
+    if name in {"create_reminder", "complete_reminder", "snooze_reminder", "skip_reminder"}:
+        return (
+            "Blocked: protected reminder actions cannot be executed by Hydra."
         )
-        if not created:
-            return "Failed to save reminder."
-        return f"Created {recurrence} reminder for {title}."
-    if name in {"complete_reminder", "snooze_reminder", "skip_reminder"}:
-        hint = str(arguments.get("title_hint") or "")
-        target = _find_best_reminder(reminders, hint or "medication")
-        if not target:
-            return "No matching active reminder found."
-        rid = str(target.get("id"))
-        title = _reminder_title(target)
-        if name == "complete_reminder":
-            await complete_reminder(rid, user_uuid, ReminderAction(notes="vox_hydra_taken"))
-            return f"Logged {title} as taken. Not medical advice."
-        if name == "snooze_reminder":
-            minutes = int(arguments.get("minutes") or 20)
-            minutes = max(5, min(180, minutes))
-            await snooze_reminder(rid, user_uuid, minutes)
-            return f"Snoozed {title} for {minutes} minutes."
-        await skip_reminder(rid, user_uuid, ReminderAction(notes="vox_hydra_skip"))
-        return f"Marked {title} as skipped. Not medical advice."
     return f"Unknown tool: {name}"

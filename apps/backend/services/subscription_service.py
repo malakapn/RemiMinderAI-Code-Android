@@ -261,7 +261,18 @@ async def enforce_remivox_access(firebase_uid: str) -> dict:
     Vox follows the same access model as the rest of RemiMinder:
     available during the 14-day trial and for Premium; locked after trial
     until the user subscribes. No separate Vox interaction quota.
+
+    Developer bypass: REMIVOX_TEST_MODE=true skips trial/premium gating
+    for approved local/QA testing only. Gating logic remains intact.
     """
+    if os.getenv("REMIVOX_TEST_MODE", "").strip().lower() in {"1", "true", "yes"}:
+        logger.warning(
+            "REMIVOX_TEST_MODE enabled — bypassing remivox access gate for uid=%s",
+            firebase_uid,
+        )
+        status = await get_subscription_status(firebase_uid)
+        return status
+
     status = await get_subscription_status(firebase_uid)
     plan = status["plan"]
     allowed = plan == PLAN_PREMIUM or (
