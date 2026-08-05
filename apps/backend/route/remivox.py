@@ -10,6 +10,7 @@ from services.db_service import get_user_summaries, get_user_uuid
 from services.hydra_live_service import run_hydra_live_proxy
 from services.reminder_service import list_patient_reminders
 from services.remivox.pipeline import run_care_turn
+from services.remivox.languages import resolve_session_language
 from services.remivox.voice import (
     VoiceConfigError,
     VoiceSynthesisError,
@@ -331,7 +332,12 @@ async def _remivox_response(
         if spoken_lang not in SUPPORTED_LANGUAGE_CODES:
             spoken_lang = preferred
 
-    lang = spoken_lang if audio_base64 else preferred
+    # Stage D: preserve detected language; never force English unless requested/detected.
+    lang = resolve_session_language(
+        detected_language=spoken_lang if audio_base64 else None,
+        preferred_language=preferred,
+        has_audio=bool(audio_base64),
+    )
     sid = (session_id or firebase_uid or "default").strip() or "default"
 
     if intent_prompt:

@@ -13,7 +13,8 @@ from typing import Any, Optional
 
 from services.remivox.actions.executor import execute_intent
 from services.remivox.intents.router import route_intent
-from services.remivox.observability import log_interaction
+from services.remivox.languages import resolve_session_language
+from services.remivox.observability import log_action_execution, log_intent_decision, log_interaction
 from services.remivox.response.builder import build_response
 from services.remivox.state.conversation import (
     clear_state,
@@ -40,8 +41,13 @@ async def run_care_turn(
     Returns dict compatible with RemiVoxBriefingResponse fields plus intent metadata.
     """
     sid = (session_id or "default").strip() or "default"
-    lang = language or "en"
-    detected = detected_language or lang
+    detected = detected_language or language or "en"
+    # Preserve detected/session language — do not force English.
+    lang = resolve_session_language(
+        detected_language=detected,
+        preferred_language=language or "en",
+        has_audio=bool(detected_language),
+    )
 
     prior = get_state(user_uuid, sid)
     pending_intent = prior.pending_intent if prior else None
@@ -53,6 +59,14 @@ async def run_care_turn(
         pending_intent=pending_intent,
         pending_entities=pending_entities,
     )
+    log_intent_decision(
+        user_id=user_uuid,
+        intent=intent_result.intent.value,
+        confidence=intent_result.confidence,
+        missing_slots=intent_result.missing_slots,
+        detected_language=detected,
+        session_id=sid,
+    )
 
     action_result = await execute_intent(
         intent_result=intent_result,
@@ -60,6 +74,27 @@ async def run_care_turn(
         reminders=reminders,
         summaries=summaries,
         timezone_name=timezone_name or "UTC",
+    )
+
+    validation_result = "ok"
+    if action_result.missing_slots or action_result.message_key in {
+        "clarify_missing_slots",
+        "ambiguous_reminder",
+        "ask_which_reminder",
+        "confirm_delete",
+        "no_match",
+    }:
+        validation_result = action_result.message_key
+    execution_result = "success" if action_result.success else (action_result.message_key or "failed")
+
+    log_action_execution(
+        user_id=user_uuid,
+        action=action_result.action,
+        validation_result=validation_result,
+        execution_result=execution_result,
+        success=action_result.success,
+        session_id=sid,
+        error=action_result.error,
     )
 
     if action_result.clear_pending:
@@ -99,14 +134,18 @@ async def run_care_turn(
     log_interaction(
         user_id=user_uuid,
         detected_language=detected,
-        transcript=transcript or text,
+        transcript=None,  # PHI — never log
         intent=intent_result.intent.value,
-        entities=intent_result.entities,
+        entities=None,  # PHI — never log
         action=action_result.action,
         success=action_result.success,
         response_language=lang,
         session_id=sid,
         error=action_result.error,
+        confidence=intent_result.confidence,
+        missing_slots=intent_result.missing_slots or action_result.missing_slots,
+        validation_result=validation_result,
+        execution_result=execution_result,
         extra={"message_key": action_result.message_key},
     )
 

@@ -1,8 +1,8 @@
 # RemiVox v2 Architecture
 
-**Status:** Stage C Intent Router + Action Executor wired  
+**Status:** Stage D production hardening (cache state, test-mode, PHI-safe logs)  
 **Source of truth branch:** `feature/android-v1.4.0-full-port`  
-**Working branch:** `cursor/remivox-v2-stage-c-96fc`
+**Working branch:** `cursor/remivox-v2-stage-d-96fc`
 
 ## Principles
 
@@ -119,7 +119,33 @@ Session language should stick for the Vox conversation (Stage D). Stage B fixes 
 
 Tone: *friendly neighbor helping organize care*.
 
-## Stage C (Intent + Action) — current
+## Stage D (hardening) — current
+
+**Status:** Complete on `cursor/remivox-v2-stage-d-96fc`
+
+- Conversation state stored via `cache_service` (`remivox:state:{user}:{session}`, TTL 5m)
+- Missing/expired/corrupt state handled gracefully (re-clarify, no crash)
+- `REMIVOX_TEST_MODE` defaults OFF; ignored in production unless `REMIVOX_TEST_MODE_ALLOW_IN_PROD=true`; optional UID allowlist
+- Language: detected locale preserved for all 10 supported languages (EN only when detected/preferred)
+- Observability is PHI-safe (no transcripts / medication entities in logs)
+- Hydra still cannot execute protected care actions
+- Legacy `remivox_intents.handle_prompt` retained until Stage E
+
+### State architecture
+
+```
+run_care_turn
+  → get_state(user, session)
+       cache_service.get("remivox:state:{user}:{session}")
+  → route_intent(+ pending)
+  → execute_intent
+  → upsert_pending / clear_state
+       cache_service.set(..., ttl=300) / invalidate
+```
+
+Note: `cache_service` is process-local today. Multi-instance deploys rely on graceful empty-state behavior (user may need to re-state a slot if sticky routing is absent). No Redis / SQL introduced in Stage D.
+
+## Stage C (Intent + Action)
 
 **Status:** Complete on `cursor/remivox-v2-stage-c-96fc`
 
@@ -167,6 +193,5 @@ NEW (Stage C):
 |-------|--------|------------------------|
 | A | Package, models, stubs, docs, test skeleton | No |
 | B | Move Pulse/Lightning into `voice.py`; fix language detect | Voice only |
-| **C (this)** | Intent router + Action Executor; gate Hydra care tools | Yes |
-| D | Stronger sticky language / state polish | Yes |
+| **D (this)** | cache_service state, test-mode harden, PHI logs, language validation | Hardening |
 | E | Deprecate legacy `handle_prompt` shim | Yes |
