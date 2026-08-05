@@ -256,12 +256,62 @@ async def increment_remivox_interaction(firebase_uid: str) -> None:
     invalidate(f"user_profile:{firebase_uid}")
 
 
+def remivox_test_mode_enabled(*, firebase_uid: Optional[str] = None) -> bool:
+    """
+    REMIVOX_TEST_MODE bypass helper (Stage D hardened).
+
+    Defaults OFF. In production/prod environments the flag is ignored unless
+    REMIVOX_TEST_MODE_ALLOW_IN_PROD=true is also set.
+
+    Optional REMIVOX_TEST_MODE_UIDS=uid1,uid2 restricts bypass to approved testers.
+    """
+    raw = os.getenv("REMIVOX_TEST_MODE", "false").strip().lower()
+    if raw not in {"1", "true", "yes"}:
+        return False
+
+    app_env = (
+        os.getenv("APP_ENV")
+        or os.getenv("ENVIRONMENT")
+        or os.getenv("ENV")
+        or ""
+    ).strip().lower()
+    if app_env in {"prod", "production"}:
+        allow_prod = os.getenv("REMIVOX_TEST_MODE_ALLOW_IN_PROD", "false").strip().lower()
+        if allow_prod not in {"1", "true", "yes"}:
+            logger.error(
+                "REMIVOX_TEST_MODE is set but ignored in production "
+                "(set REMIVOX_TEST_MODE_ALLOW_IN_PROD=true to override explicitly)"
+            )
+            return False
+
+    allowlist = os.getenv("REMIVOX_TEST_MODE_UIDS", "").strip()
+    if allowlist:
+        allowed = {part.strip() for part in allowlist.split(",") if part.strip()}
+        if not firebase_uid or firebase_uid not in allowed:
+            logger.warning(
+                "REMIVOX_TEST_MODE active but uid not in REMIVOX_TEST_MODE_UIDS; denying bypass"
+            )
+            return False
+    return True
+
+
 async def enforce_remivox_access(firebase_uid: str) -> dict:
     """
     Vox follows the same access model as the rest of RemiMinder:
     available during the 14-day trial and for Premium; locked after trial
     until the user subscribes. No separate Vox interaction quota.
+
+    Developer bypass: REMIVOX_TEST_MODE (see remivox_test_mode_enabled).
+    Subscription enforcement remains unchanged when bypass is OFF.
     """
+    if remivox_test_mode_enabled(firebase_uid=firebase_uid):
+        logger.warning(
+            "REMIVOX_TEST_MODE enabled — bypassing remivox access gate for uid=%s",
+            firebase_uid,
+        )
+        status = await get_subscription_status(firebase_uid)
+        return status
+
     status = await get_subscription_status(firebase_uid)
     plan = status["plan"]
     allowed = plan == PLAN_PREMIUM or (
