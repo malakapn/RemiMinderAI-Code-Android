@@ -33,9 +33,11 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
   Future<void> _loadOfferings() async {
     try {
       final packages = await RevenueCatService().getOfferings();
+      debugPrint('UPGRADE_DEBUG: initialized=${RevenueCatService().isPremium}, packages=${packages.length}, ids=${packages.map((p) => p.storeProduct.identifier).toList()}');
       Package? byProductId(String productId) {
         for (final package in packages) {
-          if (package.storeProduct.identifier == productId) return package;
+          final id = package.storeProduct.identifier;
+          if (id == productId || id.startsWith('$productId:')) return package;
         }
         return null;
       }
