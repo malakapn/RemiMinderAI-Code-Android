@@ -25,6 +25,19 @@ DISCLAIMER = (
     "if anything feels unclear."
 )
 
+_WORD_TO_NUM = {
+    "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+    "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
+    "eleven": "11", "twelve": "12", "noon": "12", "midnight": "0",
+}
+
+def _normalize_number_words(text: str) -> str:
+    """Convert spoken number words to digits for time parsing."""
+    result = text
+    for word, digit in _WORD_TO_NUM.items():
+        result = re.sub(r'\b' + word + r'\b', digit, result, flags=re.IGNORECASE)
+    return result
+
 _TIME_RE = re.compile(
     r"\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|am|pm)?\b",
     re.IGNORECASE,
@@ -81,7 +94,8 @@ def _parse_recurrence(prompt: str) -> str:
 
 
 def _parse_time_today(prompt: str, tz_name: str = "UTC") -> Optional[datetime]:
-    match = _TIME_RE.search(prompt)
+    normalized = _normalize_number_words(prompt)
+    match = _TIME_RE.search(normalized)
     if not match:
         return None
     hour = int(match.group(1))
