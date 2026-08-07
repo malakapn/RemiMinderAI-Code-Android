@@ -215,6 +215,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
 
     var clip = await _recordPromptClip(
       listenFor: isFollowUp ? _followUpListenFor : _initialListenFor,
+      requireSpeech: isFollowUp,
     );
 
     if (clip == null) {
@@ -281,7 +282,10 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       // Clarification needed — keep session_id and auto-reopen mic.
       if (mounted) setState(() => _awaitingFollowUp = true);
       _snack('Vox is still listening…');
-      final followUp = await _recordPromptClip(listenFor: _followUpListenFor);
+      final followUp = await _recordPromptClip(
+        listenFor: _followUpListenFor,
+        requireSpeech: true,
+      );
       if (followUp == null) {
         _clearPendingSession();
         _snack('No worries, you can try again anytime');
@@ -315,8 +319,24 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     }
   }
 
+  /// True when 16-bit mono WAV PCM has enough energy to count as speech.
+  bool _wavHasSpeech(Uint8List bytes, {int threshold = 400}) {
+    if (bytes.length <= 44) return false;
+    var peak = 0;
+    // Skip 44-byte WAV header; sample every other frame for speed.
+    for (var i = 44; i + 1 < bytes.length; i += 4) {
+      final sample = bytes[i] | (bytes[i + 1] << 8);
+      final signed = sample > 32767 ? sample - 65536 : sample;
+      final abs = signed.abs();
+      if (abs > peak) peak = abs;
+      if (peak >= threshold) return true;
+    }
+    return false;
+  }
+
   Future<({String base64, String contentType})?> _recordPromptClip({
     Duration listenFor = _initialListenFor,
+    bool requireSpeech = false,
   }) async {
     try {
       final allowed = await _recorder.hasPermission();
@@ -342,6 +362,9 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       try {
         await file.delete();
       } catch (_) {}
+      if (requireSpeech && !_wavHasSpeech(Uint8List.fromList(bytes))) {
+        return null;
+      }
       return (base64: base64Encode(bytes), contentType: 'audio/wav');
     } catch (_) {
       try {
@@ -451,7 +474,9 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  _liveActive ? 'Live' : 'Ask',
+                  _liveActive
+                      ? 'Live'
+                      : (_awaitingFollowUp ? 'Wait' : 'Ask'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontFamily: 'Poppins',
@@ -461,7 +486,9 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                   ),
                 ),
                 Text(
-                  _liveActive ? 'Tap stop' : 'me',
+                  _liveActive
+                      ? 'Tap stop'
+                      : (_awaitingFollowUp ? 'reply' : 'me'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontFamily: 'Poppins',
