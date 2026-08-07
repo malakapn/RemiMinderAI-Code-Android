@@ -32,90 +32,84 @@ class _VisitsScreenState extends State<VisitsScreen> {
           ),
         ),
       ),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24),
+      // ShellRoute already provides the floating bottom nav — do not nest another.
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 24),
 
-                  // Quick Actions for Visits
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+              // Quick Actions for Visits
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                    child: Column(
-                      children: [
-                        QuickActionItem(
-                          label: 'Record Visit',
-                          icon: Icons.mic,
-                          color: Colors.blue,
-                          onTap: () {
-                            // Start a new visit and navigate to recording
-                            final visitId = VisitContext().startNewVisit();
-                            context.go('/patient/record-visit/$visitId');
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        QuickActionItem(
-                          label: 'Camera',
-                          icon: Icons.camera_alt,
-                          color: Colors.blue,
-                          onTap: () {
-                            // Use current visit or start new one for camera
-                            final visitContext = VisitContext();
-                            final visitId = visitContext.getCurrentVisitId() ??
-                                visitContext.startNewVisit();
-                            context.go('/patient/camera/$visitId');
-                          },
-                        ),
-                      ],
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    QuickActionItem(
+                      label: 'Record Visit',
+                      icon: Icons.mic,
+                      color: Colors.blue,
+                      onTap: () {
+                        // Start a new visit and navigate to recording
+                        final visitId = VisitContext().startNewVisit();
+                        context.go('/patient/record-visit/$visitId');
+                      },
                     ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Recent Visits
-                  const SectionHeader(
-                    title: 'Recent Visits',
-                    icon: Icons.history,
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildRecentVisits(),
-
-                  const SizedBox(height: 32),
-
-                  // Upcoming Appointments
-                  const SectionHeader(
-                    title: 'Upcoming Appointments',
-                    icon: Icons.calendar_today,
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildUpcomingAppointments(),
-
-                  const SizedBox(height: 120),
-                ],
+                    const SizedBox(height: 20),
+                    QuickActionItem(
+                      label: 'Camera',
+                      icon: Icons.camera_alt,
+                      color: Colors.blue,
+                      onTap: () {
+                        // Use current visit or start new one for camera
+                        final visitContext = VisitContext();
+                        final visitId = visitContext.getCurrentVisitId() ??
+                            visitContext.startNewVisit();
+                        context.go('/patient/camera/$visitId');
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
 
-          // Rounded Navigation Bar
-          const RoundedNavigationBar(currentItem: NavigationItem.visits),
-        ],
+              const SizedBox(height: 32),
+
+              // Recent Visits
+              const SectionHeader(
+                title: 'Recent Visits',
+                icon: Icons.history,
+              ),
+              const SizedBox(height: 16),
+
+              _buildRecentVisits(),
+
+              const SizedBox(height: 32),
+
+              // Upcoming Appointments
+              const SectionHeader(
+                title: 'Upcoming Appointments',
+                icon: Icons.calendar_today,
+              ),
+              const SizedBox(height: 16),
+
+              _buildUpcomingAppointments(),
+
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
       ),
     );
   }
