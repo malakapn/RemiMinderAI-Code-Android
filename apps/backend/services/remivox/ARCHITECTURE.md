@@ -84,6 +84,58 @@ Mobile contract unchanged:
 
 Also: `reply_language`, `content_type` (existing client fields).
 
+## RemiVox v3 — Pipecat Streaming Pipeline
+
+`WS /api/remivox/stream` is the new real-time voice path for RemiVox sessions.
+It runs a Pipecat streaming pipeline over the WebSocket connection and is gated
+behind the Pipecat streaming configuration while the legacy path remains the
+default.
+
+`POST /api/remivox/ask` remains supported for backward compatibility with the
+existing mobile contract and non-streaming voice/text flows.
+
+Streaming pipeline:
+
+```
+WebSocket audio
+  → SmallestSTTService (Pulse, EN/HI)
+  → SileroVADAnalyzer
+  → RemiVoxProcessor
+  → SmallestTTSService (Lightning v3.1)
+  → WebSocket audio
+```
+
+`RemiVoxProcessor` is the bridge between Pipecat and the existing care engine.
+It receives finalized STT transcripts, calls `run_care_turn(...)`, and emits
+the response text downstream for TTS. The deterministic care workflow remains
+unchanged:
+
+```
+Intent Router
+  → Action Executor
+  → Response Builder
+```
+
+Reminder mutations continue to flow only through the existing care engine. The
+Intent Router, Action Executor, Response Builder, and reminder service contracts
+are unchanged by the streaming layer.
+
+Language scope for the v3 streaming path is **English + Hindi only** (`en`,
+`hi`). Broader locale behavior remains on the existing non-streaming route until
+the streaming path has been QA'd for those languages.
+
+Elderly UX tuning for streaming:
+
+- `eou_timeout_ms=2000` so older adults have more time to finish a thought.
+- Lightning speech `speed=0.85` for clearer, slower responses.
+- Keyword boosting should prioritize Remi/reminder vocabulary, medicine timing
+  phrases, and common care-action words.
+
+Hydra remains outside the care-mutation path. Use Hydra only for knowledge and
+caregiver conversations, such as explanations, caregiver summaries, and
+read-only support. Hydra must not create, update, complete, snooze, skip, or
+delete reminders.
+
 ## Shared helpers still in `remivox_intents.py`
 
 | Symbol | Role |
