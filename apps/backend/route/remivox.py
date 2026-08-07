@@ -3,6 +3,14 @@ import os
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.audio.vad_processor import VADProcessor
+from pipecat.services.smallest.stt import SmallestSTTService
+from pipecat.services.smallest.tts import SmallestTTSService
+from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
 from pydantic import BaseModel, Field
 
 from services.auth_gateway import get_current_user_jwt, verify_auth_token
@@ -29,6 +37,7 @@ from services.remivox_languages import (
 from services.subscription_service import (
     enforce_remivox_access,
 )
+from services.remivox.pipecat_processor import RemiVoxProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +298,166 @@ async def remivox_live(
     except Exception as exc:
         logger.warning("remivox live ended: %s", exc)
     finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+async def _authenticate_remivox_stream(
+    websocket: WebSocket,
+    *,
+    token: str,
+    firebase_uid: str,
+    timezone_name: str,
+    session_id: Optional[str],
+) -> tuple[str, str, Optional[str]]:
+    token = (token or "").strip()
+    firebase_uid = (firebase_uid or "").strip()
+    tz = (timezone_name or "UTC").strip() or "UTC"
+    sid = (session_id or "").strip() or None
+
+    if not token and not firebase_uid:
+        first_message = await websocket.receive_json()
+        token = str(first_message.get("token") or first_message.get("idToken") or "").strip()
+        firebase_uid = str(
+            first_message.get("firebase_uid") or first_message.get("firebaseUid") or ""
+        ).strip()
+        tz = str(first_message.get("timezone") or tz).strip() or "UTC"
+        sid = str(first_message.get("session_id") or first_message.get("sessionId") or sid or "").strip()
+        sid = sid or None
+
+    if token:
+        claims = verify_auth_token(token)
+        firebase_uid = claims.get("sub") or ""
+
+    if not firebase_uid:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    await enforce_remivox_access(firebase_uid)
+    return firebase_uid, tz, sid
+
+
+def _build_remivox_pipecat_task(
+    websocket: WebSocket,
+    *,
+    api_key: str,
+    firebase_uid: str,
+    timezone_name: str,
+    session_id: Optional[str],
+) -> tuple[PipelineRunner, PipelineTask]:
+    transport = FastAPIWebsocketTransport(
+        websocket=websocket,
+        params=FastAPIWebsocketParams(
+            audio_in_enabled=True,
+            audio_in_sample_rate=16000,
+            audio_out_enabled=True,
+            audio_out_sample_rate=24000,
+            audio_out_channels=1,
+        ),
+    )
+    vad = VADProcessor(vad_analyzer=SileroVADAnalyzer(sample_rate=16000))
+    stt = SmallestSTTService(
+        api_key=api_key,
+        settings=SmallestSTTService.Settings(
+            model="pulse",
+            language="en",
+            endpointing=True,
+            redact_pii=True,
+            extra={"eou_timeout_ms": 2000},
+        ),
+    )
+    processor = RemiVoxProcessor(
+        firebase_uid=firebase_uid,
+        timezone=timezone_name,
+        session_id=session_id,
+    )
+    tts = SmallestTTSService(
+        api_key=api_key,
+        settings=SmallestTTSService.Settings(
+            model="lightning_v3.1",
+            voice="meher",
+            language="en",
+            speed=0.85,
+        ),
+    )
+
+    pipeline = Pipeline([transport.input(), vad, stt, processor, tts, transport.output()])
+    task = PipelineTask(
+        pipeline,
+        params=PipelineParams(
+            audio_in_sample_rate=16000,
+            audio_out_sample_rate=24000,
+        ),
+    )
+    runner = PipelineRunner(handle_sigint=False)
+    return runner, task
+
+
+@router.websocket("/stream")
+async def remivox_stream(
+    websocket: WebSocket,
+    token: str = Query(default=""),
+    firebase_uid: str = Query(default=""),
+    timezone: str = Query(default="UTC"),
+    session_id: Optional[str] = Query(default=None),
+):
+    await websocket.accept()
+
+    if (os.getenv("REMIVOX_PIPELINE") or "legacy").strip().lower() != "pipecat":
+        await websocket.send_json(
+            {
+                "type": "error",
+                "error": {"message": "RemiVox Pipecat streaming is not enabled."},
+            }
+        )
+        await websocket.close(code=1013)
+        return
+
+    api_key = (os.getenv("SMALLESTAI_API_KEY") or "").strip()
+    if not api_key:
+        await websocket.send_json(
+            {"type": "error", "error": {"message": "Smallest AI is not configured."}}
+        )
+        await websocket.close(code=1011)
+        return
+
+    task: Optional[PipelineTask] = None
+    try:
+        stream_uid, stream_timezone, stream_session_id = await _authenticate_remivox_stream(
+            websocket,
+            token=token,
+            firebase_uid=firebase_uid,
+            timezone_name=timezone,
+            session_id=session_id,
+        )
+        runner, task = _build_remivox_pipecat_task(
+            websocket,
+            api_key=api_key,
+            firebase_uid=stream_uid,
+            timezone_name=stream_timezone,
+            session_id=stream_session_id,
+        )
+        await runner.run(task)
+    except WebSocketDisconnect:
+        return
+    except HTTPException:
+        await websocket.send_json({"type": "error", "error": {"message": "Unauthorized"}})
+        await websocket.close(code=4401)
+    except Exception as exc:
+        logger.warning("remivox stream ended: %s", exc)
+        try:
+            await websocket.send_json(
+                {"type": "error", "error": {"message": "RemiVox stream ended."}}
+            )
+        except Exception:
+            pass
+    finally:
+        if task is not None:
+            try:
+                await task.cancel(reason="remivox stream closed")
+            except Exception:
+                pass
         try:
             await websocket.close()
         except Exception:
