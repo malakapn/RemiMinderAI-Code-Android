@@ -228,6 +228,7 @@ class BackendApiService {
     String? audioBase64,
     String contentType = 'audio/wav',
     bool autoDetectLanguage = true,
+    String? sessionId,
   }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
@@ -248,6 +249,8 @@ class BackendApiService {
           'audio_base64': audioBase64,
         'content_type': contentType,
         'auto_detect_language': autoDetectLanguage,
+        if (sessionId != null && sessionId.trim().isNotEmpty)
+          'session_id': sessionId.trim(),
       }),
     );
 

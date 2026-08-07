@@ -45,6 +45,8 @@ class RemiVoxBriefingResponse(BaseModel):
     reply_language: Optional[str] = None
     detected_language: Optional[str] = None
     transcript: Optional[str] = None
+    session_id: Optional[str] = None
+    pending: Optional[dict[str, Any]] = None
 
 
 class RemiVoxAskRequest(BaseModel):
@@ -389,6 +391,12 @@ async def _remivox_response(
             detail="Vox voice generation failed. Please try again.",
         ) from exc
 
+    pending_out: Optional[dict[str, Any]] = None
+    if isinstance(action_payload, dict):
+        maybe_pending = action_payload.get("pending")
+        if isinstance(maybe_pending, dict) and maybe_pending.get("intent"):
+            pending_out = maybe_pending
+
     return RemiVoxBriefingResponse(
         text=text,
         audio_base64=audio_out,
@@ -399,4 +407,6 @@ async def _remivox_response(
         reply_language=lang,
         detected_language=spoken_lang if audio_base64 else None,
         transcript=transcript,
+        session_id=sid,
+        pending=pending_out,
     )
