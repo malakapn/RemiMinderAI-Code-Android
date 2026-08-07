@@ -84,10 +84,6 @@ class RemiVoxAccessEnforcementTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(ctx.exception.status_code, 402)
 
     async def test_test_mode_bypass_for_approved_tester(self):
-        status = {
-            "plan": "FREE",
-            "trial_active": False,
-        }
         with patch.dict(
             os.environ,
             {
@@ -99,11 +95,12 @@ class RemiVoxAccessEnforcementTests(unittest.IsolatedAsyncioTestCase):
         ):
             with patch(
                 "services.subscription_service.get_subscription_status",
-                new=AsyncMock(return_value=status),
+                new=AsyncMock(return_value={"plan": "FREE", "trial_active": False}),
             ) as mock_status:
                 out = await enforce_remivox_access("approved-tester")
-                self.assertEqual(out["plan"], "FREE")
-                mock_status.assert_awaited()
+                self.assertEqual(out["plan"], "PREMIUM")
+                self.assertEqual(out["subscription_source"], "remivox_test_mode")
+                mock_status.assert_not_awaited()
 
     async def test_test_mode_does_not_bypass_unapproved_uid(self):
         status = {
