@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from typing import Dict
 
-import google.generativeai as genai
+from services.gemini_client import generate_text, response_text, usage_token_counts
 
 # from .db_service import log_ai_usage  # REMOVED: log_ai_usage was deleted during Supabase cleanup
 from .db_reminders import insert_ai_reminders
@@ -36,10 +36,6 @@ async def generate_ai_summary(data: dict) -> Dict:
     if not model_name:
         raise RuntimeError("MODEL_NAME not set")
 
-    # Configure Gemini API
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(model_name)
-
     transcript = data["transcript"]
     current_datetime = datetime.now().strftime("%A, %B %d, %Y, %I:%M %p %Z")
     prompt = MEDICAL_SUMMARY_PROMPT.format(
@@ -49,11 +45,14 @@ async def generate_ai_summary(data: dict) -> Dict:
 
     try:
         start_time = time.time()
-        response = model.generate_content(prompt)
+        response = generate_text(
+            prompt,
+            model_name=model_name,
+            api_key=api_key,
+        )
         latency = time.time() - start_time
 
-        input_tokens = response.usage_metadata.prompt_token_count
-        output_tokens = response.usage_metadata.candidates_token_count
+        input_tokens, output_tokens = usage_token_counts(response)
 
         input_cost = (input_tokens / 1_000_000) * input_cost_per_m
         output_cost = (output_tokens / 1_000_000) * output_cost_per_m
@@ -70,7 +69,7 @@ async def generate_ai_summary(data: dict) -> Dict:
         # })
 
         # Parse JSON response
-        text_output = response.text.strip()
+        text_output = response_text(response)
         start_json = text_output.find("{")
         end_json = text_output.rfind("}")
         json_string = text_output[start_json:end_json + 1]

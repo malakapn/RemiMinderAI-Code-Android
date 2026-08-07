@@ -6,6 +6,7 @@ import urllib.request
 import uuid
 import logging
 from datetime import timedelta
+from typing import Any, Optional
 from google.cloud import storage
 from google.oauth2 import service_account
 from fastapi import UploadFile
@@ -13,7 +14,7 @@ from fastapi import UploadFile
 logger = logging.getLogger(__name__)
 
 
-def _get_service_account_info() -> dict | None:
+def _get_service_account_info() -> Optional[dict]:
     """Decode FIREBASE_SERVICE_ACCOUNT env var into a dict, or None if unavailable."""
     sa_b64 = os.getenv("FIREBASE_SERVICE_ACCOUNT", "").strip()
     if not sa_b64:
@@ -48,7 +49,7 @@ def get_backend_storage_client() -> storage.Client:
     return _get_storage_client()
 
 
-def _compute_metadata_default_sa_email() -> str | None:
+def _compute_metadata_default_sa_email() -> Optional[str]:
     """Cloud Run/GCE runtime default service account email (IAM signBlob)."""
     try:
         req = urllib.request.Request(
@@ -62,7 +63,7 @@ def _compute_metadata_default_sa_email() -> str | None:
         return None
 
 
-def _credential_signing_service_account_email(creds) -> str | None:
+def _credential_signing_service_account_email(creds: Any) -> Optional[str]:
     """Resolve service account email for IAM v4 URLs when ADC omits `.service_account_email`."""
     for attr in ("service_account_email", "signer_email"):
         val = getattr(creds, attr, None)
