@@ -213,12 +213,12 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       setState(() => _awaitingFollowUp = true);
     }
 
-    var clip = await _recordPromptClip(
+    final initialClip = await _recordPromptClip(
       listenFor: isFollowUp ? _followUpListenFor : _initialListenFor,
       requireSpeech: isFollowUp,
     );
 
-    if (clip == null) {
+    if (initialClip == null) {
       if (isFollowUp) {
         _clearPendingSession();
         _snack('No worries, you can try again anytime');
@@ -232,6 +232,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       return;
     }
 
+    var clip = initialClip;
     for (var turn = 0; turn < 6; turn++) {
       final data = await BackendApiService().askVox(
         null,
