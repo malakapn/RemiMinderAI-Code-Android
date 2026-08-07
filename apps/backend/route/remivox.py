@@ -140,17 +140,20 @@ def _simple_translate(text: str, source_language: str, target_language: str) -> 
         # Without Gemini, keep original text (intent matching may be weaker).
         return text
     try:
-        import google.generativeai as genai  # type: ignore
+        from services.gemini_client import generate_text, response_text
 
-        genai.configure(api_key=api_key.strip())
-        model = genai.GenerativeModel("gemini-2.0-flash")
         prompt = (
             f"Translate the following from {language_display_name(src)} to "
             f"{language_display_name(tgt)}. Return only the translation, no quotes "
             f"or commentary.\n\n{text}"
         )
-        result = model.generate_content(prompt)
-        out = (getattr(result, "text", None) or "").strip()
+        result = generate_text(
+            prompt,
+            model_name="gemini-2.0-flash",
+            api_key=api_key.strip(),
+            temperature=0.2,
+        )
+        out = response_text(result)
         return out or text
     except Exception as exc:
         logger.warning("Translate failed: %s", exc)

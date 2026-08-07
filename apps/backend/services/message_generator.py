@@ -2,11 +2,11 @@ import os
 import json
 import time
 import logging
-import google.generativeai as genai
 from typing import Dict, Optional, Any
 
 from .db_reminders import get_templates_by_type
 from services.cloud_sql_engine import get_cloud_sql_engine
+from services.gemini_client import generate_text, response_text, usage_token_counts
 from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
@@ -123,47 +123,46 @@ async def generate_reminder_message(
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             return f"Error: GEMINI_API_KEY missing. Cannot generate message for '{title}'."
-        
-        genai.configure(api_key=api_key)
+
         model_name = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
-        model = genai.GenerativeModel(model_name, generation_config={
-                "temperature": 0.5,
-                "top_p": 0.9,
-                "top_k": 40,
-            })
-        
+
         # 3. Build Few-Shot Prompt
         prompt = await build_reminder_prompt(
             prompt_category=prompt_category,
             reminder_type=reminder_type,
             reminder_title=title,
         )
-        
+
         logger.debug(f"Generated prompt (first 200 chars): {prompt[:200]}...")
 
         start_time = time.time()
-        response = model.generate_content(prompt)
+        response = generate_text(
+            prompt,
+            model_name=model_name,
+            api_key=api_key,
+            temperature=0.5,
+            top_p=0.9,
+            top_k=40,
+        )
         latency = time.time() - start_time
-        
-        if not response.text:
+
+        ai_message = response_text(response)
+        if not ai_message:
             logger.error("Gemini returned empty response")
             return f"Reminder: {title}"
-        
-        ai_message = response.text.strip()
-        
-        input_tokens = response.usage_metadata.prompt_token_count
-        output_tokens = response.usage_metadata.candidates_token_count
-        
+
+        input_tokens, output_tokens = usage_token_counts(response)
+
         input_cost = (input_tokens / 1_000_000) * INPUT_COST_PER_M
         output_cost = (output_tokens / 1_000_000) * OUTPUT_COST_PER_M
         total_cost = input_cost + output_cost
-        
+
         logger.info(f"Generated message for '{title}' | Tokens: {input_tokens}→{output_tokens} | Cost: ${total_cost:.6f} | Latency: {latency:.2f}s")
-        
+
         # await log_ai_usage(log_data)
-        
+
         return ai_message
-        
+
     except Exception as e:
         logger.error(f"Failed to generate reminder message: {str(e)}", exc_info=True)
         return f"Reminder: {title}"

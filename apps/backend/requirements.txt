@@ -42,7 +42,7 @@ aiosmtplib>=4.0.2,<5
 openai>=1.14.0,<2.0
 requests>=2.25.0
 boto3==1.34.0
-google-generativeai
+google-genai>=1.0.0,<3.0.0
 google-cloud-storage
 google-cloud-speech>=2.21.0
 google-cloud-vision>=3.4.0
