@@ -40,6 +40,8 @@ from services.subscription_service import (
 from services.remivox.pipecat_processor import RemiVoxProcessor
 
 logger = logging.getLogger(__name__)
+REMIVOX_PIPELINE = (os.getenv("REMIVOX_PIPELINE", "legacy") or "legacy").strip().lower()
+logger.info("RemiVox pipeline active: %s", REMIVOX_PIPELINE)
 
 router = APIRouter(prefix="/api/remivox", tags=["RemiVox"])
 
@@ -404,7 +406,7 @@ async def remivox_stream(
 ):
     await websocket.accept()
 
-    if (os.getenv("REMIVOX_PIPELINE") or "legacy").strip().lower() != "pipecat":
+    if REMIVOX_PIPELINE != "pipecat":
         await websocket.send_json(
             {
                 "type": "error",
