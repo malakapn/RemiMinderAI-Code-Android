@@ -698,155 +698,163 @@ class _RemindersScreenState extends State<RemindersScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(l10n.newReminder,
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                      labelText: l10n.reminderTitleLabel,
-                      border: const OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: l10n.dosageOptional,
-                    hintText: l10n.dosageHint,
-                    border: const OutlineInputBorder(),
-                  ),
-                  onChanged: (v) => dosageText = v,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedType,
-                  decoration: InputDecoration(
-                      labelText: l10n.reminderTypeLabel,
-                      border: const OutlineInputBorder()),
-                  items: [
-                    DropdownMenuItem(
-                        value: 'medication', child: Text(l10n.medication)),
-                    DropdownMenuItem(value: 'task', child: Text(l10n.task)),
-                    DropdownMenuItem(
-                        value: 'appointment', child: Text(l10n.appointment)),
-                  ],
-                  onChanged: (v) => setModal(() => selectedType = v!),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedRecurrence,
-                  decoration: InputDecoration(
-                      labelText: l10n.repeatLabel,
-                      border: const OutlineInputBorder()),
-                  items: [
-                    DropdownMenuItem(value: 'once', child: Text(l10n.once)),
-                    DropdownMenuItem(value: 'daily', child: Text(l10n.daily)),
-                    DropdownMenuItem(value: 'weekly', child: Text(l10n.weekly)),
-                  ],
-                  onChanged: (v) => setModal(() => selectedRecurrence = v!),
-                ),
-                const SizedBox(height: 12),
-                Row(
+        builder: (ctx, setModal) {
+          final media = MediaQuery.of(ctx);
+          return Padding(
+            padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              constraints: BoxConstraints(
+                maxHeight: media.size.height * 0.92,
+              ),
+              padding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(_formatLocalizedDate(selectedDate)),
-                        onPressed: () async {
-                          final d = await showLocalizedDatePicker(
-                            context,
-                            locale: appLocale,
-                            initialDate: selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (d != null)
-                            setModal(() => selectedDate = DateTime(
-                                d.year,
-                                d.month,
-                                d.day,
-                                selectedTime.hour,
-                                selectedTime.minute));
-                        },
-                      ),
+                    Text(l10n.newReminder,
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: titleController,
+                      decoration: InputDecoration(
+                          labelText: l10n.reminderTitleLabel,
+                          border: const OutlineInputBorder()),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.access_time),
-                        label: Text(selectedTime.format(context)),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: l10n.dosageOptional,
+                        hintText: l10n.dosageHint,
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (v) => dosageText = v,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedType,
+                      decoration: InputDecoration(
+                          labelText: l10n.reminderTypeLabel,
+                          border: const OutlineInputBorder()),
+                      items: [
+                        DropdownMenuItem(
+                            value: 'medication', child: Text(l10n.medication)),
+                        DropdownMenuItem(value: 'task', child: Text(l10n.task)),
+                        DropdownMenuItem(
+                            value: 'appointment', child: Text(l10n.appointment)),
+                      ],
+                      onChanged: (v) => setModal(() => selectedType = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedRecurrence,
+                      decoration: InputDecoration(
+                          labelText: l10n.repeatLabel,
+                          border: const OutlineInputBorder()),
+                      items: [
+                        DropdownMenuItem(value: 'once', child: Text(l10n.once)),
+                        DropdownMenuItem(value: 'daily', child: Text(l10n.daily)),
+                        DropdownMenuItem(value: 'weekly', child: Text(l10n.weekly)),
+                      ],
+                      onChanged: (v) => setModal(() => selectedRecurrence = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.calendar_today),
+                            label: Text(_formatLocalizedDate(selectedDate)),
+                            onPressed: () async {
+                              final d = await showLocalizedDatePicker(
+                                context,
+                                locale: appLocale,
+                                initialDate: selectedDate,
+                                firstDate: DateTime.now(),
+                                lastDate:
+                                    DateTime.now().add(const Duration(days: 365)),
+                              );
+                              if (d != null)
+                                setModal(() => selectedDate = DateTime(
+                                    d.year,
+                                    d.month,
+                                    d.day,
+                                    selectedTime.hour,
+                                    selectedTime.minute));
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.access_time),
+                            label: Text(selectedTime.format(context)),
+                            onPressed: () async {
+                              final t = await _showCustomTimePicker(
+                                ctx,
+                                initialTime: selectedTime,
+                              );
+                              if (t != null)
+                                setModal(() {
+                                  selectedTime = t;
+                                  selectedDate = DateTime(
+                                      selectedDate.year,
+                                      selectedDate.month,
+                                      selectedDate.day,
+                                      t.hour,
+                                      t.minute);
+                                });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A3A5C),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
                         onPressed: () async {
-                          final t = await _showCustomTimePicker(
-                            ctx,
-                            initialTime: selectedTime,
+                          final title = titleController.text.trim();
+                          if (title.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(l10n.pleaseEnterTitle)));
+                            return;
+                          }
+                          final tzName = await FlutterTimezone.getLocalTimezone();
+                          if (!ctx.mounted) return;
+                          Navigator.of(ctx).pop();
+                          if (!mounted) return;
+                          await _createReminderApi(
+                            title: title,
+                            type: selectedType,
+                            scheduledTime: selectedDate,
+                            recurrence: selectedRecurrence,
+                            timezone: tzName,
+                            dosage: dosageText.trim(),
                           );
-                          if (t != null)
-                            setModal(() {
-                              selectedTime = t;
-                              selectedDate = DateTime(
-                                  selectedDate.year,
-                                  selectedDate.month,
-                                  selectedDate.day,
-                                  t.hour,
-                                  t.minute);
-                            });
                         },
+                        child: Text(l10n.createReminder,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 16)),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A3A5C),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () async {
-                      final title = titleController.text.trim();
-                      if (title.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l10n.pleaseEnterTitle)));
-                        return;
-                      }
-                      final tzName = await FlutterTimezone.getLocalTimezone();
-                      if (!ctx.mounted) return;
-                      Navigator.of(ctx).pop();
-                      if (!mounted) return;
-                      await _createReminderApi(
-                        title: title,
-                        type: selectedType,
-                        scheduledTime: selectedDate,
-                        recurrence: selectedRecurrence,
-                        timezone: tzName,
-                        dosage: dosageText.trim(),
-                      );
-                    },
-                    child: Text(l10n.createReminder,
-                        style: const TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
