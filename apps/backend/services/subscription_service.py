@@ -309,8 +309,18 @@ async def enforce_remivox_access(firebase_uid: str) -> dict:
             "REMIVOX_TEST_MODE enabled — bypassing remivox access gate for uid=%s",
             firebase_uid,
         )
-        status = await get_subscription_status(firebase_uid)
-        return status
+        # Synthetic status: do not hit subscription columns (local DBs may lack them).
+        return {
+            "plan": PLAN_PREMIUM,
+            "trial_active": False,
+            "trial_days_remaining": 0,
+            "trial_start_date": None,
+            "trial_end_date": None,
+            "summary_count": 0,
+            "remivox_interaction_count": 0,
+            "subscription_source": "remivox_test_mode",
+            "revenuecat_entitlement_active": True,
+        }
 
     status = await get_subscription_status(firebase_uid)
     plan = status["plan"]
