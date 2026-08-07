@@ -1,5 +1,7 @@
+import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -298,7 +300,7 @@ async def process_visit_audio(
     Process uploaded audio file with Speech-to-Text and save transcript.
     Background pipeline: GCS -> STT -> Cloud SQL.
     """
-    from services.jobs_service import create_job
+    from services.jobs_service import create_job, mark_done, mark_failed
     from services.db_service import get_user_uuid
 
     user_uuid = await get_user_uuid(user_id)
@@ -311,6 +313,51 @@ async def process_visit_audio(
             "firebase_uid": user_id,
         },
     )
+
+    # Local/dev: run STT+summary inline so Generate works without a separate worker/cron.
+    inline = (os.getenv("PROCESS_STT_INLINE") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if inline:
+        from jobs.stt_job import run_stt_job
+        from services.cloud_sql_engine import get_cloud_sql_engine
+        from sqlalchemy import text
+
+        engine = get_cloud_sql_engine()
+        with engine.begin() as conn:
+            conn.execute(
+                text("""
+                    UPDATE jobs
+                    SET status = 'running',
+                        attempts = COALESCE(attempts, 0) + 1,
+                        updated_at = now()
+                    WHERE id = :job_id
+                """),
+                {"job_id": job_id},
+            )
+
+        try:
+            await asyncio.to_thread(
+                run_stt_job,
+                {"visit_id": visit_id, "firebase_uid": user_id},
+            )
+            mark_done(job_id)
+            return {
+                "status": "completed",
+                "visit_id": visit_id,
+                "job_id": job_id,
+            }
+        except Exception as exc:
+            mark_failed(job_id, str(exc), 1)
+            logger.exception("Inline STT job %s failed: %s", job_id, exc)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Summary generation failed: {exc}",
+            ) from exc
+
     return {
         "status": "queued",
         "visit_id": visit_id,
@@ -453,8 +500,10 @@ async def get_visit_summary(
 
         logger.info(f"Resolved firebase_uid={user_id} to user_uuid={user_uuid}")
 
-        # Step 2: Fetch latest summary for this visit
-        summary_text = await get_latest_ai_summary_for_visit(visit_id, user_uuid)
+        # Step 2: Fetch latest summary for this visit (UUID or legacy firebase_uid rows)
+        summary_text = await get_latest_ai_summary_for_visit(
+            visit_id, user_uuid, firebase_uid=user_id
+        )
 
         logger.info(f"DB query result for visit_id={visit_id}, user_uuid={user_uuid}: summary_text={summary_text is not None}")
 
@@ -497,7 +546,9 @@ async def get_visit_summary_structured(
         logger.info(f"Resolved firebase_uid={user_id} to user_uuid={user_uuid}")
 
         # Step 2: Fetch latest structured summary for this visit
-        structured_data = await get_latest_ai_structured_summary_for_visit(visit_id, user_uuid)
+        structured_data = await get_latest_ai_structured_summary_for_visit(
+            visit_id, user_uuid, firebase_uid=user_id
+        )
 
         logger.info(
             "DB query result for visit_id=%s, user_uuid=%s: structured_data=%s",
@@ -511,7 +562,9 @@ async def get_visit_summary_structured(
             return structured_data
 
         # Legacy rows: summary_text saved without structured_data_json — still show Visit Details UI.
-        summary_text = await get_latest_ai_summary_for_visit(visit_id, user_uuid)
+        summary_text = await get_latest_ai_summary_for_visit(
+            visit_id, user_uuid, firebase_uid=user_id
+        )
         if summary_text and str(summary_text).strip():
             logger.info(
                 "Structured JSON missing; returning text summary only for visit_id=%s",

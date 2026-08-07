@@ -1492,7 +1492,12 @@ class _RemindersScreenState extends State<RemindersScreen>
           'Content-Type': 'application/json'
         },
       );
-      if (response.statusCode != 200) throw Exception('Failed');
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to load reminders (${response.statusCode}): '
+          '${response.body.length > 200 ? response.body.substring(0, 200) : response.body}',
+        );
+      }
       final data = json.decode(response.body) as Map<String, dynamic>;
       final merged = <dynamic>[
         ...(data['today'] as List<dynamic>? ?? []),
@@ -1528,7 +1533,9 @@ class _RemindersScreenState extends State<RemindersScreen>
 
       // Reschedule local notifications for all future pending reminders.
       await ReminderNotificationSync.syncPatientFromMapped(mapped);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('REMINDERS_LOAD_ERROR: $e');
+      debugPrint('$st');
       if (!mounted) return;
       setState(() {
         _isLoading = false;
