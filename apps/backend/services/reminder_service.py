@@ -29,18 +29,28 @@ ICON_MAP = {
     "appointment": "🗓️"
 }
 
+def _as_utc(value) -> Optional[datetime]:
+    """Normalize DB/ISO scheduled times to timezone-aware UTC."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _get_display_status(reminder: dict) -> str:
     """Calculate display status based on reminder state and time."""
     now = datetime.now(timezone.utc)
-    
-    # Parse scheduled_time (handle both string and datetime)
-    scheduled = reminder.get('scheduled_time')
-    if isinstance(scheduled, str):
-        scheduled = datetime.fromisoformat(scheduled.replace('Z', '+00:00'))
-    
+
+    scheduled = _as_utc(reminder.get('scheduled_time'))
+
     status = reminder.get('status')
     completed_at = reminder.get('completed_at')
-    
+
     # Past section statuses
     if status == 'completed':
         return "Completed"
@@ -48,36 +58,42 @@ def _get_display_status(reminder: dict) -> str:
         return "Snoozed"
     if status == 'skipped':
         return "Skipped"
-    
+
+    if scheduled is None:
+        return "Unknown"
+
     # Active/Due Now (within 15 minutes of scheduled time)
     if scheduled <= now <= scheduled + timedelta(minutes=15) and status == 'pending':
         return "Due Now"
-    
+
     # Upcoming
     if scheduled > now and status == 'pending':
         return "Upcoming"
-    
+
     # Missed/Overdue
     if scheduled < now and status == 'pending':
         return "Missed"
-    
+
     return "Unknown"
 
 
-def _format_display_time(scheduled_time: datetime, timezone_str: str) -> str:
+def _format_display_time(scheduled_time: Optional[datetime], timezone_str: str) -> str:
     """Format time for display (e.g., '8:15 PM')."""
+    scheduled_time = _as_utc(scheduled_time)
+    if scheduled_time is None:
+        return ""
     # For MVP, just format in UTC or assume frontend handles timezone
     return scheduled_time.strftime("%I:%M %p").lstrip('0')
 
 
-def _format_relative_time(scheduled_time: datetime) -> str:
+def _format_relative_time(scheduled_time: Optional[datetime]) -> str:
     """Format relative time (e.g., 'in 2 hours', '3 days ago')."""
     now = datetime.now(timezone.utc)
-    
-    # Ensure scheduled_time is timezone-aware
-    if isinstance(scheduled_time, str):
-        scheduled_time = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
-    
+
+    scheduled_time = _as_utc(scheduled_time)
+    if scheduled_time is None:
+        return ""
+
     delta = scheduled_time - now
     
     if delta.total_seconds() < 0:
@@ -105,15 +121,23 @@ def _format_relative_time(scheduled_time: datetime) -> str:
 
 def _enrich_reminder_response(reminder: dict) -> dict:
     """Add display fields to reminder for frontend."""
-    scheduled_time = reminder.get('scheduled_time')
-    if isinstance(scheduled_time, str):
-        scheduled_time = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
-    
+    scheduled_time = _as_utc(reminder.get('scheduled_time'))
+    if scheduled_time is not None:
+        reminder['scheduled_time'] = scheduled_time
+
+    # Avoid response_model 500s when older rows have null message/timezone.
+    if reminder.get('message') is None:
+        reminder['message'] = ""
+    if not reminder.get('timezone'):
+        reminder['timezone'] = 'UTC'
+    if reminder.get('snoozed_count') is None:
+        reminder['snoozed_count'] = 0
+
     reminder['display_status'] = _get_display_status(reminder)
     reminder['icon_type'] = ICON_MAP.get(reminder.get('reminder_type'), '⏰')
     reminder['display_time'] = _format_display_time(scheduled_time, reminder.get('timezone', 'UTC'))
     reminder['relative_time'] = _format_relative_time(scheduled_time)
-    
+
     return reminder
 
 # ============================================================================
@@ -195,21 +219,19 @@ async def list_patient_reminders(user_id: str) -> Dict[str, Any]:
     past = []
     
     for r in enriched:
-        scheduled = r.get('scheduled_time')
-        if isinstance(scheduled, str):
-            scheduled = datetime.fromisoformat(scheduled.replace('Z', '+00:00'))
-        
+        scheduled = _as_utc(r.get('scheduled_time'))
+
         status = r.get('status')
         display_status = r.get('display_status')
-        
+
         # Past: completed, snoozed, skipped, or missed
         if status in ['completed', 'skipped'] or display_status in ['Completed', 'Snoozed', 'Skipped', 'Missed']:
             past.append(r)
         # Today: scheduled for today and still pending
-        elif today_start <= scheduled < today_end and status == 'pending':
+        elif scheduled is not None and today_start <= scheduled < today_end and status == 'pending':
             today.append(r)
         # Upcoming: future and pending
-        elif scheduled >= today_end and status == 'pending':
+        elif scheduled is not None and scheduled >= today_end and status == 'pending':
             upcoming.append(r)
         else:
             # Edge cases: put in today if pending

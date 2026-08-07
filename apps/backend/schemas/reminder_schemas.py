@@ -37,26 +37,26 @@ class ReminderResponse(BaseModel):
     
     title: str
     reminder_type: str
-    message: str  # AI-generated friendly text
+    message: str = ""  # AI-generated friendly text (empty if generation skipped)
     
     # Scheduling
     scheduled_time: datetime
-    timezone: str
-    recurrence: Optional[str]
+    timezone: str = "UTC"
+    recurrence: Optional[str] = None
     
     # Status
     status: str
     display_status: str  # Computed: "Due Now", "Upcoming", "Completed"
-    completed_at: Optional[datetime]
+    completed_at: Optional[datetime] = None
     
     # Interaction
-    snoozed_count: int
-    snooze_until: Optional[datetime]
+    snoozed_count: int = 0
+    snooze_until: Optional[datetime] = None
     
     # Display helpers
-    icon_type: Optional[str] = None,  # Derived from reminder_type
-    display_time: str  # "8:15 PM"
-    relative_time: str  # "in 2 hours"
+    icon_type: Optional[str] = None  # Derived from reminder_type
+    display_time: str = ""  # "8:15 PM"
+    relative_time: str = ""  # "in 2 hours"
     
     # Metadata
     created_at: datetime

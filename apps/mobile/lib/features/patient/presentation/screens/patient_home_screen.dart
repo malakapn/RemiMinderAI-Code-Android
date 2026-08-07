@@ -192,6 +192,10 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         });
         return;
       }
+      debugPrint(
+        'HOME_REMINDERS_LOAD_ERROR: status=${response.statusCode} '
+        'body=${response.body.length > 200 ? response.body.substring(0, 200) : response.body}',
+      );
       if (!mounted) return;
       setState(() {
         _scheduleReminders = [];
@@ -199,7 +203,9 @@ class _PatientHomeScreenState extends ConsumerState<PatientHomeScreen>
         _isLoadingUpNext = false;
         _remindersError = true;
       });
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('HOME_REMINDERS_LOAD_ERROR: $e');
+      debugPrint('$st');
       if (!mounted) return;
       setState(() {
         _scheduleReminders = [];
