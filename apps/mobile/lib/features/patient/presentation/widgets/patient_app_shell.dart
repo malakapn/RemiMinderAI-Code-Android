@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -93,11 +94,16 @@ class _VoxButtonBody extends StatefulWidget {
 }
 
 class _VoxButtonBodyState extends State<_VoxButtonBody> {
+  static const Duration _initialListenFor = Duration(seconds: 5);
+  static const Duration _followUpListenFor = Duration(seconds: 15);
+
   final AudioPlayer _player = AudioPlayer();
   final AudioRecorder _recorder = AudioRecorder();
   bool _busy = false;
   bool _liveActive = false;
+  bool _awaitingFollowUp = false;
   VoxLiveSession? _live;
+  String? _voxSessionId;
 
   @override
   void dispose() {
@@ -133,6 +139,30 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     );
   }
 
+  String _ensureSessionId() {
+    final existing = _voxSessionId?.trim();
+    if (existing != null && existing.isNotEmpty) return existing;
+    final created =
+        'vox_${DateTime.now().millisecondsSinceEpoch}_${UniqueKey().hashCode.abs()}';
+    _voxSessionId = created;
+    return created;
+  }
+
+  Map<String, dynamic>? _pendingFromResponse(Map<String, dynamic> data) {
+    final top = data['pending'];
+    if (top is Map && top['intent'] != null) {
+      return Map<String, dynamic>.from(top);
+    }
+    final payload = data['action_payload'];
+    if (payload is Map) {
+      final nested = payload['pending'];
+      if (nested is Map && nested['intent'] != null) {
+        return Map<String, dynamic>.from(nested);
+      }
+    }
+    return null;
+  }
+
   Future<void> _handleTap() async {
     if (_liveActive) {
       await _stopLive();
@@ -141,19 +171,67 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      _snack('Vox is listening… speak in any Remi language');
-      final clip = await _recordPromptClip();
-      final tz = await _timezone();
-      final lang = await _preferredLanguage();
-
-      if (clip == null) {
-        final data = await BackendApiService().getVoxTodayBriefing(
-          replyLanguage: lang,
+      await _runCareAskLoop(isFollowUp: false);
+    } catch (e) {
+      final message = e.toString();
+      debugPrint('VOX_ERROR: $message');
+      if (!mounted) return;
+      if (message.toLowerCase().contains('premium') ||
+          message.toLowerCase().contains('trial')) {
+        await showUpgradePromptSheet(
+          context,
+          reason: UpgradePromptReason.trialExpired,
+          screen: 'patient_shell',
         );
-        await _playResponse(data);
+      } else {
+        _snack(message);
+      }
+      _voxSessionId = null;
+      _awaitingFollowUp = false;
+    } finally {
+      if (mounted && !_liveActive) {
+        setState(() {
+          _busy = false;
+          _awaitingFollowUp = false;
+        });
+      }
+    }
+  }
+
+  /// Sequential POST /api/remivox/ask turns. Reopens mic while [pending] is set.
+  Future<void> _runCareAskLoop({required bool isFollowUp}) async {
+    final tz = await _timezone();
+    final lang = await _preferredLanguage();
+    var sessionId = _ensureSessionId();
+
+    _snack(
+      isFollowUp
+          ? 'Vox is still listening…'
+          : 'Vox is listening… speak in any Remi language',
+    );
+    if (isFollowUp && mounted) {
+      setState(() => _awaitingFollowUp = true);
+    }
+
+    var clip = await _recordPromptClip(
+      listenFor: isFollowUp ? _followUpListenFor : _initialListenFor,
+    );
+
+    if (clip == null) {
+      if (isFollowUp) {
+        _clearPendingSession();
+        _snack('No worries, you can try again anytime');
         return;
       }
+      final briefing = await BackendApiService().getVoxTodayBriefing(
+        replyLanguage: lang,
+      );
+      await _playResponse(briefing);
+      _clearPendingSession();
+      return;
+    }
 
+    for (var turn = 0; turn < 6; turn++) {
       final data = await BackendApiService().askVox(
         null,
         replyLanguage: lang,
@@ -161,14 +239,24 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
         audioBase64: clip.base64,
         contentType: clip.contentType,
         autoDetectLanguage: true,
+        sessionId: sessionId,
       );
+
+      final returnedSession = data['session_id']?.toString().trim();
+      if (returnedSession != null && returnedSession.isNotEmpty) {
+        sessionId = returnedSession;
+        _voxSessionId = returnedSession;
+      }
+
+      // Wait for TTS to finish before reopening the mic.
       await _playResponse(data);
 
       final action = data['action']?.toString();
-      final detected = normalizeLanguageCode(
-        data['detected_language']?.toString() ?? lang,
-      );
       if (action == 'start_live_translate') {
+        _clearPendingSession();
+        final detected = normalizeLanguageCode(
+          data['detected_language']?.toString() ?? lang,
+        );
         final payload = data['action_payload'];
         final target = payload is Map
             ? normalizeLanguageCode(
@@ -181,24 +269,33 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
               ? (detected == 'en' ? 'bn' : 'en')
               : target,
         );
+        return;
       }
-    } catch (e) {
-      final message = e.toString();
-      debugPrint("VOX_ERROR: $message");
-      if (!mounted) return;
-      if (message.toLowerCase().contains('premium') ||
-          message.toLowerCase().contains('trial')) {
-        await showUpgradePromptSheet(
-          context,
-          reason: UpgradePromptReason.trialExpired,
-          screen: 'patient_shell',
-        );
-      } else {
-        _snack(message);
+
+      final pending = _pendingFromResponse(data);
+      if (pending == null) {
+        _clearPendingSession();
+        return;
       }
-    } finally {
-      if (mounted && !_liveActive) setState(() => _busy = false);
+
+      // Clarification needed — keep session_id and auto-reopen mic.
+      if (mounted) setState(() => _awaitingFollowUp = true);
+      _snack('Vox is still listening…');
+      final followUp = await _recordPromptClip(listenFor: _followUpListenFor);
+      if (followUp == null) {
+        _clearPendingSession();
+        _snack('No worries, you can try again anytime');
+        return;
+      }
+      clip = followUp;
     }
+
+    _clearPendingSession();
+  }
+
+  void _clearPendingSession() {
+    _voxSessionId = null;
+    _awaitingFollowUp = false;
   }
 
   Future<void> _playResponse(Map<String, dynamic> data) async {
@@ -213,10 +310,14 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       await _playAudio(base64Decode(audio));
     } else {
       _snack(text);
+      // Brief pause so the user can read the clarification before mic reopens.
+      await Future<void>.delayed(const Duration(milliseconds: 900));
     }
   }
 
-  Future<({String base64, String contentType})?> _recordPromptClip() async {
+  Future<({String base64, String contentType})?> _recordPromptClip({
+    Duration listenFor = _initialListenFor,
+  }) async {
     try {
       final allowed = await _recorder.hasPermission();
       if (!allowed) return null;
@@ -231,7 +332,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
         ),
         path: path,
       );
-      await Future<void>.delayed(const Duration(seconds: 5));
+      await Future<void>.delayed(listenFor);
       final saved = await _recorder.stop();
       final filePath = saved ?? path;
       final file = File(filePath);
@@ -298,7 +399,14 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
 
   Future<void> _playAudio(Uint8List bytes) async {
     await _player.stop();
-    await _player.play(BytesSource(bytes));
+    // Wait until TTS finishes so follow-up mic reopen does not overlap playback.
+    final done = _player.onPlayerComplete.first;
+    await _player.play(BytesSource(bytes, mimeType: 'audio/mpeg'));
+    try {
+      await done.timeout(const Duration(seconds: 45));
+    } on TimeoutException {
+      // Fall through — reopen mic even if completion event was missed.
+    }
   }
 
   @override
