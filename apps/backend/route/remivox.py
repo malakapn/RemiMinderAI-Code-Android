@@ -4,13 +4,20 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.frames.frames import (
+    CancelFrame,
+    EndFrame,
+    InputAudioRawFrame,
+    OutputAudioRawFrame,
+    StartFrame,
+)
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.audio.vad_processor import VADProcessor
+from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.smallest.stt import SmallestSTTService
 from pipecat.services.smallest.tts import SmallestTTSService
-from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
 from pydantic import BaseModel, Field
 
 from services.auth_gateway import get_current_user_jwt, verify_auth_token
@@ -44,6 +51,105 @@ REMIVOX_PIPELINE = (os.getenv("REMIVOX_PIPELINE", "legacy") or "legacy").strip()
 logger.info("RemiVox pipeline: %s", REMIVOX_PIPELINE)
 
 router = APIRouter(prefix="/api/remivox", tags=["RemiVox"])
+
+
+class _WebSocketAudioInputProcessor(FrameProcessor):
+    def __init__(
+        self,
+        websocket: WebSocket,
+        *,
+        sample_rate: int,
+        num_channels: int,
+    ):
+        super().__init__()
+        self._websocket = websocket
+        self._sample_rate = sample_rate
+        self._num_channels = num_channels
+        self._receive_task = None
+        self._stopping = False
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+        await self.push_frame(frame, direction)
+
+        if isinstance(frame, StartFrame) and self._receive_task is None:
+            self._stopping = False
+            self._receive_task = self.create_task(
+                self._receive_audio(),
+                name="remivox-websocket-audio-input",
+            )
+        elif isinstance(frame, (CancelFrame, EndFrame)):
+            self._stopping = True
+
+    async def _receive_audio(self):
+        try:
+            while not self._stopping:
+                message = await self._websocket.receive()
+                if message.get("type") == "websocket.disconnect":
+                    break
+
+                audio = message.get("bytes")
+                if audio:
+                    await self.push_frame(
+                        InputAudioRawFrame(
+                            audio=bytes(audio),
+                            sample_rate=self._sample_rate,
+                            num_channels=self._num_channels,
+                        )
+                    )
+                # Query authentication is authoritative. Ignore text control
+                # frames, including the Flutter client's redundant auth frame.
+        except WebSocketDisconnect:
+            pass
+        except Exception as exc:
+            logger.warning("remivox websocket audio input ended: %s", exc)
+        finally:
+            self._receive_task = None
+            if not self._stopping:
+                self._stopping = True
+                await self.push_frame(EndFrame(reason="websocket disconnected"))
+
+
+class _WebSocketAudioOutputProcessor(FrameProcessor):
+    def __init__(self, websocket: WebSocket):
+        super().__init__()
+        self._websocket = websocket
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, OutputAudioRawFrame):
+            try:
+                await self._websocket.send_bytes(frame.audio)
+            except (RuntimeError, WebSocketDisconnect):
+                logger.debug("remivox websocket closed before TTS audio send")
+                return
+
+        await self.push_frame(frame, direction)
+
+
+class WebSocketAudioAdapter:
+    """Bridge raw PCM WebSocket messages to Pipecat audio frames."""
+
+    def __init__(
+        self,
+        websocket: WebSocket,
+        *,
+        input_sample_rate: int = 16000,
+        input_num_channels: int = 1,
+    ):
+        self._input = _WebSocketAudioInputProcessor(
+            websocket,
+            sample_rate=input_sample_rate,
+            num_channels=input_num_channels,
+        )
+        self._output = _WebSocketAudioOutputProcessor(websocket)
+
+    def input(self) -> FrameProcessor:
+        return self._input
+
+    def output(self) -> FrameProcessor:
+        return self._output
 
 
 class RemiVoxBriefingResponse(BaseModel):
@@ -388,15 +494,10 @@ def _build_remivox_pipecat_task(
     keywords: Optional[list[tuple[str, float]]] = None,
 ) -> tuple[PipelineRunner, PipelineTask]:
     keyword_boosts = list(keywords or [])
-    transport = FastAPIWebsocketTransport(
-        websocket=websocket,
-        params=FastAPIWebsocketParams(
-            audio_in_enabled=True,
-            audio_in_sample_rate=16000,
-            audio_out_enabled=True,
-            audio_out_sample_rate=24000,
-            audio_out_channels=1,
-        ),
+    audio_adapter = WebSocketAudioAdapter(
+        websocket,
+        input_sample_rate=16000,
+        input_num_channels=1,
     )
     vad = VADProcessor(vad_analyzer=SileroVADAnalyzer(sample_rate=16000))
     stt = SmallestSTTService(
@@ -427,7 +528,16 @@ def _build_remivox_pipecat_task(
         ),
     )
 
-    pipeline = Pipeline([transport.input(), vad, stt, processor, tts, transport.output()])
+    pipeline = Pipeline(
+        [
+            audio_adapter.input(),
+            vad,
+            stt,
+            processor,
+            tts,
+            audio_adapter.output(),
+        ]
+    )
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
