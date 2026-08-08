@@ -448,7 +448,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     try {
       await _stopPipecatStream(showStatus: false);
       if (mounted) {
-        _snack('Connection lost. Tap to try again.');
+        _snack('Connection lost. Tap Vox to reconnect.');
       }
     } finally {
       _handlingPipecatDisconnect = false;

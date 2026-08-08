@@ -17,6 +17,9 @@ class BackendApiService {
   WebSocketChannel? _voxStreamChannel;
   StreamSubscription<dynamic>? _voxStreamSubscription;
   StreamController<Uint8List>? _voxAudioController;
+  Timer? _voxConnectivityTimer;
+  String? _voxNetworkSignature;
+  bool _voxConnectivityCheckInProgress = false;
 
   BackendApiService({AuthService? authService})
       : _authService = authService ?? AuthService();
@@ -370,38 +373,101 @@ class BackendApiService {
           } else if (event is String) {
             try {
               final message = json.decode(event);
-              if (message is Map && message['type'] == 'error') {
-                final error = message['error'];
-                final detail = error is Map
-                    ? error['message']?.toString()
-                    : error?.toString();
-                controller.addError(
-                  Exception(detail ?? 'Vox stream failed.'),
-                );
+              if (message is Map) {
+                if (message['type'] == 'ping') {
+                  channel.sink.add(
+                    json.encode({
+                      'type': 'pong',
+                      'timestamp': message['timestamp'],
+                    }),
+                  );
+                } else if (message['type'] == 'error') {
+                  final error = message['error'];
+                  final detail = error is Map
+                      ? error['message']?.toString()
+                      : error?.toString();
+                  controller.addError(
+                    Exception(detail ?? 'Vox stream failed.'),
+                  );
+                }
               }
             } catch (_) {
-              // Pipecat audio is binary; ignore unknown text control frames.
+              // Pipecat audio is binary; ignore malformed text control frames.
             }
           }
         },
         onError: controller.addError,
         onDone: () {
+          _voxConnectivityTimer?.cancel();
+          _voxConnectivityTimer = null;
+          _voxNetworkSignature = null;
+          _voxStreamChannel = null;
+          _voxStreamSubscription = null;
           if (!controller.isClosed) {
             controller.close();
           }
         },
       );
+      await _startVoxConnectivityMonitor();
     } catch (_) {
       await closeVoxStream();
       rethrow;
     }
   }
 
+  Future<String> _currentNetworkSignature() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        includeLinkLocal: false,
+      );
+      final entries = <String>[];
+      for (final interface in interfaces) {
+        final addresses = interface.addresses
+            .map((address) => address.address)
+            .toList()
+          ..sort();
+        if (addresses.isNotEmpty) {
+          entries.add('${interface.name}:${addresses.join(',')}');
+        }
+      }
+      entries.sort();
+      return entries.isEmpty ? 'offline' : entries.join('|');
+    } catch (_) {
+      return 'unknown';
+    }
+  }
+
+  Future<void> _startVoxConnectivityMonitor() async {
+    _voxConnectivityTimer?.cancel();
+    _voxNetworkSignature = await _currentNetworkSignature();
+    _voxConnectivityTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => unawaited(_checkVoxConnectivity()),
+    );
+  }
+
+  Future<void> _checkVoxConnectivity() async {
+    if (_voxConnectivityCheckInProgress || _voxStreamChannel == null) return;
+    _voxConnectivityCheckInProgress = true;
+    try {
+      final current = await _currentNetworkSignature();
+      final previous = _voxNetworkSignature;
+      if (previous != null &&
+          previous != 'unknown' &&
+          current != 'unknown' &&
+          current != previous) {
+        _voxNetworkSignature = current;
+        await closeVoxStream();
+      }
+    } finally {
+      _voxConnectivityCheckInProgress = false;
+    }
+  }
+
   void sendAudioChunk(Uint8List audioBytes) {
     final channel = _voxStreamChannel;
-    if (channel == null) {
-      throw StateError('Vox stream is not connected.');
-    }
+    if (channel == null) return;
     channel.sink.add(audioBytes);
   }
 
@@ -410,6 +476,9 @@ class BackendApiService {
     final channel = _voxStreamChannel;
     final controller = _voxAudioController;
 
+    _voxConnectivityTimer?.cancel();
+    _voxConnectivityTimer = null;
+    _voxNetworkSignature = null;
     _voxStreamSubscription = null;
     _voxStreamChannel = null;
     _voxAudioController = null;
