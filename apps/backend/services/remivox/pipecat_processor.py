@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from datetime import datetime, timezone
@@ -5,6 +6,8 @@ from datetime import datetime, timezone
 from pipecat.frames.frames import TextFrame, TranscriptionFrame
 from pipecat.processors.frame_processor import FrameProcessor
 
+from services.db_service import get_user_summaries, get_user_uuid
+from services.reminder_service import list_patient_reminders
 from services.remivox.observability import logging
 from services.remivox.pipeline import run_care_turn
 
@@ -46,6 +49,7 @@ class RemiVoxProcessor(FrameProcessor):
         self.session_id = session_id
         self.keywords = list(keywords or [])
         self.session_stats = session_stats
+        self._user_uuid: str | None = None
 
     async def process_frame(self, frame, direction):
         await super().process_frame(frame, direction)
@@ -103,13 +107,21 @@ class RemiVoxProcessor(FrameProcessor):
         detected_language: str,
     ) -> tuple[str, str]:
         try:
+            user_uuid = await self._resolve_user_uuid()
+            reminders, summaries = await asyncio.gather(
+                list_patient_reminders(user_uuid),
+                get_user_summaries(
+                    user_uuid,
+                    firebase_uid=self.firebase_uid,
+                ),
+            )
             result = await run_care_turn(
-                user_uuid=self.firebase_uid,
+                user_uuid=user_uuid,
                 text=transcript,
                 language=detected_language or "en",
                 detected_language=detected_language,
-                reminders={"today": [], "upcoming": [], "past": []},
-                summaries=[],
+                reminders=reminders,
+                summaries=summaries,
                 timezone_name=self.timezone,
                 session_id=self.session_id,
                 transcript=transcript,
@@ -133,3 +145,8 @@ class RemiVoxProcessor(FrameProcessor):
                 )
             )
             return self.FALLBACK_RESPONSE, "ERROR"
+
+    async def _resolve_user_uuid(self) -> str:
+        if self._user_uuid is None:
+            self._user_uuid = await get_user_uuid(self.firebase_uid)
+        return self._user_uuid

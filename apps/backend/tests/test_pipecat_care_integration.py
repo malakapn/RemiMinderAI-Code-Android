@@ -28,7 +28,33 @@ class TestRemiVoxProcessorCareIntegration(unittest.IsolatedAsyncioTestCase):
         else:
             mock_care_turn.return_value = care_result or {}
 
-        with patch("services.remivox.pipecat_processor.run_care_turn", mock_care_turn):
+        resolve_user = AsyncMock(return_value="internal-user-uuid")
+        reminder_context = {
+            "today": [{"title": "Metoprolol"}],
+            "upcoming": [],
+            "past": [],
+        }
+        summary_context = [{"title": "Cardiology", "summary": "Stable"}]
+        load_reminders = AsyncMock(return_value=reminder_context)
+        load_summaries = AsyncMock(return_value=summary_context)
+        with (
+            patch(
+                "services.remivox.pipecat_processor.run_care_turn",
+                mock_care_turn,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.get_user_uuid",
+                resolve_user,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.list_patient_reminders",
+                load_reminders,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.get_user_summaries",
+                load_summaries,
+            ),
+        ):
             await processor.process_frame(
                 TranscriptionFrame(
                     text=transcript,
@@ -39,6 +65,14 @@ class TestRemiVoxProcessorCareIntegration(unittest.IsolatedAsyncioTestCase):
                 FrameDirection.DOWNSTREAM,
             )
 
+        resolve_user.assert_awaited_once_with("firebase-user-123")
+        load_reminders.assert_awaited_once_with("internal-user-uuid")
+        load_summaries.assert_awaited_once_with(
+            "internal-user-uuid",
+            firebase_uid="firebase-user-123",
+        )
+        self.assertEqual(reminder_context, mock_care_turn.await_args.kwargs["reminders"])
+        self.assertEqual(summary_context, mock_care_turn.await_args.kwargs["summaries"])
         return mock_care_turn, pushed_frames
 
     def _assert_text_frame(self, pushed_frames, expected_text: str):
@@ -67,7 +101,7 @@ class TestRemiVoxProcessorCareIntegration(unittest.IsolatedAsyncioTestCase):
             "Set a reminder for Metoprolol at 8 PM every day",
             kwargs["text"],
         )
-        self.assertEqual("firebase-user-123", kwargs["user_uuid"])
+        self.assertEqual("internal-user-uuid", kwargs["user_uuid"])
         self.assertEqual("America/New_York", kwargs["timezone_name"])
         self.assertEqual("test-session", kwargs["session_id"])
         self._assert_text_frame(pushed_frames, response_text)
@@ -105,6 +139,59 @@ class TestRemiVoxProcessorCareIntegration(unittest.IsolatedAsyncioTestCase):
         mock_care_turn.assert_awaited_once()
         self.assertEqual("Cancel that", mock_care_turn.await_args.kwargs["text"])
         self._assert_text_frame(pushed_frames, response_text)
+
+    async def test_user_uuid_is_cached_but_context_refreshes_each_turn(self):
+        processor = RemiVoxProcessor(
+            firebase_uid="firebase-user-123",
+            session_id="test-session",
+        )
+
+        async def capture_push(frame, direction=FrameDirection.DOWNSTREAM):
+            return None
+
+        processor.push_frame = capture_push
+        resolve_user = AsyncMock(return_value="internal-user-uuid")
+        load_reminders = AsyncMock(
+            return_value={"today": [], "upcoming": [], "past": []}
+        )
+        load_summaries = AsyncMock(return_value=[])
+        care_turn = AsyncMock(return_value={"text": "Okay.", "intent": "HELP"})
+
+        with (
+            patch(
+                "services.remivox.pipecat_processor.get_user_uuid",
+                resolve_user,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.list_patient_reminders",
+                load_reminders,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.get_user_summaries",
+                load_summaries,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.run_care_turn",
+                care_turn,
+            ),
+        ):
+            for text in ("First turn", "Second turn"):
+                await processor.process_frame(
+                    TranscriptionFrame(
+                        text=text,
+                        user_id="speaker",
+                        timestamp="2026-08-08T03:27:00Z",
+                        finalized=True,
+                    ),
+                    FrameDirection.DOWNSTREAM,
+                )
+
+        resolve_user.assert_awaited_once_with("firebase-user-123")
+        self.assertEqual(2, load_reminders.await_count)
+        self.assertEqual(2, load_summaries.await_count)
+        self.assertEqual(2, care_turn.await_count)
+        for call in care_turn.await_args_list:
+            self.assertEqual("internal-user-uuid", call.kwargs["user_uuid"])
 
     async def test_gibberish_emits_fallback_text_frame(self):
         mock_care_turn, pushed_frames = await self._process_transcript(

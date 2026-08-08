@@ -23,12 +23,31 @@ class TestDefinitionOfDoneFlows(unittest.IsolatedAsyncioTestCase):
 
         processor.push_frame = capture_push
         care_turn = AsyncMock(return_value=care_result)
+        resolve_user = AsyncMock(return_value="internal-user-uuid")
+        load_reminders = AsyncMock(
+            return_value={"today": [], "upcoming": [], "past": []}
+        )
+        load_summaries = AsyncMock(return_value=[])
 
-        # Mocking run_care_turn isolates all Action Executor/database calls while
-        # retaining the real TranscriptionFrame -> TextFrame processor flow.
-        with patch(
-            "services.remivox.pipecat_processor.run_care_turn",
-            care_turn,
+        # Mock database/action boundaries while retaining the real
+        # TranscriptionFrame -> TextFrame processor flow and lookup wiring.
+        with (
+            patch(
+                "services.remivox.pipecat_processor.run_care_turn",
+                care_turn,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.get_user_uuid",
+                resolve_user,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.list_patient_reminders",
+                load_reminders,
+            ),
+            patch(
+                "services.remivox.pipecat_processor.get_user_summaries",
+                load_summaries,
+            ),
         ):
             await processor.process_frame(
                 TranscriptionFrame(
@@ -40,10 +59,16 @@ class TestDefinitionOfDoneFlows(unittest.IsolatedAsyncioTestCase):
                 FrameDirection.DOWNSTREAM,
             )
 
+        resolve_user.assert_awaited_once_with("definition-of-done-user")
+        load_reminders.assert_awaited_once_with("internal-user-uuid")
+        load_summaries.assert_awaited_once_with(
+            "internal-user-uuid",
+            firebase_uid="definition-of-done-user",
+        )
         care_turn.assert_awaited_once()
         kwargs = care_turn.await_args.kwargs
         self.assertEqual(transcript, kwargs["text"])
-        self.assertEqual("definition-of-done-user", kwargs["user_uuid"])
+        self.assertEqual("internal-user-uuid", kwargs["user_uuid"])
         self.assertEqual("definition-of-done-session", kwargs["session_id"])
         self.assertEqual("UTC", kwargs["timezone_name"])
 
