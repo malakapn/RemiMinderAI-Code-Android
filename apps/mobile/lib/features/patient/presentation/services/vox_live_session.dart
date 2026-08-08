@@ -8,6 +8,7 @@ import 'package:record/record.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../../../core/config/supported_languages.dart';
+import '../../../../core/config/vox_config.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 
@@ -16,8 +17,8 @@ class VoxLiveSession {
   VoxLiveSession({
     required this.sourceLanguage,
     required this.targetLanguage,
-    this.mode = 'translate',
-    this.timezone = 'UTC',
+    this.mode = VoxConfig.defaultLiveMode,
+    this.timezone = VoxConfig.defaultTimezone,
   });
 
   final String sourceLanguage;
@@ -112,8 +113,8 @@ class VoxLiveSession {
     final stream = await _recorder.startStream(
       const RecordConfig(
         encoder: AudioEncoder.pcm16bits,
-        sampleRate: VoxAudioConfig.inputSampleRate,
-        numChannels: VoxAudioConfig.inputChannels,
+        sampleRate: VoxConfig.inputSampleRate,
+        numChannels: VoxConfig.inputChannels,
       ),
     );
     _micSub = stream.listen((chunk) {
@@ -125,7 +126,10 @@ class VoxLiveSession {
   Future<void> _flushPlayback() async {
     final bytes = _pcmOut.takeBytes();
     if (bytes.isEmpty) return;
-    final wav = _pcm16ToWav(bytes, sampleRate: 48000);
+    final wav = _pcm16ToWav(
+      bytes,
+      sampleRate: VoxConfig.hydraOutputSampleRate,
+    );
     await _player.stop();
     await _player.play(BytesSource(wav));
   }

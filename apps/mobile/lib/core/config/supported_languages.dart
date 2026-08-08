@@ -34,16 +34,6 @@ String normalizeVoxLanguageCode(String raw) {
       : kDefaultLanguageCode;
 }
 
-abstract final class VoxAudioConfig {
-  static const int inputSampleRate = 16000;
-  static const int outputSampleRate = 24000;
-  static const int inputChannels = 1;
-  static const int bytesPerSample = 2;
-  static const int chunkDurationMilliseconds = 200;
-  static const int inputChunkBytes =
-      inputSampleRate * bytesPerSample * chunkDurationMilliseconds ~/ 1000;
-}
-
 class SupportedLanguage {
   const SupportedLanguage({
     required this.code,

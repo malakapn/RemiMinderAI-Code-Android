@@ -11,7 +11,7 @@ import 'package:record/record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/supported_languages.dart';
-import '../../../../core/config/environment.dart';
+import '../../../../core/config/vox_config.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
@@ -96,17 +96,18 @@ class _VoxButtonBody extends StatefulWidget {
 }
 
 class _VoxButtonBodyState extends State<_VoxButtonBody> {
-  static const Duration _initialListenFor = Duration(seconds: 5);
-  static const Duration _followUpListenFor = Duration(seconds: 15);
-  static final Duration _pipecatSilenceTimeout = Duration(
-    seconds: Environment.remivoxSilenceTimeoutSeconds,
-  );
-  static const int _pipecatMicChunkBytes = VoxAudioConfig.inputChunkBytes;
+  static const Duration _initialListenFor =
+      VoxConfig.initialListenTimeout;
+  static const Duration _followUpListenFor =
+      VoxConfig.followUpListenTimeout;
+  static final Duration _pipecatSilenceTimeout =
+      VoxConfig.silenceTimeout;
+  static const int _pipecatMicChunkBytes = VoxConfig.inputChunkBytes;
 
   final AudioPlayer _player = AudioPlayer();
   final AudioRecorder _recorder = AudioRecorder();
   final BackendApiService _backendApi = BackendApiService();
-  bool _usePipecatStream = Environment.remivoxUsePipecatStream;
+  bool _usePipecatStream = VoxConfig.usePipecatStream;
   bool _busy = false;
   bool _liveActive = false;
   bool _pipecatActive = false;
@@ -166,7 +167,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     try {
       return await FlutterTimezone.getLocalTimezone();
     } catch (_) {
-      return 'UTC';
+      return VoxConfig.defaultTimezone;
     }
   }
 
@@ -299,8 +300,8 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     final micStream = await _recorder.startStream(
       const RecordConfig(
         encoder: AudioEncoder.pcm16bits,
-        sampleRate: VoxAudioConfig.inputSampleRate,
-        numChannels: VoxAudioConfig.inputChannels,
+        sampleRate: VoxConfig.inputSampleRate,
+        numChannels: VoxConfig.inputChannels,
       ),
     );
 
@@ -359,7 +360,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       }
       _pipecatSpeechResetTimer?.cancel();
       _pipecatSpeechResetTimer = Timer(
-        const Duration(milliseconds: 500),
+        VoxConfig.speechEndDebounce,
         () {
           _pipecatSpeaking = false;
           if (_pipecatActive && !_pipecatPlaying && mounted) {
@@ -412,7 +413,10 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     });
   }
 
-  bool _pcmChunkHasSpeech(Uint8List bytes, {int threshold = 400}) {
+  bool _pcmChunkHasSpeech(
+    Uint8List bytes, {
+    int threshold = VoxConfig.speechEnergyThreshold,
+  }) {
     for (var i = 0; i + 1 < bytes.length; i += 4) {
       final sample = bytes[i] | (bytes[i + 1] << 8);
       final signed = sample > 32767 ? sample - 65536 : sample;
@@ -424,7 +428,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   Future<void> _playPipecatPcmChunk(Uint8List pcm) async {
     final wav = _pcm16ToWav(
       pcm,
-      sampleRate: VoxAudioConfig.outputSampleRate,
+      sampleRate: VoxConfig.outputSampleRate,
     );
     final done = _player.onPlayerComplete.first;
     final interrupted = Completer<void>();
@@ -434,12 +438,14 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     if (mounted) {
       setState(() => _busy = false);
     }
-    await _player.play(BytesSource(wav, mimeType: 'audio/wav'));
+    await _player.play(
+      BytesSource(wav, mimeType: VoxConfig.wavContentType),
+    );
     try {
       await Future.any<void>([
         done,
         interrupted.future,
-      ]).timeout(const Duration(seconds: 10));
+      ]).timeout(VoxConfig.playbackChunkTimeout);
     } on TimeoutException {
       await _player.stop();
     } finally {
@@ -571,7 +577,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     }
 
     var clip = initialClip;
-    for (var turn = 0; turn < 6; turn++) {
+    for (var turn = 0; turn < VoxConfig.maxCareAskTurns; turn++) {
       final data = await BackendApiService().askVox(
         null,
         replyLanguage: lang,
@@ -607,7 +613,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
           sourceLanguage: detected,
           targetLanguage: target == detected
               ? (detected == kDefaultLanguageCode
-                    ? 'bn'
+                    ? VoxConfig.defaultTranslateTargetLanguage
                     : kDefaultLanguageCode)
               : target,
         );
@@ -656,12 +662,15 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     } else {
       _snack(text);
       // Brief pause so the user can read the clarification before mic reopens.
-      await Future<void>.delayed(const Duration(milliseconds: 900));
+      await Future<void>.delayed(VoxConfig.textResponseDelay);
     }
   }
 
   /// True when 16-bit mono WAV PCM has enough energy to count as speech.
-  bool _wavHasSpeech(Uint8List bytes, {int threshold = 400}) {
+  bool _wavHasSpeech(
+    Uint8List bytes, {
+    int threshold = VoxConfig.speechEnergyThreshold,
+  }) {
     if (bytes.length <= 44) return false;
     var peak = 0;
     // Skip 44-byte WAV header; sample every other frame for speed.
@@ -688,8 +697,8 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       await _recorder.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
-          sampleRate: VoxAudioConfig.inputSampleRate,
-          numChannels: VoxAudioConfig.inputChannels,
+          sampleRate: VoxConfig.inputSampleRate,
+          numChannels: VoxConfig.inputChannels,
         ),
         path: path,
       );
@@ -706,7 +715,10 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       if (requireSpeech && !_wavHasSpeech(Uint8List.fromList(bytes))) {
         return null;
       }
-      return (base64: base64Encode(bytes), contentType: 'audio/wav');
+      return (
+        base64: base64Encode(bytes),
+        contentType: VoxConfig.wavContentType,
+      );
     } catch (_) {
       try {
         if (await _recorder.isRecording()) await _recorder.stop();
@@ -767,7 +779,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     final done = _player.onPlayerComplete.first;
     await _player.play(BytesSource(bytes, mimeType: 'audio/mpeg'));
     try {
-      await done.timeout(const Duration(seconds: 45));
+      await done.timeout(VoxConfig.ttsCompletionTimeout);
     } on TimeoutException {
       // Fall through — reopen mic even if completion event was missed.
     }

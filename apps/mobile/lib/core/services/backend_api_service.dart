@@ -10,6 +10,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'auth_service.dart';
 import '../config/environment.dart';
 import '../config/supported_languages.dart';
+import '../config/vox_config.dart';
 import '../models/user.dart';
 
 /// Service for making authenticated API calls to the backend
@@ -204,7 +205,7 @@ class BackendApiService {
 
   /// Vox today briefing
   Future<Map<String, dynamic>> getVoxTodayBriefing({
-    String replyLanguage = kDefaultLanguageCode,
+    String replyLanguage = VoxConfig.defaultLanguage,
   }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
@@ -213,7 +214,8 @@ class BackendApiService {
 
     final response = await http.post(
       Uri.parse(
-        '${Environment.apiBaseUrl}/api/remivox/today?reply_language=$replyLanguage',
+        '${Environment.apiBaseUrl}${VoxConfig.todayPath}'
+        '?reply_language=$replyLanguage',
       ),
       headers: {
         'Authorization': 'Bearer $accessToken',
@@ -243,10 +245,10 @@ class BackendApiService {
 
   Future<Map<String, dynamic>> askVox(
     String? prompt, {
-    String replyLanguage = kDefaultLanguageCode,
-    String timezone = 'UTC',
+    String replyLanguage = VoxConfig.defaultLanguage,
+    String timezone = VoxConfig.defaultTimezone,
     String? audioBase64,
-    String contentType = 'audio/wav',
+    String contentType = VoxConfig.wavContentType,
     bool autoDetectLanguage = true,
     String? sessionId,
   }) async {
@@ -256,7 +258,7 @@ class BackendApiService {
     }
 
     final response = await http.post(
-      Uri.parse('${Environment.apiBaseUrl}/api/remivox/ask'),
+      Uri.parse('${Environment.apiBaseUrl}${VoxConfig.askPath}'),
       headers: {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
@@ -296,9 +298,9 @@ class BackendApiService {
   Future<Map<String, dynamic>> translateVoxTurn({
     String? text,
     String? audioBase64,
-    String sourceLanguage = kDefaultLanguageCode,
-    String targetLanguage = 'bn',
-    String contentType = 'audio/wav',
+    String sourceLanguage = VoxConfig.defaultLanguage,
+    String targetLanguage = VoxConfig.defaultTranslateTargetLanguage,
+    String contentType = VoxConfig.wavContentType,
   }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
@@ -306,7 +308,9 @@ class BackendApiService {
     }
 
     final response = await http.post(
-      Uri.parse('${Environment.apiBaseUrl}/api/remivox/translate-turn'),
+      Uri.parse(
+        '${Environment.apiBaseUrl}${VoxConfig.translateTurnPath}',
+      ),
       headers: {
         'Authorization': 'Bearer $accessToken',
         'Content-Type': 'application/json',
@@ -334,14 +338,14 @@ class BackendApiService {
 
   Uri voxStreamWebSocketUri({
     required String token,
-    String language = kDefaultLanguageCode,
+    String language = VoxConfig.defaultLanguage,
   }) {
     final base = Uri.parse(Environment.apiBaseUrl);
     return Uri(
       scheme: base.scheme == 'https' ? 'wss' : 'ws',
       host: base.host,
       port: base.hasPort ? base.port : null,
-      path: Environment.remivoxStreamPath,
+      path: VoxConfig.streamPath,
       queryParameters: {
         'token': token,
         'language': normalizeVoxLanguageCode(language),
@@ -351,7 +355,7 @@ class BackendApiService {
 
   Future<void> connectVoxStream({
     required String token,
-    String language = kDefaultLanguageCode,
+    String language = VoxConfig.defaultLanguage,
   }) async {
     await closeVoxStream();
 
@@ -443,7 +447,7 @@ class BackendApiService {
     _voxConnectivityTimer?.cancel();
     _voxNetworkSignature = await _currentNetworkSignature();
     _voxConnectivityTimer = Timer.periodic(
-      const Duration(seconds: 3),
+      VoxConfig.connectivityPollInterval,
       (_) => unawaited(_checkVoxConnectivity()),
     );
   }
@@ -494,10 +498,10 @@ class BackendApiService {
   /// Hydra S2S live WebSocket URL (token in query; API key stays on server).
   Uri voxLiveWebSocketUri({
     required String accessToken,
-    String mode = 'translate',
-    String sourceLanguage = kDefaultLanguageCode,
-    String targetLanguage = 'bn',
-    String timezone = 'UTC',
+    String mode = VoxConfig.defaultLiveMode,
+    String sourceLanguage = VoxConfig.defaultLanguage,
+    String targetLanguage = VoxConfig.defaultTranslateTargetLanguage,
+    String timezone = VoxConfig.defaultTimezone,
   }) {
     final base = Uri.parse(Environment.apiBaseUrl);
     final scheme = base.scheme == 'https' ? 'wss' : 'ws';
@@ -505,7 +509,7 @@ class BackendApiService {
       scheme: scheme,
       host: base.host,
       port: base.hasPort ? base.port : null,
-      path: Environment.remivoxLivePath,
+      path: VoxConfig.livePath,
       queryParameters: {
         'token': accessToken,
         'mode': mode,

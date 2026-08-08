@@ -7,9 +7,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class Environment {
   static bool _isLoaded = false;
 
-  static const String remivoxStreamPath = '/api/remivox/stream';
-  static const String remivoxLivePath = '/api/remivox/live';
-
   static const String _productionApiBaseUrl =
       'https://remiminder-backend-575820802106.us-central1.run.app';
 
