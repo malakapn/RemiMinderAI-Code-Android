@@ -1,7 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/web_socket_channel.dart';
+
 import 'auth_service.dart';
 import '../config/environment.dart';
 import '../models/user.dart';
@@ -9,9 +14,20 @@ import '../models/user.dart';
 /// Service for making authenticated API calls to the backend
 class BackendApiService {
   final AuthService _authService;
+  WebSocketChannel? _voxStreamChannel;
+  StreamSubscription<dynamic>? _voxStreamSubscription;
+  StreamController<Uint8List>? _voxAudioController;
 
   BackendApiService({AuthService? authService})
       : _authService = authService ?? AuthService();
+
+  Stream<Uint8List> get voxAudioStream {
+    final controller = _voxAudioController;
+    if (controller == null) {
+      throw StateError('Vox stream is not connected.');
+    }
+    return controller.stream;
+  }
 
   /// Upload audio file to backend
   Future<void> uploadAudio({
@@ -310,6 +326,99 @@ class BackendApiService {
       throw Exception(message);
     }
     return json.decode(response.body) as Map<String, dynamic>;
+  }
+
+  Uri voxStreamWebSocketUri({
+    required String token,
+    String language = 'en',
+  }) {
+    final base = Uri.parse(Environment.apiBaseUrl);
+    return Uri(
+      scheme: base.scheme == 'https' ? 'wss' : 'ws',
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+      path: '/api/remivox/stream',
+      queryParameters: {
+        'token': token,
+        'language': language,
+      },
+    );
+  }
+
+  Future<void> connectVoxStream({
+    required String token,
+    String language = 'en',
+  }) async {
+    await closeVoxStream();
+
+    final controller = StreamController<Uint8List>.broadcast();
+    final channel = WebSocketChannel.connect(
+      voxStreamWebSocketUri(token: token, language: language),
+    );
+    _voxAudioController = controller;
+    _voxStreamChannel = channel;
+
+    try {
+      await channel.ready;
+      channel.sink.add(json.encode({'type': 'auth', 'token': token}));
+      _voxStreamSubscription = channel.stream.listen(
+        (event) {
+          if (event is Uint8List) {
+            controller.add(event);
+          } else if (event is List<int>) {
+            controller.add(Uint8List.fromList(event));
+          } else if (event is String) {
+            try {
+              final message = json.decode(event);
+              if (message is Map && message['type'] == 'error') {
+                final error = message['error'];
+                final detail = error is Map
+                    ? error['message']?.toString()
+                    : error?.toString();
+                controller.addError(
+                  Exception(detail ?? 'Vox stream failed.'),
+                );
+              }
+            } catch (_) {
+              // Pipecat audio is binary; ignore unknown text control frames.
+            }
+          }
+        },
+        onError: controller.addError,
+        onDone: () {
+          if (!controller.isClosed) {
+            controller.close();
+          }
+        },
+      );
+    } catch (_) {
+      await closeVoxStream();
+      rethrow;
+    }
+  }
+
+  void sendAudioChunk(Uint8List audioBytes) {
+    final channel = _voxStreamChannel;
+    if (channel == null) {
+      throw StateError('Vox stream is not connected.');
+    }
+    channel.sink.add(audioBytes);
+  }
+
+  Future<void> closeVoxStream() async {
+    final subscription = _voxStreamSubscription;
+    final channel = _voxStreamChannel;
+    final controller = _voxAudioController;
+
+    _voxStreamSubscription = null;
+    _voxStreamChannel = null;
+    _voxAudioController = null;
+
+    await subscription?.cancel();
+    await channel?.sink.close();
+    if (controller != null && !controller.isClosed) {
+      await controller.close();
+    }
   }
 
   /// Hydra S2S live WebSocket URL (token in query; API key stays on server).

@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/supported_languages.dart';
 import '../../../../core/providers/locale_provider.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
 import '../../../../core/widgets/upgrade_prompt_sheet.dart';
 import '../services/vox_live_session.dart';
@@ -96,17 +97,43 @@ class _VoxButtonBody extends StatefulWidget {
 class _VoxButtonBodyState extends State<_VoxButtonBody> {
   static const Duration _initialListenFor = Duration(seconds: 5);
   static const Duration _followUpListenFor = Duration(seconds: 15);
+  static const Duration _pipecatInitialTimeout = Duration(seconds: 15);
+  static const Duration _pipecatConversationTimeout = Duration(seconds: 20);
+  static const Duration _pipecatResponseTimeout = Duration(seconds: 8);
 
   final AudioPlayer _player = AudioPlayer();
   final AudioRecorder _recorder = AudioRecorder();
+  final BackendApiService _backendApi = BackendApiService();
+  bool _usePipecatStream = true;
   bool _busy = false;
   bool _liveActive = false;
+  bool _pipecatActive = false;
+  bool _pipecatSpeaking = false;
   bool _awaitingFollowUp = false;
   VoxLiveSession? _live;
   String? _voxSessionId;
+  StreamSubscription<Uint8List>? _pipecatMicSubscription;
+  StreamSubscription<Uint8List>? _pipecatAudioSubscription;
+  Timer? _pipecatSilenceTimer;
+  Timer? _pipecatSpeechResetTimer;
+  Future<void> _pipecatPlaybackQueue = Future<void>.value();
+  int _pipecatPlaybackGeneration = 0;
+
+  bool get _voiceLiveActive => _liveActive || _pipecatActive;
 
   @override
   void dispose() {
+    _pipecatSilenceTimer?.cancel();
+    _pipecatSpeechResetTimer?.cancel();
+    final micSubscription = _pipecatMicSubscription;
+    if (micSubscription != null) {
+      unawaited(micSubscription.cancel());
+    }
+    final audioSubscription = _pipecatAudioSubscription;
+    if (audioSubscription != null) {
+      unawaited(audioSubscription.cancel());
+    }
+    unawaited(_backendApi.closeVoxStream());
     _live?.dispose();
     _player.dispose();
     _recorder.dispose();
@@ -164,11 +191,31 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   }
 
   Future<void> _handleTap() async {
+    if (_pipecatActive) {
+      await _stopPipecatStream();
+      return;
+    }
     if (_liveActive) {
       await _stopLive();
       return;
     }
     if (_busy) return;
+
+    if (_usePipecatStream) {
+      setState(() => _busy = true);
+      try {
+        await _startPipecatStream();
+        return;
+      } catch (e) {
+        debugPrint('VOX_STREAM_ERROR: $e');
+        await _stopPipecatStream(showStatus: false);
+        if (mounted) {
+          setState(() => _busy = false);
+          _snack('Live Vox unavailable. Using standard Vox.');
+        }
+      }
+    }
+
     setState(() => _busy = true);
     try {
       await _runCareAskLoop(isFollowUp: false);
@@ -189,13 +236,188 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       _voxSessionId = null;
       _awaitingFollowUp = false;
     } finally {
-      if (mounted && !_liveActive) {
+      if (mounted && !_voiceLiveActive) {
         setState(() {
           _busy = false;
           _awaitingFollowUp = false;
         });
       }
     }
+  }
+
+  Future<void> _startPipecatStream() async {
+    final token = await AuthService().getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication required. Please log in again.');
+    }
+    if (!await _recorder.hasPermission()) {
+      throw Exception('Microphone permission is required for Vox.');
+    }
+
+    final preferredLanguage = await _preferredLanguage();
+    final language = preferredLanguage == 'hi' ? 'hi' : 'en';
+    await _backendApi.connectVoxStream(token: token, language: language);
+
+    _pipecatAudioSubscription = _backendApi.voxAudioStream.listen(
+      _handlePipecatAudioChunk,
+      onError: (Object error) {
+        debugPrint('VOX_STREAM_AUDIO_ERROR: $error');
+        if (mounted) _snack(error.toString());
+        unawaited(_stopPipecatStream(showStatus: false));
+      },
+      onDone: () {
+        if (_pipecatActive) {
+          unawaited(_stopPipecatStream(showStatus: false));
+        }
+      },
+    );
+
+    final micStream = await _recorder.startStream(
+      const RecordConfig(
+        encoder: AudioEncoder.pcm16bits,
+        sampleRate: 16000,
+        numChannels: 1,
+      ),
+    );
+
+    if (!mounted) {
+      await _backendApi.closeVoxStream();
+      return;
+    }
+    setState(() {
+      _pipecatActive = true;
+      _busy = false;
+    });
+    _snack('Vox is listening... tap Vox to stop.');
+    _resetPipecatTimeout(_pipecatInitialTimeout);
+
+    _pipecatMicSubscription = micStream.listen(
+      _handlePipecatMicChunk,
+      onError: (Object error) {
+        debugPrint('VOX_STREAM_MIC_ERROR: $error');
+        if (mounted) _snack(error.toString());
+        unawaited(_stopPipecatStream(showStatus: false));
+      },
+    );
+  }
+
+  void _handlePipecatMicChunk(Uint8List chunk) {
+    if (!_pipecatActive || chunk.isEmpty) return;
+    _backendApi.sendAudioChunk(chunk);
+
+    if (_pcmChunkHasSpeech(chunk)) {
+      _resetPipecatTimeout(_pipecatConversationTimeout);
+      if (!_pipecatSpeaking) {
+        _pipecatSpeaking = true;
+        _pipecatPlaybackGeneration++;
+        unawaited(_player.stop());
+      }
+      _pipecatSpeechResetTimer?.cancel();
+      _pipecatSpeechResetTimer = Timer(
+        const Duration(milliseconds: 500),
+        () => _pipecatSpeaking = false,
+      );
+    }
+  }
+
+  void _handlePipecatAudioChunk(Uint8List chunk) {
+    if (!_pipecatActive || chunk.isEmpty) return;
+    _resetPipecatTimeout(_pipecatResponseTimeout);
+    final generation = _pipecatPlaybackGeneration;
+    _pipecatPlaybackQueue = _pipecatPlaybackQueue.then((_) async {
+      if (!_pipecatActive || generation != _pipecatPlaybackGeneration) {
+        return;
+      }
+      await _playPipecatPcmChunk(chunk);
+    });
+  }
+
+  void _resetPipecatTimeout(Duration timeout) {
+    _pipecatSilenceTimer?.cancel();
+    _pipecatSilenceTimer = Timer(timeout, () {
+      unawaited(_stopPipecatStream());
+    });
+  }
+
+  bool _pcmChunkHasSpeech(Uint8List bytes, {int threshold = 400}) {
+    for (var i = 0; i + 1 < bytes.length; i += 4) {
+      final sample = bytes[i] | (bytes[i + 1] << 8);
+      final signed = sample > 32767 ? sample - 65536 : sample;
+      if (signed.abs() >= threshold) return true;
+    }
+    return false;
+  }
+
+  Future<void> _playPipecatPcmChunk(Uint8List pcm) async {
+    final wav = _pcm16ToWav(pcm, sampleRate: 24000);
+    final done = _player.onPlayerComplete.first;
+    await _player.play(BytesSource(wav, mimeType: 'audio/wav'));
+    try {
+      await done.timeout(const Duration(seconds: 10));
+    } on TimeoutException {
+      await _player.stop();
+    }
+  }
+
+  Future<void> _stopPipecatStream({bool showStatus = true}) async {
+    final wasActive = _pipecatActive;
+    _pipecatActive = false;
+    _pipecatPlaybackGeneration++;
+    _pipecatSilenceTimer?.cancel();
+    _pipecatSilenceTimer = null;
+    _pipecatSpeechResetTimer?.cancel();
+    _pipecatSpeechResetTimer = null;
+    _pipecatSpeaking = false;
+
+    await _pipecatMicSubscription?.cancel();
+    _pipecatMicSubscription = null;
+    await _pipecatAudioSubscription?.cancel();
+    _pipecatAudioSubscription = null;
+    try {
+      if (await _recorder.isRecording()) {
+        await _recorder.stop();
+      }
+    } catch (_) {}
+    await _backendApi.closeVoxStream();
+    await _player.stop();
+
+    if (mounted) {
+      setState(() => _busy = false);
+      if (showStatus && wasActive) _snack('Vox stopped.');
+    }
+  }
+
+  Uint8List _pcm16ToWav(Uint8List pcm, {required int sampleRate}) {
+    final header = BytesBuilder();
+
+    void writeString(String value) => header.add(ascii.encode(value));
+    void writeUint32(int value) {
+      header.add([
+        value & 0xff,
+        (value >> 8) & 0xff,
+        (value >> 16) & 0xff,
+        (value >> 24) & 0xff,
+      ]);
+    }
+
+    void writeUint16(int value) {
+      header.add([value & 0xff, (value >> 8) & 0xff]);
+    }
+
+    writeString('RIFF');
+    writeUint32(36 + pcm.length);
+    writeString('WAVE');
+    writeString('fmt ');
+    writeUint32(16);
+    writeUint16(1);
+    writeUint16(1);
+    writeUint32(sampleRate);
+    writeUint32(sampleRate * 2);
+    writeUint16(2);
+    writeUint16(16);
+    writeString('data');
+    writeUint32(pcm.length);
+    return Uint8List.fromList([...header.toBytes(), ...pcm]);
   }
 
   /// Sequential POST /api/remivox/ask turns. Reopens mic while [pending] is set.
@@ -444,7 +666,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: _liveActive
+              color: _voiceLiveActive
                   ? const Color(0xFF2E7D32)
                   : Theme.of(context).colorScheme.primary,
               shape: BoxShape.circle,
@@ -475,7 +697,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  _liveActive
+                  _voiceLiveActive
                       ? 'Live'
                       : (_awaitingFollowUp ? 'Wait' : 'Ask'),
                   style: const TextStyle(
@@ -487,7 +709,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                   ),
                 ),
                 Text(
-                  _liveActive
+                  _voiceLiveActive
                       ? 'Tap stop'
                       : (_awaitingFollowUp ? 'reply' : 'me'),
                   style: const TextStyle(
