@@ -50,7 +50,7 @@ class _PatientAppShellState extends State<PatientAppShell> {
             child: widget.child,
           ),
 
-          if (widget.routes == null)
+          if (widget.routes == null && widget.currentItem.index == 0)
             Positioned(
               right: 56,
               bottom: bottomInset + 102,
