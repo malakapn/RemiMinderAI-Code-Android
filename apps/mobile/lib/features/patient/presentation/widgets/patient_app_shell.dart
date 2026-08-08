@@ -100,6 +100,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   static const Duration _pipecatInitialTimeout = Duration(seconds: 15);
   static const Duration _pipecatConversationTimeout = Duration(seconds: 20);
   static const Duration _pipecatResponseTimeout = Duration(seconds: 8);
+  static const int _pipecatMicChunkBytes = 6400;
 
   final AudioPlayer _player = AudioPlayer();
   final AudioRecorder _recorder = AudioRecorder();
@@ -109,6 +110,8 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   bool _liveActive = false;
   bool _pipecatActive = false;
   bool _pipecatSpeaking = false;
+  bool _pipecatPlaying = false;
+  bool _handlingPipecatDisconnect = false;
   bool _awaitingFollowUp = false;
   VoxLiveSession? _live;
   String? _voxSessionId;
@@ -116,6 +119,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   StreamSubscription<Uint8List>? _pipecatAudioSubscription;
   Timer? _pipecatSilenceTimer;
   Timer? _pipecatSpeechResetTimer;
+  final BytesBuilder _pipecatMicBuffer = BytesBuilder(copy: false);
   Future<void> _pipecatPlaybackQueue = Future<void>.value();
   int _pipecatPlaybackGeneration = 0;
 
@@ -192,6 +196,14 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
 
   Future<void> _handleTap() async {
     if (_pipecatActive) {
+      if (_pipecatPlaying) {
+        _pipecatPlaybackGeneration++;
+        _pipecatPlaying = false;
+        await _player.stop();
+        _resetPipecatTimeout(_pipecatConversationTimeout);
+        _snack('Vox is listening...');
+        return;
+      }
       await _stopPipecatStream();
       return;
     }
@@ -256,19 +268,17 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
 
     final preferredLanguage = await _preferredLanguage();
     final language = preferredLanguage == 'hi' ? 'hi' : 'en';
+    _pipecatMicBuffer.takeBytes();
     await _backendApi.connectVoxStream(token: token, language: language);
 
     _pipecatAudioSubscription = _backendApi.voxAudioStream.listen(
       _handlePipecatAudioChunk,
       onError: (Object error) {
         debugPrint('VOX_STREAM_AUDIO_ERROR: $error');
-        if (mounted) _snack(error.toString());
-        unawaited(_stopPipecatStream(showStatus: false));
+        unawaited(_handlePipecatConnectionLost());
       },
       onDone: () {
-        if (_pipecatActive) {
-          unawaited(_stopPipecatStream(showStatus: false));
-        }
+        unawaited(_handlePipecatConnectionLost());
       },
     );
 
@@ -295,15 +305,27 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       _handlePipecatMicChunk,
       onError: (Object error) {
         debugPrint('VOX_STREAM_MIC_ERROR: $error');
-        if (mounted) _snack(error.toString());
-        unawaited(_stopPipecatStream(showStatus: false));
+        unawaited(_handlePipecatConnectionLost());
       },
     );
   }
 
   void _handlePipecatMicChunk(Uint8List chunk) {
     if (!_pipecatActive || chunk.isEmpty) return;
-    _backendApi.sendAudioChunk(chunk);
+    _pipecatMicBuffer.add(chunk);
+    final buffered = _pipecatMicBuffer.takeBytes();
+    var offset = 0;
+    while (buffered.length - offset >= _pipecatMicChunkBytes) {
+      _backendApi.sendAudioChunk(
+        Uint8List.fromList(
+          buffered.sublist(offset, offset + _pipecatMicChunkBytes),
+        ),
+      );
+      offset += _pipecatMicChunkBytes;
+    }
+    if (offset < buffered.length) {
+      _pipecatMicBuffer.add(buffered.sublist(offset));
+    }
 
     if (_pcmChunkHasSpeech(chunk)) {
       _resetPipecatTimeout(_pipecatConversationTimeout);
@@ -351,17 +373,42 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   Future<void> _playPipecatPcmChunk(Uint8List pcm) async {
     final wav = _pcm16ToWav(pcm, sampleRate: 24000);
     final done = _player.onPlayerComplete.first;
-    await _player.play(BytesSource(wav, mimeType: 'audio/wav'));
+    _pipecatPlaying = true;
     try {
-      await done.timeout(const Duration(seconds: 10));
-    } on TimeoutException {
-      await _player.stop();
+      await _player.play(BytesSource(wav, mimeType: 'audio/wav'));
+      try {
+        await done.timeout(const Duration(seconds: 10));
+      } on TimeoutException {
+        await _player.stop();
+      }
+    } finally {
+      _pipecatPlaying = false;
+    }
+  }
+
+  Future<void> _handlePipecatConnectionLost() async {
+    if (_handlingPipecatDisconnect) return;
+    _handlingPipecatDisconnect = true;
+    try {
+      await _stopPipecatStream(showStatus: false);
+      if (mounted) {
+        _snack('Connection lost. Tap to try again.');
+      }
+    } finally {
+      _handlingPipecatDisconnect = false;
     }
   }
 
   Future<void> _stopPipecatStream({bool showStatus = true}) async {
     final wasActive = _pipecatActive;
+    final remainingAudio = _pipecatMicBuffer.takeBytes();
+    if (wasActive && remainingAudio.isNotEmpty) {
+      try {
+        _backendApi.sendAudioChunk(remainingAudio);
+      } catch (_) {}
+    }
     _pipecatActive = false;
+    _pipecatPlaying = false;
     _pipecatPlaybackGeneration++;
     _pipecatSilenceTimer?.cancel();
     _pipecatSilenceTimer = null;
