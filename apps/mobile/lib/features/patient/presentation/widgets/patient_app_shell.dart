@@ -97,9 +97,7 @@ class _VoxButtonBody extends StatefulWidget {
 class _VoxButtonBodyState extends State<_VoxButtonBody> {
   static const Duration _initialListenFor = Duration(seconds: 5);
   static const Duration _followUpListenFor = Duration(seconds: 15);
-  static const Duration _pipecatInitialTimeout = Duration(seconds: 15);
-  static const Duration _pipecatConversationTimeout = Duration(seconds: 20);
-  static const Duration _pipecatResponseTimeout = Duration(seconds: 8);
+  static const Duration _pipecatSilenceTimeout = Duration(seconds: 15);
   static const int _pipecatMicChunkBytes = 6400;
 
   final AudioPlayer _player = AudioPlayer();
@@ -111,6 +109,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   bool _pipecatActive = false;
   bool _pipecatSpeaking = false;
   bool _pipecatPlaying = false;
+  bool _pipecatWaiting = false;
   bool _handlingPipecatDisconnect = false;
   bool _awaitingFollowUp = false;
   VoxLiveSession? _live;
@@ -121,9 +120,25 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   Timer? _pipecatSpeechResetTimer;
   final BytesBuilder _pipecatMicBuffer = BytesBuilder(copy: false);
   Future<void> _pipecatPlaybackQueue = Future<void>.value();
+  Completer<void>? _pipecatPlaybackInterrupted;
   int _pipecatPlaybackGeneration = 0;
+  int _pipecatQueuedAudioChunks = 0;
 
   bool get _voiceLiveActive => _liveActive || _pipecatActive;
+  String get _voxStatusTop {
+    if (_pipecatWaiting) return 'Thinking';
+    if (_pipecatActive) return 'Listening';
+    if (_liveActive) return 'Live';
+    if (_awaitingFollowUp) return 'Wait';
+    return 'Ask';
+  }
+
+  String get _voxStatusBottom {
+    if (_pipecatWaiting) return 'Please wait';
+    if (_voiceLiveActive) return 'Tap stop';
+    if (_awaitingFollowUp) return 'reply';
+    return 'me';
+  }
 
   @override
   void dispose() {
@@ -196,14 +211,6 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
 
   Future<void> _handleTap() async {
     if (_pipecatActive) {
-      if (_pipecatPlaying) {
-        _pipecatPlaybackGeneration++;
-        _pipecatPlaying = false;
-        await _player.stop();
-        _resetPipecatTimeout(_pipecatConversationTimeout);
-        _snack('Vox is listening...');
-        return;
-      }
       await _stopPipecatStream();
       return;
     }
@@ -269,6 +276,9 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     final preferredLanguage = await _preferredLanguage();
     final language = preferredLanguage == 'hi' ? 'hi' : 'en';
     _pipecatMicBuffer.takeBytes();
+    _pipecatQueuedAudioChunks = 0;
+    _pipecatWaiting = false;
+    _pipecatPlaying = false;
     await _backendApi.connectVoxStream(token: token, language: language);
 
     _pipecatAudioSubscription = _backendApi.voxAudioStream.listen(
@@ -299,7 +309,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       _busy = false;
     });
     _snack('Vox is listening... tap Vox to stop.');
-    _resetPipecatTimeout(_pipecatInitialTimeout);
+    _resetPipecatTimeout();
 
     _pipecatMicSubscription = micStream.listen(
       _handlePipecatMicChunk,
@@ -328,35 +338,72 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     }
 
     if (_pcmChunkHasSpeech(chunk)) {
-      _resetPipecatTimeout(_pipecatConversationTimeout);
+      _resetPipecatTimeout();
       if (!_pipecatSpeaking) {
         _pipecatSpeaking = true;
         _pipecatPlaybackGeneration++;
+        _pipecatPlaying = false;
+        _pipecatWaiting = false;
+        final interrupted = _pipecatPlaybackInterrupted;
+        if (interrupted != null && !interrupted.isCompleted) {
+          interrupted.complete();
+        }
+        if (mounted) {
+          setState(() => _busy = false);
+        }
         unawaited(_player.stop());
       }
       _pipecatSpeechResetTimer?.cancel();
       _pipecatSpeechResetTimer = Timer(
         const Duration(milliseconds: 500),
-        () => _pipecatSpeaking = false,
+        () {
+          _pipecatSpeaking = false;
+          if (_pipecatActive && !_pipecatPlaying && mounted) {
+            setState(() {
+              _pipecatWaiting = true;
+              _busy = true;
+            });
+          }
+        },
       );
     }
   }
 
   void _handlePipecatAudioChunk(Uint8List chunk) {
     if (!_pipecatActive || chunk.isEmpty) return;
-    _resetPipecatTimeout(_pipecatResponseTimeout);
+    _pipecatSilenceTimer?.cancel();
+    _pipecatWaiting = false;
+    _pipecatQueuedAudioChunks++;
+    if (mounted) {
+      setState(() => _busy = false);
+    }
     final generation = _pipecatPlaybackGeneration;
     _pipecatPlaybackQueue = _pipecatPlaybackQueue.then((_) async {
-      if (!_pipecatActive || generation != _pipecatPlaybackGeneration) {
-        return;
+      try {
+        if (!_pipecatActive || generation != _pipecatPlaybackGeneration) {
+          return;
+        }
+        await _playPipecatPcmChunk(chunk);
+      } finally {
+        _pipecatQueuedAudioChunks--;
+        if (_pipecatQueuedAudioChunks <= 0) {
+          _pipecatQueuedAudioChunks = 0;
+          _pipecatPlaying = false;
+          if (_pipecatActive) {
+            _pipecatWaiting = false;
+            if (mounted) {
+              setState(() => _busy = false);
+            }
+            _resetPipecatTimeout();
+          }
+        }
       }
-      await _playPipecatPcmChunk(chunk);
     });
   }
 
-  void _resetPipecatTimeout(Duration timeout) {
+  void _resetPipecatTimeout() {
     _pipecatSilenceTimer?.cancel();
-    _pipecatSilenceTimer = Timer(timeout, () {
+    _pipecatSilenceTimer = Timer(_pipecatSilenceTimeout, () {
       unawaited(_stopPipecatStream());
     });
   }
@@ -373,16 +420,25 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   Future<void> _playPipecatPcmChunk(Uint8List pcm) async {
     final wav = _pcm16ToWav(pcm, sampleRate: 24000);
     final done = _player.onPlayerComplete.first;
+    final interrupted = Completer<void>();
+    _pipecatPlaybackInterrupted = interrupted;
     _pipecatPlaying = true;
+    _pipecatWaiting = false;
+    if (mounted) {
+      setState(() => _busy = false);
+    }
+    await _player.play(BytesSource(wav, mimeType: 'audio/wav'));
     try {
-      await _player.play(BytesSource(wav, mimeType: 'audio/wav'));
-      try {
-        await done.timeout(const Duration(seconds: 10));
-      } on TimeoutException {
-        await _player.stop();
-      }
+      await Future.any<void>([
+        done,
+        interrupted.future,
+      ]).timeout(const Duration(seconds: 10));
+    } on TimeoutException {
+      await _player.stop();
     } finally {
-      _pipecatPlaying = false;
+      if (identical(_pipecatPlaybackInterrupted, interrupted)) {
+        _pipecatPlaybackInterrupted = null;
+      }
     }
   }
 
@@ -409,7 +465,13 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     }
     _pipecatActive = false;
     _pipecatPlaying = false;
+    _pipecatWaiting = false;
+    _pipecatQueuedAudioChunks = 0;
     _pipecatPlaybackGeneration++;
+    final interrupted = _pipecatPlaybackInterrupted;
+    if (interrupted != null && !interrupted.isCompleted) {
+      interrupted.complete();
+    }
     _pipecatSilenceTimer?.cancel();
     _pipecatSilenceTimer = null;
     _pipecatSpeechResetTimer?.cancel();
@@ -430,7 +492,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
 
     if (mounted) {
       setState(() => _busy = false);
-      if (showStatus && wasActive) _snack('Vox stopped.');
+      if (showStatus && wasActive) _snack('Talk to me anytime!');
     }
   }
 
@@ -743,30 +805,44 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  _voiceLiveActive
-                      ? 'Live'
-                      : (_awaitingFollowUp ? 'Wait' : 'Ask'),
-                  style: const TextStyle(
+                if (_pipecatPlaying) ...[
+                  const Icon(
+                    Icons.graphic_eq,
                     color: Colors.white,
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    height: 1,
+                    size: 13,
                   ),
-                ),
-                Text(
-                  _voiceLiveActive
-                      ? 'Tap stop'
-                      : (_awaitingFollowUp ? 'reply' : 'me'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    height: 1,
+                  const Text(
+                    'Speaking',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      height: 1,
+                    ),
                   ),
-                ),
+                ] else ...[
+                  Text(
+                    _voxStatusTop,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      height: 1,
+                    ),
+                  ),
+                  Text(
+                    _voxStatusBottom,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      height: 1,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
