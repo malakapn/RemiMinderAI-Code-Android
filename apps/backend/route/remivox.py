@@ -41,7 +41,7 @@ from services.remivox.pipecat_processor import RemiVoxProcessor
 
 logger = logging.getLogger(__name__)
 REMIVOX_PIPELINE = (os.getenv("REMIVOX_PIPELINE", "legacy") or "legacy").strip().lower()
-logger.info("RemiVox pipeline active: %s", REMIVOX_PIPELINE)
+logger.info("RemiVox pipeline: %s", REMIVOX_PIPELINE)
 
 router = APIRouter(prefix="/api/remivox", tags=["RemiVox"])
 
@@ -340,6 +340,43 @@ async def _authenticate_remivox_stream(
     return firebase_uid, tz, sid
 
 
+def _extract_remivox_keyword_boosts(reminders: dict[str, Any]) -> list[tuple[str, float]]:
+    keywords: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    for bucket in ("today", "upcoming"):
+        for item in reminders.get(bucket) or []:
+            if not isinstance(item, dict):
+                continue
+            for field in ("medication_name", "title", "message"):
+                name = str(item.get(field) or "").strip()
+                key = name.lower()
+                if not name or key in seen:
+                    continue
+                seen.add(key)
+                keywords.append((name, 3.0))
+                break
+    return keywords
+
+
+def _format_smallest_keywords(keywords: list[tuple[str, float]]) -> str:
+    formatted: list[str] = []
+    for name, boost in keywords:
+        clean_name = str(name).replace(",", " ").replace(":", " ").strip()
+        if clean_name:
+            formatted.append(f"{clean_name}:{boost:g}")
+    return ",".join(formatted)
+
+
+async def _load_remivox_stream_keywords(firebase_uid: str) -> list[tuple[str, float]]:
+    try:
+        user_uuid = await get_user_uuid(firebase_uid)
+        reminders = await list_patient_reminders(user_uuid)
+    except Exception as exc:
+        logger.warning("remivox stream keyword load failed: %s", exc)
+        return []
+    return _extract_remivox_keyword_boosts(reminders)
+
+
 def _build_remivox_pipecat_task(
     websocket: WebSocket,
     *,
@@ -347,7 +384,10 @@ def _build_remivox_pipecat_task(
     firebase_uid: str,
     timezone_name: str,
     session_id: Optional[str],
+    language: str = "en",
+    keywords: Optional[list[tuple[str, float]]] = None,
 ) -> tuple[PipelineRunner, PipelineTask]:
+    keyword_boosts = list(keywords or [])
     transport = FastAPIWebsocketTransport(
         websocket=websocket,
         params=FastAPIWebsocketParams(
@@ -361,11 +401,13 @@ def _build_remivox_pipecat_task(
     vad = VADProcessor(vad_analyzer=SileroVADAnalyzer(sample_rate=16000))
     stt = SmallestSTTService(
         api_key=api_key,
+        eou_timeout_ms=2000,
         settings=SmallestSTTService.Settings(
             model="pulse",
-            language="en",
+            language=language,
             endpointing=True,
             redact_pii=True,
+            keywords=_format_smallest_keywords(keyword_boosts),
             extra={"eou_timeout_ms": 2000},
         ),
     )
@@ -373,13 +415,14 @@ def _build_remivox_pipecat_task(
         firebase_uid=firebase_uid,
         timezone=timezone_name,
         session_id=session_id,
+        keywords=keyword_boosts,
     )
     tts = SmallestTTSService(
         api_key=api_key,
         settings=SmallestTTSService.Settings(
             model="lightning_v3.1",
             voice="meher",
-            language="en",
+            language=language,
             speed=0.85,
         ),
     )
@@ -403,6 +446,7 @@ async def remivox_stream(
     firebase_uid: str = Query(default=""),
     timezone: str = Query(default="UTC"),
     session_id: Optional[str] = Query(default=None),
+    language: str = Query(default="en"),
 ):
     await websocket.accept()
 
@@ -414,6 +458,17 @@ async def remivox_stream(
             }
         )
         await websocket.close(code=1013)
+        return
+
+    stream_language = (language or "en").strip().lower()
+    if stream_language not in {"en", "hi"}:
+        await websocket.send_json(
+            {
+                "type": "error",
+                "error": {"message": "Unsupported RemiVox stream language."},
+            }
+        )
+        await websocket.close(code=1008)
         return
 
     api_key = (os.getenv("SMALLESTAI_API_KEY") or "").strip()
@@ -433,12 +488,15 @@ async def remivox_stream(
             timezone_name=timezone,
             session_id=session_id,
         )
+        keyword_boosts = await _load_remivox_stream_keywords(stream_uid)
         runner, task = _build_remivox_pipecat_task(
             websocket,
             api_key=api_key,
             firebase_uid=stream_uid,
             timezone_name=stream_timezone,
             session_id=stream_session_id,
+            language=stream_language,
+            keywords=keyword_boosts,
         )
         await runner.run(task)
     except WebSocketDisconnect:

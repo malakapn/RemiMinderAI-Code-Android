@@ -18,11 +18,13 @@ class RemiVoxProcessor(FrameProcessor):
         firebase_uid: str,
         timezone: str = "UTC",
         session_id: str | None = None,
+        keywords: list[tuple[str, float]] | None = None,
     ):
         super().__init__()
         self.firebase_uid = firebase_uid
         self.timezone = timezone or "UTC"
         self.session_id = session_id
+        self.keywords = list(keywords or [])
 
     async def process_frame(self, frame, direction):
         await super().process_frame(frame, direction)
