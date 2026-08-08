@@ -42,7 +42,8 @@ class _RoundedNavigationBarState extends State<RoundedNavigationBar> {
         context.go('/patient/home');
         break;
       case NavigationItem.visits:
-        _showVisitActionSelection();
+        // Registered shell route — VisitsScreen hosts record/camera actions.
+        context.go('/patient/visits');
         break;
       case NavigationItem.overview:
         context.go('/patient/overview');

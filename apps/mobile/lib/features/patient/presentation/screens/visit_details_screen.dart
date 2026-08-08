@@ -14,17 +14,28 @@ class VisitDetailsScreen extends StatefulWidget {
   final String visitId;
   final String? visitDate;
   final String? patientId;
+  final bool missingVisitId;
+  final bool isCaregiverContext;
 
   VisitDetailsScreen({
     super.key,
     required this.visitId,
     this.visitDate,
     this.patientId,
-  }) {
+  })  : missingVisitId = false,
+        isCaregiverContext = false {
     if (kDebugMode) {
       print("🧨🧨🧨 Opening VisitDetailsScreen with visitId = $visitId");
     }
   }
+
+  const VisitDetailsScreen.missingVisitId({
+    super.key,
+    this.isCaregiverContext = false,
+  })  : visitId = '',
+        visitDate = null,
+        patientId = null,
+        missingVisitId = true;
 
   @override
   State<VisitDetailsScreen> createState() => _VisitDetailsScreenState();
@@ -48,6 +59,12 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.missingVisitId || widget.visitId.trim().isEmpty) {
+      _isLoadingSummary = false;
+      _isLoadingVisit = false;
+      _summaryStatus = 'error';
+      return;
+    }
     _fetchVisitMetadata();
     _fetchAISummary();
   }
@@ -153,12 +170,15 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
+        final decoded = json.decode(response.body);
+        final data = decoded is Map<String, dynamic>
+            ? decoded
+            : <String, dynamic>{};
         if (!mounted) return;
         setState(() {
-          _visitDoctor = data['doctor'] as String?;
-          _visitSpecialty = data['specialty'] as String?;
-          _visitTitle = data['title'] as String?;
+          _visitDoctor = _nullableString(data['doctor'] ?? data['doctor_name']);
+          _visitSpecialty = _nullableString(data['specialty']);
+          _visitTitle = _nullableString(data['title']);
           _isLoadingVisit = false;
         });
         return;
@@ -292,6 +312,62 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    if (widget.missingVisitId || widget.visitId.trim().isEmpty) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            onPressed: () {
+              if (widget.isCaregiverContext) {
+                context.go('/caregiver/patients');
+              } else {
+                context.go('/patient/visits');
+              }
+            },
+          ),
+          title: Text(
+            l10n.visitDetails,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline,
+                    size: 48, color: Colors.red[400]),
+                const SizedBox(height: 12),
+                Text(
+                  l10n.unableToLoadVisitSummary,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[700], fontSize: 15),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    if (widget.isCaregiverContext) {
+                      context.go('/caregiver/patients');
+                    } else {
+                      context.go('/patient/visits');
+                    }
+                  },
+                  child: Text(l10n.cancel),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -752,6 +828,12 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     return (_visitDoctor != null && _visitDoctor!.trim().isNotEmpty) ||
         (_visitSpecialty != null && _visitSpecialty!.trim().isNotEmpty) ||
         (_visitTitle != null && _visitTitle!.trim().isNotEmpty);
+  }
+
+  String? _nullableString(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
   }
 
   Widget _buildVisitHeader() {

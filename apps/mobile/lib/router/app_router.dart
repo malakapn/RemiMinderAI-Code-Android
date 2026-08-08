@@ -20,6 +20,7 @@ import '../features/caregiver/presentation/screens/alert_list_screen.dart';
 import '../features/caregiver/presentation/screens/accept_invitations_screen.dart';
 import '../features/patient/presentation/screens/visit_recording_screen.dart';
 import '../features/patient/presentation/screens/visit_details_screen.dart';
+import '../features/patient/presentation/screens/visits_screen.dart';
 import '../features/patient/presentation/screens/overview_screen.dart';
 import '../features/patient/presentation/screens/reminders_screen.dart';
 import '../features/patient/presentation/screens/camera_screen.dart';
@@ -164,6 +165,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const OverviewScreen(),
           ),
           GoRoute(
+            path: '/patient/visits',
+            builder: (context, state) => const VisitsScreen(),
+          ),
+          GoRoute(
             path: '/patient/care-team',
             builder: (context, state) => const CareTeamScreen(),
           ),
@@ -226,9 +231,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/patient/visit-details',
         builder: (context, state) {
-          final visitId = state.uri.queryParameters['visitId']!;
+          final visitId = state.uri.queryParameters['visitId']?.trim() ?? '';
           final visitDate = state.uri.queryParameters['visitDate'];
           final patientId = state.uri.queryParameters['patientId'];
+          if (visitId.isEmpty) {
+            return const VisitDetailsScreen.missingVisitId();
+          }
           return VisitDetailsScreen(
             visitId: visitId,
             visitDate: visitDate,
@@ -239,9 +247,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/caregiver/visit-details',
         builder: (context, state) {
-          final visitId = state.uri.queryParameters['visitId']!;
+          final visitId = state.uri.queryParameters['visitId']?.trim() ?? '';
           final visitDate = state.uri.queryParameters['visitDate'];
           final patientId = state.uri.queryParameters['patientId'];
+          if (visitId.isEmpty) {
+            return const VisitDetailsScreen.missingVisitId(
+              isCaregiverContext: true,
+            );
+          }
           return VisitDetailsScreen(
             visitId: visitId,
             visitDate: visitDate,

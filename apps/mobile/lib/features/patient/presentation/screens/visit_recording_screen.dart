@@ -46,13 +46,26 @@ class _VisitRecordingScreenState extends State<VisitRecordingScreen> {
   bool _isStartingRecording = false;
   bool _isStoppingRecording = false;
   bool _isSavingRecording = false;
+  bool _didFormatInitialTime = false;
 
   @override
   void initState() {
     super.initState();
-    // Establish this visit as the current visit context
+    // Establish this visit as the current visit context.
+    // Do not touch BuildContext here — LocaleFormat/AppLocalizations require
+    // inherited widgets that are not available until after initState completes.
     VisitContext().setCurrentVisit(widget.visitId);
-    _updateFormattedTime(); // Initialize timer display
+    // _formattedTime already defaults to '00:00'; locale-aware formatting
+    // happens in didChangeDependencies / when the timer ticks.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didFormatInitialTime) {
+      _didFormatInitialTime = true;
+      _updateFormattedTime();
+    }
   }
 
   @override

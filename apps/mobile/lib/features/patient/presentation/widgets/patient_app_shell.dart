@@ -530,6 +530,8 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
 NavigationItem getCurrentNavigationItem(String location) {
   if (location.startsWith('/patient/home')) {
     return NavigationItem.home;
+  } else if (location.startsWith('/patient/visits')) {
+    return NavigationItem.visits;
   } else if (location.startsWith('/patient/overview')) {
     return NavigationItem.overview;
   } else if (location.startsWith('/patient/care-team')) {
