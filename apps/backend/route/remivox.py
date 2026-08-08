@@ -1,5 +1,8 @@
+import json
 import logging
 import os
+import time
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -49,6 +52,23 @@ from services.remivox.pipecat_processor import RemiVoxProcessor
 logger = logging.getLogger(__name__)
 REMIVOX_PIPELINE = (os.getenv("REMIVOX_PIPELINE", "legacy") or "legacy").strip().lower()
 logger.info("RemiVox pipeline: %s", REMIVOX_PIPELINE)
+
+
+def _log_stream_event(event: str, *, level: int = logging.INFO, **fields) -> None:
+    logger.log(
+        level,
+        json.dumps(
+            {
+                "event": event,
+                "severity": logging.getLevelName(level),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                **fields,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+    )
+
 
 router = APIRouter(prefix="/api/remivox", tags=["RemiVox"])
 
@@ -492,6 +512,7 @@ def _build_remivox_pipecat_task(
     session_id: Optional[str],
     language: str = "en",
     keywords: Optional[list[tuple[str, float]]] = None,
+    session_stats: Optional[dict[str, int]] = None,
 ) -> tuple[PipelineRunner, PipelineTask]:
     keyword_boosts = list(keywords or [])
     audio_adapter = WebSocketAudioAdapter(
@@ -517,6 +538,7 @@ def _build_remivox_pipecat_task(
         timezone=timezone_name,
         session_id=session_id,
         keywords=keyword_boosts,
+        session_stats=session_stats,
     )
     tts = SmallestTTSService(
         api_key=api_key,
@@ -559,8 +581,16 @@ async def remivox_stream(
     language: str = Query(default="en"),
 ):
     await websocket.accept()
+    requested_uid = (firebase_uid or "").strip() or "unknown"
 
     if REMIVOX_PIPELINE != "pipecat":
+        _log_stream_event(
+            "remivox_stream_error",
+            level=logging.WARNING,
+            firebase_uid=requested_uid,
+            error_type="PipelineDisabled",
+            error_message="RemiVox Pipecat streaming is not enabled.",
+        )
         await websocket.send_json(
             {
                 "type": "error",
@@ -572,6 +602,13 @@ async def remivox_stream(
 
     stream_language = (language or "en").strip().lower()
     if stream_language not in {"en", "hi"}:
+        _log_stream_event(
+            "remivox_stream_error",
+            level=logging.WARNING,
+            firebase_uid=requested_uid,
+            error_type="UnsupportedLanguage",
+            error_message=f"Unsupported stream language: {stream_language}",
+        )
         await websocket.send_json(
             {
                 "type": "error",
@@ -583,6 +620,13 @@ async def remivox_stream(
 
     api_key = (os.getenv("SMALLESTAI_API_KEY") or "").strip()
     if not api_key:
+        _log_stream_event(
+            "remivox_stream_error",
+            level=logging.ERROR,
+            firebase_uid=requested_uid,
+            error_type="MissingConfiguration",
+            error_message="SMALLESTAI_API_KEY is not configured.",
+        )
         await websocket.send_json(
             {"type": "error", "error": {"message": "Smallest AI is not configured."}}
         )
@@ -590,6 +634,9 @@ async def remivox_stream(
         return
 
     task: Optional[PipelineTask] = None
+    stream_uid = ""
+    session_started_at: Optional[float] = None
+    session_stats = {"turns_count": 0}
     try:
         stream_uid, stream_timezone, stream_session_id = await _authenticate_remivox_stream(
             websocket,
@@ -597,6 +644,12 @@ async def remivox_stream(
             firebase_uid=firebase_uid,
             timezone_name=timezone,
             session_id=session_id,
+        )
+        session_started_at = time.monotonic()
+        _log_stream_event(
+            "remivox_stream_session_start",
+            firebase_uid=stream_uid,
+            language=stream_language,
         )
         keyword_boosts = await _load_remivox_stream_keywords(stream_uid)
         runner, task = _build_remivox_pipecat_task(
@@ -607,15 +660,29 @@ async def remivox_stream(
             session_id=stream_session_id,
             language=stream_language,
             keywords=keyword_boosts,
+            session_stats=session_stats,
         )
         await runner.run(task)
     except WebSocketDisconnect:
         return
-    except HTTPException:
+    except HTTPException as exc:
+        _log_stream_event(
+            "remivox_stream_error",
+            level=logging.WARNING,
+            firebase_uid=stream_uid or requested_uid,
+            error_type=type(exc).__name__,
+            error_message=str(exc.detail),
+        )
         await websocket.send_json({"type": "error", "error": {"message": "Unauthorized"}})
         await websocket.close(code=4401)
     except Exception as exc:
-        logger.warning("remivox stream ended: %s", exc)
+        _log_stream_event(
+            "remivox_stream_error",
+            level=logging.ERROR,
+            firebase_uid=stream_uid or requested_uid,
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+        )
         try:
             await websocket.send_json(
                 {"type": "error", "error": {"message": "RemiVox stream ended."}}
@@ -632,6 +699,16 @@ async def remivox_stream(
             await websocket.close()
         except Exception:
             pass
+        if session_started_at is not None and stream_uid:
+            _log_stream_event(
+                "remivox_stream_session_end",
+                firebase_uid=stream_uid,
+                duration_seconds=round(
+                    time.monotonic() - session_started_at,
+                    2,
+                ),
+                turns_count=int(session_stats.get("turns_count", 0)),
+            )
 
 
 async def _remivox_response(

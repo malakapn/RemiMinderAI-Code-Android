@@ -1,3 +1,7 @@
+import json
+import time
+from datetime import datetime, timezone
+
 from pipecat.frames.frames import TextFrame, TranscriptionFrame
 from pipecat.processors.frame_processor import FrameProcessor
 
@@ -6,6 +10,21 @@ from services.remivox.pipeline import run_care_turn
 
 
 logger = logging.getLogger("remivox.observability")
+
+
+def _log_turn_event(event: str, **fields) -> None:
+    logger.info(
+        json.dumps(
+            {
+                "event": event,
+                "severity": "INFO",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                **fields,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
 
 
 class RemiVoxProcessor(FrameProcessor):
@@ -19,12 +38,14 @@ class RemiVoxProcessor(FrameProcessor):
         timezone: str = "UTC",
         session_id: str | None = None,
         keywords: list[tuple[str, float]] | None = None,
+        session_stats: dict[str, int] | None = None,
     ):
         super().__init__()
         self.firebase_uid = firebase_uid
         self.timezone = timezone or "UTC"
         self.session_id = session_id
         self.keywords = list(keywords or [])
+        self.session_stats = session_stats
 
     async def process_frame(self, frame, direction):
         await super().process_frame(frame, direction)
@@ -41,14 +62,47 @@ class RemiVoxProcessor(FrameProcessor):
         if not transcript:
             return
 
-        response_text = await self._run_care_turn(transcript, frame)
+        turn_started = time.perf_counter()
+        frame_language = getattr(frame, "language", None)
+        language = getattr(frame_language, "value", frame_language) or "en"
+        _log_turn_event(
+            "remivox_turn_transcript_received",
+            text_length=len(transcript),
+            language=str(language),
+        )
+        if self.session_stats is not None:
+            self.session_stats["turns_count"] = (
+                int(self.session_stats.get("turns_count", 0)) + 1
+            )
+
+        response_text, intent_type = await self._run_care_turn(
+            transcript,
+            detected_language=str(language),
+        )
+        _log_turn_event(
+            "remivox_turn_intent_detected",
+            intent_type=intent_type,
+        )
         await self.push_frame(TextFrame(response_text))
+        _log_turn_event(
+            "remivox_turn_response_sent",
+            response_length=len(response_text),
+        )
+        _log_turn_event(
+            "remivox_turn_latency",
+            stt_to_response_ms=round(
+                (time.perf_counter() - turn_started) * 1000,
+                2,
+            ),
+        )
 
-    async def _run_care_turn(self, transcript: str, frame: TranscriptionFrame) -> str:
+    async def _run_care_turn(
+        self,
+        transcript: str,
+        *,
+        detected_language: str,
+    ) -> tuple[str, str]:
         try:
-            language = getattr(frame, "language", None)
-            detected_language = getattr(language, "value", language) if language else None
-
             result = await run_care_turn(
                 user_uuid=self.firebase_uid,
                 text=transcript,
@@ -61,10 +115,21 @@ class RemiVoxProcessor(FrameProcessor):
                 transcript=transcript,
             )
             response_text = (result.get("text") or "").strip()
-            return response_text or self.FALLBACK_RESPONSE
-        except Exception:
+            intent_type = str(result.get("intent") or "UNKNOWN")
+            return response_text or self.FALLBACK_RESPONSE, intent_type
+        except Exception as exc:
             logger.exception(
-                "remivox_pipecat_processor_error",
-                extra={"user_id": self.firebase_uid, "session_id": self.session_id},
+                json.dumps(
+                    {
+                        "event": "remivox_pipecat_processor_error",
+                        "severity": "ERROR",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "error_type": type(exc).__name__,
+                        "error_message": str(exc),
+                        "session_id": self.session_id,
+                    },
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
             )
-            return self.FALLBACK_RESPONSE
+            return self.FALLBACK_RESPONSE, "ERROR"
