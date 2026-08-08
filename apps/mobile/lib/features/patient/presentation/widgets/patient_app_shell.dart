@@ -734,7 +734,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     final session = VoxLiveSession(
       sourceLanguage: sourceLanguage,
       targetLanguage: targetLanguage,
-      mode: 'translate',
+      mode: VoxConfig.defaultLiveMode,
       timezone: await _timezone(),
     );
     setState(() {
