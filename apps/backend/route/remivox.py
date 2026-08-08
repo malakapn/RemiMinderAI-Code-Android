@@ -24,7 +24,11 @@ from pipecat.services.smallest.stt import SmallestSTTService
 from pipecat.services.smallest.tts import SmallestTTSService
 from pydantic import BaseModel, Field
 
-from services.auth_gateway import get_current_user_jwt, verify_auth_token
+from services.auth_gateway import (
+    get_current_user_jwt,
+    verify_auth_token,
+    verify_auth_token as verify_firebase_token,
+)
 from services.db_service import get_user_summaries, get_user_uuid
 from services.hydra_live_service import run_hydra_live_proxy
 from services.reminder_service import list_patient_reminders
@@ -463,31 +467,30 @@ async def _authenticate_remivox_stream(
     websocket: WebSocket,
     *,
     token: str,
-    firebase_uid: str,
     timezone_name: str,
     session_id: Optional[str],
 ) -> tuple[str, str, Optional[str]]:
     token = (token or "").strip()
-    firebase_uid = (firebase_uid or "").strip()
     tz = (timezone_name or "UTC").strip() or "UTC"
     sid = (session_id or "").strip() or None
 
-    if not token and not firebase_uid:
+    if not token:
         first_message = await websocket.receive_json()
         token = str(first_message.get("token") or first_message.get("idToken") or "").strip()
-        firebase_uid = str(
-            first_message.get("firebase_uid") or first_message.get("firebaseUid") or ""
-        ).strip()
         tz = str(first_message.get("timezone") or tz).strip() or "UTC"
         sid = str(first_message.get("session_id") or first_message.get("sessionId") or sid or "").strip()
         sid = sid or None
 
-    if token:
-        claims = verify_auth_token(token)
-        firebase_uid = claims.get("sub") or ""
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing Firebase token")
 
+    claims = verify_firebase_token(token)
+    firebase_uid = str(claims.get("sub") or "").strip()
     if not firebase_uid:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Firebase token: missing subject claim",
+        )
 
     await enforce_remivox_access(firebase_uid)
     return firebase_uid, tz, sid
@@ -602,12 +605,11 @@ def _build_remivox_pipecat_task(
 async def remivox_stream(
     websocket: WebSocket,
     token: str = Query(default=""),
-    firebase_uid: str = Query(default=""),
     timezone: str = Query(default="UTC"),
     session_id: Optional[str] = Query(default=None),
     language: str = Query(default="en"),
 ):
-    requested_uid = (firebase_uid or "").strip() or "unknown"
+    requested_uid = "unknown"
     task: Optional[PipelineTask] = None
     keepalive_task: Optional[asyncio.Task] = None
     stream_uid = ""
@@ -672,7 +674,6 @@ async def remivox_stream(
         stream_uid, stream_timezone, stream_session_id = await _authenticate_remivox_stream(
             websocket,
             token=token,
-            firebase_uid=firebase_uid,
             timezone_name=timezone,
             session_id=session_id,
         )
@@ -712,7 +713,7 @@ async def remivox_stream(
             await websocket.send_json(
                 {"type": "error", "error": {"message": "Unauthorized"}}
             )
-            await websocket.close(code=4401)
+            await websocket.close(code=1008)
         except Exception:
             pass
     except Exception as exc:
