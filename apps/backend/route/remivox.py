@@ -363,7 +363,7 @@ def _format_smallest_keywords(keywords: list[tuple[str, float]]) -> str:
     for name, boost in keywords:
         clean_name = str(name).replace(",", " ").replace(":", " ").strip()
         if clean_name:
-            formatted.append(f"{clean_name}:{boost:g}")
+            formatted.append(f"{clean_name}:{float(boost):.1f}")
     return ",".join(formatted)
 
 
