@@ -85,6 +85,14 @@ class UpdateReminderRoutingTests(unittest.TestCase):
         self.assertEqual(result.intent, VoxIntent.UPDATE_REMINDER)
         self.assertEqual(result.entities.get("time"), "21:00")
 
+    def test_contextual_update_routing(self):
+        result = route_intent(
+            text="Actually change that to 9",
+            language="en",
+        )
+        self.assertEqual(result.intent, VoxIntent.UPDATE_REMINDER)
+        self.assertEqual(result.entities.get("time"), "09:00")
+
 
 class CancelConfirmTests(unittest.TestCase):
     def test_cancel_action(self):
@@ -110,6 +118,26 @@ class CompleteAndReadTests(unittest.TestCase):
     def test_read_medications_today(self):
         result = route_intent(text="Read my medications today", language="en")
         self.assertEqual(result.intent, VoxIntent.READ_TODAY_MEDICATIONS)
+
+    def test_lab_results_route_to_hydra(self):
+        result = route_intent(text="Explain my lab results", language="en")
+        self.assertEqual(result.intent, VoxIntent.UNKNOWN)
+        self.assertEqual(result.entities.get("route"), "hydra")
+        self.assertEqual(
+            result.entities.get("conversation_type"),
+            "knowledge",
+        )
+
+    def test_family_appointment_routes_to_caregiver_brief(self):
+        result = route_intent(
+            text="Tell my daughter what happened at my appointment",
+            language="en",
+        )
+        self.assertEqual(result.intent, VoxIntent.CAREGIVER_BRIEF)
+
+    def test_latest_summary_does_not_false_match_test_keyword(self):
+        result = route_intent(text="Read my latest summary", language="en")
+        self.assertEqual(result.intent, VoxIntent.READ_DOCTOR_SUMMARY)
 
 
 class AmbiguousUpdateTests(unittest.IsolatedAsyncioTestCase):

@@ -62,9 +62,48 @@ _MEDICAL_ADVICE_PHRASES = (
     "prescribe",
 )
 
+_UPDATE_PHRASES = (
+    "change",
+    "modify",
+    "update",
+    "move",
+    "switch",
+    "reschedule",
+    "edit",
+)
+
+_HYDRA_KNOWLEDGE_PHRASES = (
+    "lab",
+    "results",
+    "blood",
+    "test",
+    "explain",
+    "what does",
+)
+
+_CAREGIVER_SHARE_PHRASES = (
+    "tell",
+    "share",
+    "let know",
+)
+
+_CAREGIVER_AUDIENCE_PHRASES = (
+    "daughter",
+    "son",
+    "family",
+    "caregiver",
+)
+
 
 def _has_any(text: str, phrases: tuple[str, ...]) -> bool:
     return any(p in text for p in phrases)
+
+
+def _has_keyword(text: str, phrases: tuple[str, ...]) -> bool:
+    return any(
+        re.search(rf"\b{re.escape(phrase)}\b", text)
+        for phrase in phrases
+    )
 
 
 def _merge_entities(
@@ -308,15 +347,25 @@ def route_intent(
         )
 
     # --- Update ---
-    if any(w in lower for w in ("update", "change", "move", "reschedule", "edit")) and (
-        "reminder" in lower or extract_medication_or_title(raw)
-    ):
-        hint = extract_medication_or_title(raw)
+    update_time = extract_time_hhmm(raw)
+    update_frequency = extract_frequency(raw)
+    update_hint = extract_medication_or_title(raw)
+    update_requested = _has_keyword(lower, _UPDATE_PHRASES) or (
+        "actually" in lower and (update_time or update_frequency)
+    )
+    update_targeted = (
+        "reminder" in lower
+        or "that" in lower
+        or bool(update_hint)
+    )
+    if update_requested and update_targeted:
         entities = {
-            "title_hint": hint,
-            "medication": hint,
-            "time": extract_time_hhmm(raw),
-            "frequency": (extract_frequency(raw).value if extract_frequency(raw) else None),
+            "title_hint": update_hint,
+            "medication": update_hint,
+            "time": update_time,
+            "frequency": (
+                update_frequency.value if update_frequency else None
+            ),
         }
         return IntentResult(
             intent=VoxIntent.UPDATE_REMINDER,
@@ -375,6 +424,33 @@ def route_intent(
             language=lang,
             entities={"title_hint": hint},
             confidence=0.9,
+            raw_transcript=raw,
+            normalized_text=raw,
+        )
+
+    # --- Conversational handoffs (before appointment/summary reads) ---
+    if _has_keyword(lower, _CAREGIVER_SHARE_PHRASES) and _has_keyword(
+        lower,
+        _CAREGIVER_AUDIENCE_PHRASES,
+    ):
+        return IntentResult(
+            intent=VoxIntent.CAREGIVER_BRIEF,
+            language=lang,
+            entities={"audience": "caregiver"},
+            confidence=0.95,
+            raw_transcript=raw,
+            normalized_text=raw,
+        )
+
+    if _has_keyword(lower, _HYDRA_KNOWLEDGE_PHRASES):
+        return IntentResult(
+            intent=VoxIntent.UNKNOWN,
+            language=lang,
+            entities={
+                "route": "hydra",
+                "conversation_type": "knowledge",
+            },
+            confidence=0.95,
             raw_transcript=raw,
             normalized_text=raw,
         )
