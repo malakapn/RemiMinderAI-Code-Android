@@ -1,0 +1,51 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE_NAME: remiminder-backend
+  _SMALLESTAI_SECRET: SMALLESTAI_API_KEY
+  _DB_HOST_SECRET: DB_HOST
+  _DB_PORT_SECRET: DB_PORT
+  _DB_NAME_SECRET: DB_NAME
+  _DB_USER_SECRET: DB_USER
+  _DB_PASSWORD_SECRET: DB_PASSWORD
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    dir: apps/backend
+    args:
+      - build
+      - --tag
+      - gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image=gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --platform=managed
+      - --port=8000
+      - --timeout=300s
+      - --concurrency=10
+      - --min-instances=0
+      - --max-instances=default
+      - --session-affinity
+      - --no-cpu-throttling
+      - --update-env-vars=REMIVOX_PIPELINE=pipecat,APP_ENV=production
+      - --update-secrets=SMALLESTAI_API_KEY=${_SMALLESTAI_SECRET}:latest,DB_HOST=${_DB_HOST_SECRET}:latest,DB_PORT=${_DB_PORT_SECRET}:latest,DB_NAME=${_DB_NAME_SECRET}:latest,DB_USER=${_DB_USER_SECRET}:latest,DB_PASSWORD=${_DB_PASSWORD_SECRET}:latest
+      - --allow-unauthenticated
+      - --quiet
+
+images:
+  - gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID

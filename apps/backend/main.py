@@ -151,6 +151,14 @@ def root() -> dict:
     return {"message": "Backend running!"}
 
 
+@app.get("/health")
+def health() -> dict:
+    return {
+        "status": "ok",
+        "pipeline": os.getenv("REMIVOX_PIPELINE", "legacy"),
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     # Run on all interfaces for development
