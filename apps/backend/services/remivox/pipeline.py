@@ -13,7 +13,10 @@ from typing import Any, Optional
 
 from services.remivox.actions.executor import execute_intent
 from services.remivox.intents.router import route_intent
-from services.remivox.languages import resolve_session_language
+from services.remivox.languages import (
+    DEFAULT_REMIVOX_LANGUAGE,
+    resolve_session_language,
+)
 from services.remivox.observability import log_action_execution, log_intent_decision, log_interaction
 from services.remivox.response.builder import build_response
 from services.remivox.state.conversation import (
@@ -27,7 +30,7 @@ async def run_care_turn(
     *,
     user_uuid: str,
     text: str,
-    language: str = "en",
+    language: str = DEFAULT_REMIVOX_LANGUAGE,
     detected_language: Optional[str] = None,
     reminders: dict,
     summaries: list[dict],
@@ -41,11 +44,11 @@ async def run_care_turn(
     Returns dict compatible with RemiVoxBriefingResponse fields plus intent metadata.
     """
     sid = (session_id or "default").strip() or "default"
-    detected = detected_language or language or "en"
+    detected = detected_language or language or DEFAULT_REMIVOX_LANGUAGE
     # Preserve detected/session language — do not force English.
     lang = resolve_session_language(
         detected_language=detected,
-        preferred_language=language or "en",
+        preferred_language=language or DEFAULT_REMIVOX_LANGUAGE,
         has_audio=bool(detected_language),
     )
 
@@ -180,7 +183,7 @@ async def run_pipeline(
     prompt: Optional[str] = None,
     audio_base64: Optional[str] = None,
     content_type: str = "audio/wav",
-    reply_language: str = "en",
+    reply_language: str = DEFAULT_REMIVOX_LANGUAGE,
     timezone_name: str = "UTC",
     auto_detect_language: bool = True,
     session_id: Optional[str] = None,

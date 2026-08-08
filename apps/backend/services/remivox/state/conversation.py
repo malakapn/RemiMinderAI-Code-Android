@@ -21,6 +21,7 @@ from typing import Any, Optional
 from services.cache_service import get as cache_get
 from services.cache_service import invalidate as cache_invalidate
 from services.cache_service import set as cache_set
+from services.remivox.languages import DEFAULT_REMIVOX_LANGUAGE
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ DEFAULT_STATE_TTL_SECONDS = 5 * 60  # 5 minutes
 class ConversationState:
     user_id: str
     session_id: str
-    language: str = "en"
+    language: str = DEFAULT_REMIVOX_LANGUAGE
     detected_language: Optional[str] = None
     pending_intent: Optional[str] = None
     pending_entities: dict[str, Any] = field(default_factory=dict)
@@ -69,7 +70,9 @@ class ConversationState:
             return cls(
                 user_id=str(data.get("user_id") or ""),
                 session_id=str(data.get("session_id") or ""),
-                language=str(data.get("language") or "en"),
+                language=str(
+                    data.get("language") or DEFAULT_REMIVOX_LANGUAGE
+                ),
                 detected_language=data.get("detected_language"),
                 pending_intent=data.get("pending_intent"),
                 pending_entities=dict(data.get("pending_entities") or {}),

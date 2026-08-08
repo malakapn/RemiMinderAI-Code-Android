@@ -82,7 +82,10 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen> {
                 .timeout(const Duration(seconds: 3));
             if (!mounted) return;
             final appLanguage =
-                normalizeLanguageCode(languagePrefs['app_language'] ?? 'en');
+                normalizeLanguageCode(
+                  languagePrefs['app_language'] ??
+                      kDefaultLanguageCode,
+                );
             if (kDebugMode) {
               print(
                   '🔄 LoadingScreen: Setting app language from API: $appLanguage');

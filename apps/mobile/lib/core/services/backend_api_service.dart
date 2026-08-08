@@ -9,6 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'auth_service.dart';
 import '../config/environment.dart';
+import '../config/supported_languages.dart';
 import '../models/user.dart';
 
 /// Service for making authenticated API calls to the backend
@@ -203,7 +204,7 @@ class BackendApiService {
 
   /// Vox today briefing
   Future<Map<String, dynamic>> getVoxTodayBriefing({
-    String replyLanguage = 'en',
+    String replyLanguage = kDefaultLanguageCode,
   }) async {
     final accessToken = await _authService.getAccessToken();
     if (accessToken == null) {
@@ -242,7 +243,7 @@ class BackendApiService {
 
   Future<Map<String, dynamic>> askVox(
     String? prompt, {
-    String replyLanguage = 'en',
+    String replyLanguage = kDefaultLanguageCode,
     String timezone = 'UTC',
     String? audioBase64,
     String contentType = 'audio/wav',
@@ -295,7 +296,7 @@ class BackendApiService {
   Future<Map<String, dynamic>> translateVoxTurn({
     String? text,
     String? audioBase64,
-    String sourceLanguage = 'en',
+    String sourceLanguage = kDefaultLanguageCode,
     String targetLanguage = 'bn',
     String contentType = 'audio/wav',
   }) async {
@@ -333,24 +334,24 @@ class BackendApiService {
 
   Uri voxStreamWebSocketUri({
     required String token,
-    String language = 'en',
+    String language = kDefaultLanguageCode,
   }) {
     final base = Uri.parse(Environment.apiBaseUrl);
     return Uri(
       scheme: base.scheme == 'https' ? 'wss' : 'ws',
       host: base.host,
       port: base.hasPort ? base.port : null,
-      path: '/api/remivox/stream',
+      path: Environment.remivoxStreamPath,
       queryParameters: {
         'token': token,
-        'language': language,
+        'language': normalizeVoxLanguageCode(language),
       },
     );
   }
 
   Future<void> connectVoxStream({
     required String token,
-    String language = 'en',
+    String language = kDefaultLanguageCode,
   }) async {
     await closeVoxStream();
 
@@ -494,7 +495,7 @@ class BackendApiService {
   Uri voxLiveWebSocketUri({
     required String accessToken,
     String mode = 'translate',
-    String sourceLanguage = 'en',
+    String sourceLanguage = kDefaultLanguageCode,
     String targetLanguage = 'bn',
     String timezone = 'UTC',
   }) {
@@ -504,7 +505,7 @@ class BackendApiService {
       scheme: scheme,
       host: base.host,
       port: base.hasPort ? base.port : null,
-      path: '/api/remivox/live',
+      path: Environment.remivoxLivePath,
       queryParameters: {
         'token': accessToken,
         'mode': mode,

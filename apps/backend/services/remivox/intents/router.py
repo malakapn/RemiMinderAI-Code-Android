@@ -15,7 +15,10 @@ from services.remivox.intents.extractors import (
     extract_time_hhmm,
 )
 from services.remivox.intents.models import IntentResult, VoxIntent, VoxRecurrence
-from services.remivox.languages import normalize_language_code
+from services.remivox.languages import (
+    DEFAULT_REMIVOX_LANGUAGE,
+    normalize_language_code,
+)
 
 _CANCEL_PHRASES = (
     "cancel that",
@@ -151,7 +154,7 @@ def _extract_create_entities(text: str) -> dict[str, Any]:
 def route_intent(
     *,
     text: str,
-    language: str = "en",
+    language: str = DEFAULT_REMIVOX_LANGUAGE,
     pending_intent: Optional[str] = None,
     pending_entities: Optional[dict[str, Any]] = None,
 ) -> IntentResult:

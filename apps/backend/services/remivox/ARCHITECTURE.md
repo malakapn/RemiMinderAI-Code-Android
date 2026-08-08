@@ -93,13 +93,13 @@ Mobile
   → WS /api/remivox/stream
     → Pipecat Pipeline
       → SmallestSTTService
-        (Pulse streaming, eou_timeout_ms=2000)
+        (Pulse streaming, REMIVOX_EOU_TIMEOUT_MS; default 2000)
       → SileroVADAnalyzer
         (interruption handling)
       → RemiVoxProcessor
         (calls run_care_turn)
       → SmallestTTSService
-        (Lightning v3.1, speed=0.85)
+        (REMIVOX_TTS_MODEL, REMIVOX_TTS_SPEED)
     → WebSocket audio back to mobile
 ```
 
@@ -115,11 +115,11 @@ languages are rejected before pipeline startup.
 
 ### Elderly UX
 
-- `eou_timeout_ms=2000` prevents the STT service from cutting off speakers who
-  pause while forming a thought.
-- Lightning TTS uses `speed=0.85` for slower, clearer responses.
+- `REMIVOX_EOU_TIMEOUT_MS` (default `2000`) prevents the STT service from
+  cutting off speakers who pause while forming a thought.
+- `REMIVOX_TTS_SPEED` (default `0.85`) produces slower, clearer responses.
 - Active reminder and medication names are loaded for per-user STT keyword
-  boosting.
+  boosting through `REMIVOX_KEYWORD_BOOST` (default `3.0`).
 - SileroVAD supports interruption handling so TTS stops when the user begins
   speaking.
 

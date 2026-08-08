@@ -12,6 +12,10 @@ from typing import Any, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from services.remivox.languages import (
+    DEFAULT_REMIVOX_LANGUAGE,
+    SUPPORTED_LANGUAGE_CODES,
+)
 
 class VoxIntent(str, Enum):
     """Deterministic care / conversation intents for RemiVox v2."""
@@ -56,7 +60,7 @@ PROTECTED_ACTIONS: frozenset[VoxIntent] = frozenset(
 )
 
 SUPPORTED_VOX_LANGUAGES: frozenset[str] = frozenset(
-    {"en", "hi", "gu", "ta", "pa", "bn", "fr", "pt", "es", "de"}
+    SUPPORTED_LANGUAGE_CODES
 )
 
 
@@ -186,7 +190,7 @@ class IntentResult(BaseModel):
 
     intent: VoxIntent
     language: str = Field(
-        default="en",
+        default=DEFAULT_REMIVOX_LANGUAGE,
         description="BCP-47-ish primary language code from session / STT.",
     )
     entities: dict[str, Any] = Field(default_factory=dict)

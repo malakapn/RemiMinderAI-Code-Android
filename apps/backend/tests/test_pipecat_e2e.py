@@ -9,12 +9,24 @@ from unittest.mock import AsyncMock, patch
 
 from fastapi import HTTPException
 
-def _silence_wav(duration_seconds: float = 0.25, sample_rate: int = 16000) -> bytes:
-    audio = b"\x00\x00" * int(duration_seconds * sample_rate)
+from services.remivox.config import (
+    REMIVOX_AUDIO_BYTES_PER_SAMPLE,
+    REMIVOX_INPUT_NUM_CHANNELS,
+    REMIVOX_INPUT_SAMPLE_RATE,
+)
+
+
+def _silence_wav(
+    duration_seconds: float = 0.25,
+    sample_rate: int = REMIVOX_INPUT_SAMPLE_RATE,
+) -> bytes:
+    audio = (
+        b"\x00" * REMIVOX_AUDIO_BYTES_PER_SAMPLE
+    ) * int(duration_seconds * sample_rate)
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as wav:
-        wav.setnchannels(1)
-        wav.setsampwidth(2)
+        wav.setnchannels(REMIVOX_INPUT_NUM_CHANNELS)
+        wav.setsampwidth(REMIVOX_AUDIO_BYTES_PER_SAMPLE)
         wav.setframerate(sample_rate)
         wav.writeframes(audio)
     return buffer.getvalue()

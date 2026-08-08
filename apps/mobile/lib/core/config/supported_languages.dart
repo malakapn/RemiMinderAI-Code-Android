@@ -1,8 +1,11 @@
 /// App + visit-summary language codes supported end-to-end.
+const String kDefaultLanguageCode = 'en';
+const String kHindiLanguageCode = 'hi';
+
 const Set<String> kSupportedLanguageCodes = {
-  'en',
+  kDefaultLanguageCode,
   'es',
-  'hi',
+  kHindiLanguageCode,
   'fr',
   'pt',
   'de',
@@ -14,7 +17,31 @@ const Set<String> kSupportedLanguageCodes = {
 
 String normalizeLanguageCode(String raw) {
   final code = raw.trim().toLowerCase();
-  return kSupportedLanguageCodes.contains(code) ? code : 'en';
+  return kSupportedLanguageCodes.contains(code)
+      ? code
+      : kDefaultLanguageCode;
+}
+
+const Set<String> kVoxSupportedLanguageCodes = {
+  kDefaultLanguageCode,
+  kHindiLanguageCode,
+};
+
+String normalizeVoxLanguageCode(String raw) {
+  final code = raw.trim().toLowerCase();
+  return kVoxSupportedLanguageCodes.contains(code)
+      ? code
+      : kDefaultLanguageCode;
+}
+
+abstract final class VoxAudioConfig {
+  static const int inputSampleRate = 16000;
+  static const int outputSampleRate = 24000;
+  static const int inputChannels = 1;
+  static const int bytesPerSample = 2;
+  static const int chunkDurationMilliseconds = 200;
+  static const int inputChunkBytes =
+      inputSampleRate * bytesPerSample * chunkDurationMilliseconds ~/ 1000;
 }
 
 class SupportedLanguage {
@@ -28,9 +55,9 @@ class SupportedLanguage {
 }
 
 const List<SupportedLanguage> kSupportedLanguages = [
-  SupportedLanguage(code: 'en', nativeName: 'English'),
+  SupportedLanguage(code: kDefaultLanguageCode, nativeName: 'English'),
   SupportedLanguage(code: 'es', nativeName: 'Español'),
-  SupportedLanguage(code: 'hi', nativeName: 'हिन्दी'),
+  SupportedLanguage(code: kHindiLanguageCode, nativeName: 'हिन्दी'),
   SupportedLanguage(code: 'fr', nativeName: 'Français'),
   SupportedLanguage(code: 'pt', nativeName: 'Português'),
   SupportedLanguage(code: 'de', nativeName: 'Deutsch'),

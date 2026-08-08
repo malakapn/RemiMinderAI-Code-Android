@@ -23,7 +23,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
     switch (normalizeLanguageCode(code)) {
       case 'es':
         return l10n.spanish;
-      case 'hi':
+      case kHindiLanguageCode:
         return l10n.hindi;
       case 'fr':
         return l10n.french;

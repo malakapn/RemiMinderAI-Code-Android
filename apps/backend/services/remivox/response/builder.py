@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from services.remivox.actions.types import ActionResult
 from services.remivox.intents.models import IntentResult, VoxIntent
+from services.remivox.languages import DEFAULT_REMIVOX_LANGUAGE
 
 NO_DISCLAIMER_INTENTS: frozenset[VoxIntent] = frozenset(
     {
@@ -56,7 +57,7 @@ def build_response(
     *,
     intent_result: IntentResult,
     action_result: Optional[ActionResult] = None,
-    reply_language: str = "en",
+    reply_language: str = DEFAULT_REMIVOX_LANGUAGE,
 ) -> dict[str, Any]:
     """Build spoken/text reply: {text, include_disclaimer, language, intent}."""
     intent = intent_result.intent

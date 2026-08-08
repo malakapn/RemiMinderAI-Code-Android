@@ -32,8 +32,26 @@ from services.auth_gateway import (
 from services.db_service import get_user_summaries, get_user_uuid
 from services.hydra_live_service import run_hydra_live_proxy
 from services.reminder_service import list_patient_reminders
+from services.remivox.config import (
+    REMIVOX_EOU_TIMEOUT_MS,
+    REMIVOX_INPUT_NUM_CHANNELS,
+    REMIVOX_INPUT_SAMPLE_RATE,
+    REMIVOX_KEYWORD_BOOST,
+    REMIVOX_OUTPUT_SAMPLE_RATE,
+    REMIVOX_PING_INTERVAL_S,
+    REMIVOX_PIPELINE,
+    REMIVOX_STT_MODEL,
+    REMIVOX_TTS_MODEL,
+    REMIVOX_TTS_SPEED,
+    REMIVOX_TTS_VOICE,
+)
 from services.remivox.pipeline import run_care_turn
-from services.remivox.languages import resolve_session_language
+from services.remivox.languages import (
+    DEFAULT_REMIVOX_LANGUAGE,
+    DEFAULT_REMIVOX_LANGUAGE_NAME,
+    SUPPORTED_LANGUAGES,
+    resolve_session_language,
+)
 from services.remivox.voice import (
     VoiceConfigError,
     VoiceSynthesisError,
@@ -55,7 +73,6 @@ from services.subscription_service import (
 from services.remivox.pipecat_processor import RemiVoxProcessor
 
 logger = logging.getLogger(__name__)
-REMIVOX_PIPELINE = (os.getenv("REMIVOX_PIPELINE", "legacy") or "legacy").strip().lower()
 logger.info("RemiVox pipeline: %s", REMIVOX_PIPELINE)
 
 
@@ -78,7 +95,7 @@ def _log_stream_event(event: str, *, level: int = logging.INFO, **fields) -> Non
 async def _remivox_stream_keepalive(websocket: WebSocket) -> None:
     try:
         while True:
-            await asyncio.sleep(30)
+            await asyncio.sleep(REMIVOX_PING_INTERVAL_S)
             await websocket.send_json(
                 {
                     "type": "ping",
@@ -186,8 +203,8 @@ class WebSocketAudioAdapter:
         self,
         websocket: WebSocket,
         *,
-        input_sample_rate: int = 16000,
-        input_num_channels: int = 1,
+        input_sample_rate: int = REMIVOX_INPUT_SAMPLE_RATE,
+        input_num_channels: int = REMIVOX_INPUT_NUM_CHANNELS,
     ):
         self._input = _WebSocketAudioInputProcessor(
             websocket,
@@ -219,7 +236,7 @@ class RemiVoxBriefingResponse(BaseModel):
 
 class RemiVoxAskRequest(BaseModel):
     prompt: Optional[str] = None
-    reply_language: Optional[str] = Field(default="en")
+    reply_language: Optional[str] = Field(default=DEFAULT_REMIVOX_LANGUAGE)
     timezone: Optional[str] = Field(default="UTC")
     audio_base64: Optional[str] = None
     content_type: Optional[str] = "audio/wav"
@@ -235,7 +252,7 @@ class RemiVoxTranslateTurnRequest(BaseModel):
 
     audio_base64: Optional[str] = None
     text: Optional[str] = None
-    source_language: str = "en"
+    source_language: str = DEFAULT_REMIVOX_LANGUAGE
     target_language: str = "bn"
     content_type: Optional[str] = "audio/wav"
 
@@ -244,7 +261,10 @@ class RemiVoxLanguagesResponse(BaseModel):
     languages: list[dict[str, str]]
 
 
-def _synthesize_smallestai(text: str, language: str = "en") -> tuple[Optional[str], Optional[str]]:
+def _synthesize_smallestai(
+    text: str,
+    language: str = DEFAULT_REMIVOX_LANGUAGE,
+) -> tuple[Optional[str], Optional[str]]:
     """
     Compatibility wrapper → Voice Layer Lightning TTS.
 
@@ -267,7 +287,7 @@ def _pulse_transcribe(
     audio_b64: str,
     language: str = "multi",
     content_type: str = "audio/wav",
-    preferred_language_fallback: str = "en",
+    preferred_language_fallback: str = DEFAULT_REMIVOX_LANGUAGE,
 ) -> tuple[str, str]:
     """
     Compatibility wrapper → Voice Layer Pulse STT.
@@ -340,7 +360,7 @@ async def remivox_languages():
 
 @router.post("/today", response_model=RemiVoxBriefingResponse)
 async def remivox_today(
-    reply_language: str = Query(default="en"),
+    reply_language: str = Query(default=DEFAULT_REMIVOX_LANGUAGE),
     current_user: dict = Depends(get_current_user_jwt),
 ):
     return await _remivox_response(
@@ -359,7 +379,7 @@ async def remivox_ask(
     return await _remivox_response(
         current_user=current_user,
         prompt=request.prompt,
-        reply_language=request.reply_language or "en",
+        reply_language=request.reply_language or DEFAULT_REMIVOX_LANGUAGE,
         timezone_name=request.timezone or "UTC",
         audio_base64=request.audio_base64,
         content_type=request.content_type or "audio/wav",
@@ -386,7 +406,7 @@ async def remivox_translate_turn(
             raise HTTPException(status_code=400, detail="Provide text or audio_base64.")
         source_text, detected = _pulse_transcribe(
             request.audio_base64,
-            language="multi" if src == "en" else src,
+            language="multi" if src == DEFAULT_REMIVOX_LANGUAGE else src,
             content_type=request.content_type or "audio/wav",
         )
         if detected:
@@ -419,7 +439,7 @@ async def remivox_live(
     websocket: WebSocket,
     token: str = Query(default=""),
     mode: str = Query(default="translate"),
-    source_language: str = Query(default="en"),
+    source_language: str = Query(default=DEFAULT_REMIVOX_LANGUAGE),
     target_language: str = Query(default="bn"),
     timezone: str = Query(default="UTC"),
 ):
@@ -509,7 +529,7 @@ def _extract_remivox_keyword_boosts(reminders: dict[str, Any]) -> list[tuple[str
                 if not name or key in seen:
                     continue
                 seen.add(key)
-                keywords.append((name, 3.0))
+                keywords.append((name, REMIVOX_KEYWORD_BOOST))
                 break
     return keywords
 
@@ -540,27 +560,31 @@ def _build_remivox_pipecat_task(
     firebase_uid: str,
     timezone_name: str,
     session_id: Optional[str],
-    language: str = "en",
+    language: str = DEFAULT_REMIVOX_LANGUAGE,
     keywords: Optional[list[tuple[str, float]]] = None,
     session_stats: Optional[dict[str, int]] = None,
 ) -> tuple[PipelineRunner, PipelineTask]:
     keyword_boosts = list(keywords or [])
     audio_adapter = WebSocketAudioAdapter(
         websocket,
-        input_sample_rate=16000,
-        input_num_channels=1,
+        input_sample_rate=REMIVOX_INPUT_SAMPLE_RATE,
+        input_num_channels=REMIVOX_INPUT_NUM_CHANNELS,
     )
-    vad = VADProcessor(vad_analyzer=SileroVADAnalyzer(sample_rate=16000))
+    vad = VADProcessor(
+        vad_analyzer=SileroVADAnalyzer(
+            sample_rate=REMIVOX_INPUT_SAMPLE_RATE
+        )
+    )
     stt = SmallestSTTService(
         api_key=api_key,
-        eou_timeout_ms=2000,
+        eou_timeout_ms=REMIVOX_EOU_TIMEOUT_MS,
         settings=SmallestSTTService.Settings(
-            model="pulse",
+            model=REMIVOX_STT_MODEL,
             language=language,
             endpointing=True,
             redact_pii=True,
             keywords=_format_smallest_keywords(keyword_boosts),
-            extra={"eou_timeout_ms": 2000},
+            extra={"eou_timeout_ms": REMIVOX_EOU_TIMEOUT_MS},
         ),
     )
     processor = RemiVoxProcessor(
@@ -573,10 +597,10 @@ def _build_remivox_pipecat_task(
     tts = SmallestTTSService(
         api_key=api_key,
         settings=SmallestTTSService.Settings(
-            model="lightning_v3.1",
-            voice="meher",
+            model=REMIVOX_TTS_MODEL,
+            voice=REMIVOX_TTS_VOICE,
             language=language,
-            speed=0.85,
+            speed=REMIVOX_TTS_SPEED,
         ),
     )
 
@@ -593,8 +617,8 @@ def _build_remivox_pipecat_task(
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
-            audio_in_sample_rate=16000,
-            audio_out_sample_rate=24000,
+            audio_in_sample_rate=REMIVOX_INPUT_SAMPLE_RATE,
+            audio_out_sample_rate=REMIVOX_OUTPUT_SAMPLE_RATE,
         ),
     )
     runner = PipelineRunner(handle_sigint=False)
@@ -607,7 +631,7 @@ async def remivox_stream(
     token: str = Query(default=""),
     timezone: str = Query(default="UTC"),
     session_id: Optional[str] = Query(default=None),
-    language: str = Query(default="en"),
+    language: str = Query(default=DEFAULT_REMIVOX_LANGUAGE),
 ):
     requested_uid = "unknown"
     task: Optional[PipelineTask] = None
@@ -635,8 +659,10 @@ async def remivox_stream(
             await websocket.close(code=1013)
             return
 
-        stream_language = (language or "en").strip().lower()
-        if stream_language not in {"en", "hi"}:
+        stream_language = (
+            language or DEFAULT_REMIVOX_LANGUAGE
+        ).strip().lower()
+        if stream_language not in SUPPORTED_LANGUAGES:
             _log_stream_event(
                 "remivox_stream_error",
                 level=logging.WARNING,
@@ -811,8 +837,12 @@ async def _remivox_response(
     if intent_prompt:
         # Intent Router is English-keyed; translate non-English speech → English for routing.
         english_prompt = intent_prompt
-        if lang != "en":
-            english_prompt = _simple_translate(intent_prompt, lang, "en")
+        if lang != DEFAULT_REMIVOX_LANGUAGE:
+            english_prompt = _simple_translate(
+                intent_prompt,
+                lang,
+                DEFAULT_REMIVOX_LANGUAGE,
+            )
 
         # Stage C: Intent Router → Action Executor → Response Builder
         result = await run_care_turn(
@@ -830,8 +860,12 @@ async def _remivox_response(
         action = result.get("action")
         action_payload = result.get("action_payload") or {}
         # Speak back in the language the user used.
-        if lang != "en":
-            text = _simple_translate(text, "en", lang)
+        if lang != DEFAULT_REMIVOX_LANGUAGE:
+            text = _simple_translate(
+                text,
+                DEFAULT_REMIVOX_LANGUAGE,
+                lang,
+            )
     else:
         text = build_briefing(reminders, summaries)
         # Stage C personality: strip legacy always-on disclaimer from briefing.
@@ -840,8 +874,12 @@ async def _remivox_response(
             "if anything feels unclear.",
             "",
         ).strip()
-        if lang != "en":
-            text = _simple_translate(text, "en", lang)
+        if lang != DEFAULT_REMIVOX_LANGUAGE:
+            text = _simple_translate(
+                text,
+                DEFAULT_REMIVOX_LANGUAGE,
+                lang,
+            )
         action = "briefing"
         action_payload = {}
 
@@ -849,7 +887,10 @@ async def _remivox_response(
     try:
         tts = synthesize_lightning(text, language=lang)
         audio_out, out_type = tts.audio_base64, tts.content_type
-        if tts.fallback_status == "english" and action_payload is not None:
+        if (
+            tts.fallback_status == DEFAULT_REMIVOX_LANGUAGE_NAME
+            and action_payload is not None
+        ):
             action_payload = {**action_payload, "tts_fallback": tts.fallback_status}
     except VoiceSynthesisError as exc:
         raise HTTPException(

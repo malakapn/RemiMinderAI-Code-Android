@@ -7,6 +7,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class Environment {
   static bool _isLoaded = false;
 
+  static const String remivoxStreamPath = '/api/remivox/stream';
+  static const String remivoxLivePath = '/api/remivox/live';
+
   static const String _productionApiBaseUrl =
       'https://remiminder-backend-575820802106.us-central1.run.app';
 
@@ -38,6 +41,22 @@ class Environment {
 
   static String get flutterEnv =>
       _isLoaded ? (dotenv.env['FLUTTER_ENV'] ?? 'development') : 'development';
+
+  static bool get remivoxUsePipecatStream {
+    final raw = _isLoaded
+        ? dotenv.env['REMIVOX_USE_PIPECAT_STREAM']
+        : null;
+    if (raw == null || raw.trim().isEmpty) return true;
+    return {'1', 'true', 'yes', 'on'}.contains(raw.trim().toLowerCase());
+  }
+
+  static int get remivoxSilenceTimeoutSeconds {
+    final raw = _isLoaded
+        ? dotenv.env['REMIVOX_SILENCE_TIMEOUT_S']
+        : null;
+    final parsed = int.tryParse(raw?.trim() ?? '');
+    return parsed != null && parsed > 0 ? parsed : 15;
+  }
 
   static String get googleWebClientId {
     String? pick(String? raw) {

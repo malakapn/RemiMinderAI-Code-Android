@@ -16,10 +16,18 @@ from services.remivox_languages import (
     normalize_language_code,
 )
 
+DEFAULT_REMIVOX_LANGUAGE = "en"
+HINDI_REMIVOX_LANGUAGE = "hi"
+SUPPORTED_LANGUAGES: dict[str, str] = {
+    DEFAULT_REMIVOX_LANGUAGE: "english",
+    HINDI_REMIVOX_LANGUAGE: "hindi",
+}
+DEFAULT_REMIVOX_LANGUAGE_NAME = SUPPORTED_LANGUAGES[DEFAULT_REMIVOX_LANGUAGE]
+
 # Canonical ordered list for Vox v2 (product order).
 SUPPORTED_VOX_LANGUAGE_ORDER: tuple[str, ...] = (
-    "en",  # English
-    "hi",  # Hindi
+    DEFAULT_REMIVOX_LANGUAGE,
+    HINDI_REMIVOX_LANGUAGE,
     "gu",  # Gujarati
     "ta",  # Tamil
     "pa",  # Punjabi
@@ -47,7 +55,9 @@ def resolve_session_language(
     - Without audio: use preferred app language.
     - Never force English unless detected/preferred is English (or unsupported → preferred).
     """
-    preferred = normalize_language_code(preferred_language or "en")
+    preferred = normalize_language_code(
+        preferred_language or DEFAULT_REMIVOX_LANGUAGE
+    )
     if has_audio and detected_language:
         detected = normalize_language_code(detected_language, default=preferred)
         if detected in SUPPORTED_LANGUAGE_CODES:
@@ -56,7 +66,10 @@ def resolve_session_language(
     return preferred
 
 
-def ensure_supported_language(code: Optional[str], fallback: str = "en") -> str:
+def ensure_supported_language(
+    code: Optional[str],
+    fallback: str = DEFAULT_REMIVOX_LANGUAGE,
+) -> str:
     """Clamp to supported Vox languages without silently rewriting valid non-EN codes."""
     normalized = normalize_language_code(code, default=fallback)
     return normalized if normalized in SUPPORTED_LANGUAGE_CODES else normalize_language_code(fallback)
@@ -65,7 +78,11 @@ def ensure_supported_language(code: Optional[str], fallback: str = "en") -> str:
 __all__ = [
     "LANGUAGE_DISPLAY_NAMES",
     "SUPPORTED_LANGUAGE_CODES",
+    "SUPPORTED_LANGUAGES",
     "SUPPORTED_VOX_LANGUAGE_ORDER",
+    "DEFAULT_REMIVOX_LANGUAGE",
+    "DEFAULT_REMIVOX_LANGUAGE_NAME",
+    "HINDI_REMIVOX_LANGUAGE",
     "language_display_name",
     "normalize_language_code",
     "resolve_session_language",

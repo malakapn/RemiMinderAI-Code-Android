@@ -11,6 +11,7 @@ import 'package:record/record.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/supported_languages.dart';
+import '../../../../core/config/environment.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/backend_api_service.dart';
@@ -97,13 +98,15 @@ class _VoxButtonBody extends StatefulWidget {
 class _VoxButtonBodyState extends State<_VoxButtonBody> {
   static const Duration _initialListenFor = Duration(seconds: 5);
   static const Duration _followUpListenFor = Duration(seconds: 15);
-  static const Duration _pipecatSilenceTimeout = Duration(seconds: 15);
-  static const int _pipecatMicChunkBytes = 6400;
+  static final Duration _pipecatSilenceTimeout = Duration(
+    seconds: Environment.remivoxSilenceTimeoutSeconds,
+  );
+  static const int _pipecatMicChunkBytes = VoxAudioConfig.inputChunkBytes;
 
   final AudioPlayer _player = AudioPlayer();
   final AudioRecorder _recorder = AudioRecorder();
   final BackendApiService _backendApi = BackendApiService();
-  bool _usePipecatStream = true;
+  bool _usePipecatStream = Environment.remivoxUsePipecatStream;
   bool _busy = false;
   bool _liveActive = false;
   bool _pipecatActive = false;
@@ -171,10 +174,11 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     try {
       final prefs = await SharedPreferences.getInstance();
       return normalizeLanguageCode(
-        prefs.getString(kPreferredLanguagePrefsKey) ?? 'en',
+        prefs.getString(kPreferredLanguagePrefsKey) ??
+            kDefaultLanguageCode,
       );
     } catch (_) {
-      return 'en';
+      return kDefaultLanguageCode;
     }
   }
 
@@ -274,7 +278,7 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     }
 
     final preferredLanguage = await _preferredLanguage();
-    final language = preferredLanguage == 'hi' ? 'hi' : 'en';
+    final language = normalizeVoxLanguageCode(preferredLanguage);
     _pipecatMicBuffer.takeBytes();
     _pipecatQueuedAudioChunks = 0;
     _pipecatWaiting = false;
@@ -295,8 +299,8 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
     final micStream = await _recorder.startStream(
       const RecordConfig(
         encoder: AudioEncoder.pcm16bits,
-        sampleRate: 16000,
-        numChannels: 1,
+        sampleRate: VoxAudioConfig.inputSampleRate,
+        numChannels: VoxAudioConfig.inputChannels,
       ),
     );
 
@@ -418,7 +422,10 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
   }
 
   Future<void> _playPipecatPcmChunk(Uint8List pcm) async {
-    final wav = _pcm16ToWav(pcm, sampleRate: 24000);
+    final wav = _pcm16ToWav(
+      pcm,
+      sampleRate: VoxAudioConfig.outputSampleRate,
+    );
     final done = _player.onPlayerComplete.first;
     final interrupted = Completer<void>();
     _pipecatPlaybackInterrupted = interrupted;
@@ -599,7 +606,9 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
         await _startLiveInPlace(
           sourceLanguage: detected,
           targetLanguage: target == detected
-              ? (detected == 'en' ? 'bn' : 'en')
+              ? (detected == kDefaultLanguageCode
+                    ? 'bn'
+                    : kDefaultLanguageCode)
               : target,
         );
         return;
@@ -679,8 +688,8 @@ class _VoxButtonBodyState extends State<_VoxButtonBody> {
       await _recorder.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
-          sampleRate: 16000,
-          numChannels: 1,
+          sampleRate: VoxAudioConfig.inputSampleRate,
+          numChannels: VoxAudioConfig.inputChannels,
         ),
         path: path,
       );

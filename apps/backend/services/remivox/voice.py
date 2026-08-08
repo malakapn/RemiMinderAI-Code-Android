@@ -18,7 +18,12 @@ from typing import Any, Optional
 
 import requests
 
-from services.remivox.languages import normalize_language_code
+from services.remivox.config import REMIVOX_OUTPUT_SAMPLE_RATE
+from services.remivox.languages import (
+    DEFAULT_REMIVOX_LANGUAGE,
+    DEFAULT_REMIVOX_LANGUAGE_NAME,
+    normalize_language_code,
+)
 from services.remivox.observability import log_voice_operation
 
 logger = logging.getLogger(__name__)
@@ -83,7 +88,7 @@ class TtsResult:
 def resolve_stt_language(
     *,
     auto_detect_language: bool,
-    preferred_language: str = "en",
+    preferred_language: str = DEFAULT_REMIVOX_LANGUAGE,
 ) -> str:
     """
     Map ask-request flags to Pulse language parameter.
@@ -117,11 +122,19 @@ def _parse_pulse_payload(
     metadata: dict[str, Any] = {}
     if not isinstance(data, dict):
         text = (raw_text_fallback or str(data or "")).strip()
-        detected = normalize_language_code(lang_param if lang_param != "multi" else "en")
+        detected = normalize_language_code(
+            lang_param
+            if lang_param != "multi"
+            else DEFAULT_REMIVOX_LANGUAGE
+        )
         return text, detected, metadata
 
     text = ""
-    detected = lang_param if lang_param != "multi" else "en"
+    detected = (
+        lang_param
+        if lang_param != "multi"
+        else DEFAULT_REMIVOX_LANGUAGE
+    )
     for key in ("text", "transcript", "transcription"):
         if data.get(key):
             text = str(data[key]).strip()
@@ -143,7 +156,11 @@ def _parse_pulse_payload(
         detected = normalize_language_code(str(raw_lang))
         metadata["raw_language"] = str(raw_lang)
     else:
-        detected = normalize_language_code(detected if detected != "multi" else "en")
+        detected = normalize_language_code(
+            detected
+            if detected != "multi"
+            else DEFAULT_REMIVOX_LANGUAGE
+        )
 
     return text, detected, metadata
 
@@ -182,7 +199,7 @@ def transcribe_pulse(
     *,
     language: str = "multi",
     content_type: str = "audio/wav",
-    preferred_language_fallback: str = "en",
+    preferred_language_fallback: str = DEFAULT_REMIVOX_LANGUAGE,
 ) -> SttResult:
     """
     Transcribe with SmallestAI Pulse.
@@ -217,8 +234,8 @@ def transcribe_pulse(
     preferred = normalize_language_code(preferred_language_fallback)
     if lang_param == "multi" and preferred not in attempts:
         attempts.append(preferred)
-    if "en" not in attempts:
-        attempts.append("en")
+    if DEFAULT_REMIVOX_LANGUAGE not in attempts:
+        attempts.append(DEFAULT_REMIVOX_LANGUAGE)
 
     last_error: Optional[str] = None
     for attempt_lang in attempts:
@@ -297,7 +314,7 @@ def transcribe_pulse(
 def synthesize_lightning(
     text: str,
     *,
-    language: str = "en",
+    language: str = DEFAULT_REMIVOX_LANGUAGE,
 ) -> TtsResult:
     """
     Synthesize with SmallestAI Lightning.
@@ -330,11 +347,18 @@ def synthesize_lightning(
 
     requested = normalize_language_code(language)
     # Prefer Lightning v2 for non-English Remi locales (broader coverage).
-    default_url = DEFAULT_TTS_URL_MULTI if requested != "en" else DEFAULT_TTS_URL_EN
+    default_url = (
+        DEFAULT_TTS_URL_MULTI
+        if requested != DEFAULT_REMIVOX_LANGUAGE
+        else DEFAULT_TTS_URL_EN
+    )
     url = (os.getenv("SMALLESTAI_TTS_URL") or default_url).strip()
     voice_id = (os.getenv("SMALLESTAI_VOICE_ID") or "olivia").strip()
     output_format = (os.getenv("SMALLESTAI_OUTPUT_FORMAT") or "mp3").strip()
-    sample_rate = int(os.getenv("SMALLESTAI_SAMPLE_RATE") or "24000")
+    sample_rate = int(
+        os.getenv("SMALLESTAI_SAMPLE_RATE")
+        or str(REMIVOX_OUTPUT_SAMPLE_RATE)
+    )
 
     payload: dict[str, Any] = {
         "text": text,
@@ -371,16 +395,16 @@ def synthesize_lightning(
         )
         raise VoiceSynthesisError("Vox voice generation failed.") from exc
 
-    if response.status_code >= 400 and requested != "en":
+    if response.status_code >= 400 and requested != DEFAULT_REMIVOX_LANGUAGE:
         logger.warning(
             "SmallestAI TTS locale failed (%s): %s %s",
             requested,
             response.status_code,
             response.text[:200],
         )
-        payload["language"] = "en"
-        language_used = "en"
-        fallback_status = "english"
+        payload["language"] = DEFAULT_REMIVOX_LANGUAGE
+        language_used = DEFAULT_REMIVOX_LANGUAGE
+        fallback_status = DEFAULT_REMIVOX_LANGUAGE_NAME
         try:
             response = requests.post(
                 os.getenv("SMALLESTAI_TTS_URL_FALLBACK") or DEFAULT_TTS_URL_EN,
@@ -397,7 +421,7 @@ def synthesize_lightning(
                 provider=LIGHTNING_PROVIDER,
                 operation="tts",
                 input_language=requested,
-                output_language="en",
+                output_language=DEFAULT_REMIVOX_LANGUAGE,
                 latency_ms=latency_ms,
                 success=False,
                 error=str(exc),

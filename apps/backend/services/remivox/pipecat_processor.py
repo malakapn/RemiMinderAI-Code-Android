@@ -8,6 +8,7 @@ from pipecat.processors.frame_processor import FrameProcessor
 
 from services.db_service import get_user_summaries, get_user_uuid
 from services.reminder_service import list_patient_reminders
+from services.remivox.languages import DEFAULT_REMIVOX_LANGUAGE
 from services.remivox.observability import logging
 from services.remivox.pipeline import run_care_turn
 
@@ -68,7 +69,10 @@ class RemiVoxProcessor(FrameProcessor):
 
         turn_started = time.perf_counter()
         frame_language = getattr(frame, "language", None)
-        language = getattr(frame_language, "value", frame_language) or "en"
+        language = (
+            getattr(frame_language, "value", frame_language)
+            or DEFAULT_REMIVOX_LANGUAGE
+        )
         _log_turn_event(
             "remivox_turn_transcript_received",
             text_length=len(transcript),
@@ -118,7 +122,7 @@ class RemiVoxProcessor(FrameProcessor):
             result = await run_care_turn(
                 user_uuid=user_uuid,
                 text=transcript,
-                language=detected_language or "en",
+                language=detected_language or DEFAULT_REMIVOX_LANGUAGE,
                 detected_language=detected_language,
                 reminders=reminders,
                 summaries=summaries,

@@ -10,6 +10,15 @@ substitutions:
   _DB_NAME_SECRET: DB_NAME
   _DB_USER_SECRET: DB_USER
   _DB_PASSWORD_SECRET: DB_PASSWORD
+  _REMIVOX_STT_MODEL: pulse
+  _REMIVOX_TTS_MODEL: lightning_v3.1
+  _REMIVOX_TTS_VOICE: meher
+  _REMIVOX_TTS_SPEED: '0.85'
+  _REMIVOX_EOU_TIMEOUT_MS: '2000'
+  _REMIVOX_KEYWORD_BOOST: '3.0'
+  _REMIVOX_PING_INTERVAL_S: '30'
+  _REMIVOX_SILENCE_TIMEOUT_S: '15'
+  _REMIVOX_SESSION_MAX_S: '300'
 
 steps:
   - name: gcr.io/cloud-builders/docker
@@ -36,13 +45,13 @@ steps:
       - --project=$PROJECT_ID
       - --platform=managed
       - --port=8000
-      - --timeout=300s
+      - --timeout=${_REMIVOX_SESSION_MAX_S}s
       - --concurrency=10
       - --min-instances=0
       - --max-instances=default
       - --session-affinity
       - --no-cpu-throttling
-      - --update-env-vars=REMIVOX_PIPELINE=pipecat,APP_ENV=production
+      - --update-env-vars=REMIVOX_PIPELINE=pipecat,APP_ENV=production,REMIVOX_STT_MODEL=${_REMIVOX_STT_MODEL},REMIVOX_TTS_MODEL=${_REMIVOX_TTS_MODEL},REMIVOX_TTS_VOICE=${_REMIVOX_TTS_VOICE},REMIVOX_TTS_SPEED=${_REMIVOX_TTS_SPEED},REMIVOX_EOU_TIMEOUT_MS=${_REMIVOX_EOU_TIMEOUT_MS},REMIVOX_KEYWORD_BOOST=${_REMIVOX_KEYWORD_BOOST},REMIVOX_PING_INTERVAL_S=${_REMIVOX_PING_INTERVAL_S},REMIVOX_SILENCE_TIMEOUT_S=${_REMIVOX_SILENCE_TIMEOUT_S},REMIVOX_SESSION_MAX_S=${_REMIVOX_SESSION_MAX_S}
       - --update-secrets=SMALLESTAI_API_KEY=${_SMALLESTAI_SECRET}:latest,DB_HOST=${_DB_HOST_SECRET}:latest,DB_PORT=${_DB_PORT_SECRET}:latest,DB_NAME=${_DB_NAME_SECRET}:latest,DB_USER=${_DB_USER_SECRET}:latest,DB_PASSWORD=${_DB_PASSWORD_SECRET}:latest
       - --allow-unauthenticated
       - --quiet

@@ -16,14 +16,15 @@ class LocaleNotifier extends Notifier<Locale> {
   @override
   Locale build() {
     Future.microtask(_loadSavedLocale);
-    return const Locale('en');
+    return const Locale(kDefaultLanguageCode);
   }
 
   Future<void> _loadSavedLocale() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final code = normalizeLanguageCode(
-        prefs.getString(kPreferredLanguagePrefsKey) ?? 'en',
+        prefs.getString(kPreferredLanguagePrefsKey) ??
+            kDefaultLanguageCode,
       );
       if (code != state.languageCode) {
         state = Locale(code);

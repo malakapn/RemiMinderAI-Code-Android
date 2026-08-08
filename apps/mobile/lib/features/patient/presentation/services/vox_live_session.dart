@@ -112,8 +112,8 @@ class VoxLiveSession {
     final stream = await _recorder.startStream(
       const RecordConfig(
         encoder: AudioEncoder.pcm16bits,
-        sampleRate: 16000,
-        numChannels: 1,
+        sampleRate: VoxAudioConfig.inputSampleRate,
+        numChannels: VoxAudioConfig.inputChannels,
       ),
     );
     _micSub = stream.listen((chunk) {
